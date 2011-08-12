@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <trace/events/iommu.h>
+#include <linux/scatterlist.h>
 
 static struct kset *iommu_group_kset;
 static struct ida iommu_group_ida;

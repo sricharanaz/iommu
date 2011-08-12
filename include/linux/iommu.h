@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 #include <trace/events/iommu.h>
+#include <linux/scatterlist.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -128,6 +129,10 @@ struct iommu_ops {
 		      unsigned int len);
 	size_t (*map_sg)(struct iommu_domain *domain, unsigned long iova,
 			 struct scatterlist *sg, unsigned int nents, int prot);
+	int (*map_range)(struct iommu_domain *domain, unsigned int iova,
+		    struct scatterlist *sg, unsigned int len, int prot);
+	int (*unmap_range)(struct iommu_domain *domain, unsigned int iova,
+		      unsigned int len);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
@@ -182,6 +187,10 @@ extern int iommu_unmap_range(struct iommu_domain *domain, unsigned int iova,
 extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 				struct scatterlist *sg,unsigned int nents,
 				int prot);
+extern int iommu_map_range(struct iommu_domain *domain, unsigned int iova,
+		    struct scatterlist *sg, unsigned int len, int prot);
+extern int iommu_unmap_range(struct iommu_domain *domain, unsigned int iova,
+		      unsigned int len);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
