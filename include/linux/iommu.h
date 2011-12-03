@@ -19,6 +19,7 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
@@ -124,6 +125,7 @@ struct iommu_ops {
 	size_t (*map_sg)(struct iommu_domain *domain, unsigned long iova,
 			 struct scatterlist *sg, unsigned int nents, int prot);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
+	phys_addr_t (*get_pt_base_addr)(struct iommu_domain *domain);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
 	int (*device_group)(struct device *dev, unsigned int *groupid);
@@ -174,6 +176,7 @@ extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long io
 				struct scatterlist *sg,unsigned int nents,
 				int prot);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
+extern phys_addr_t iommu_get_pt_base_addr(struct iommu_domain *domain);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
 
@@ -337,6 +340,11 @@ static inline void iommu_domain_window_disable(struct iommu_domain *domain,
 }
 
 static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
+{
+	return 0;
+}
+
+static inline phys_addr_t iommu_get_pt_base_addr(struct iommu_domain *domain)
 {
 	return 0;
 }
