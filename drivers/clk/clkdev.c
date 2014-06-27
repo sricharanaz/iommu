@@ -215,7 +215,7 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 out:
 	mutex_unlock(&clocks_mutex);
 
-	return cl ? clk : ERR_PTR(-ENOENT);
+	return cl ? clk : ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(clk_get_sys);
 
