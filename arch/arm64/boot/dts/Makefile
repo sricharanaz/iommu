@@ -6,5 +6,6 @@ dts-dirs += exynos
 dts-dirs += freescale
 dts-dirs += mediatek
 dts-dirs += qcom
-
+ 
+always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
