@@ -321,6 +321,11 @@ struct arm_smmu_device {
 
 	int				num_clocks;
 	struct clk			**clocks;
+
+	struct regulator		*gdsc;
+
+	struct mutex			attach_lock;
+	unsigned int			attach_count;
 };
 
 struct arm_smmu_cfg {
@@ -553,6 +558,22 @@ static int __arm_smmu_alloc_bitmap(unsigned long *map, int start, int end)
 static void __arm_smmu_free_bitmap(unsigned long *map, int idx)
 {
 	clear_bit(idx, map);
+}
+
+static int arm_smmu_enable_regulators(struct arm_smmu_device *smmu)
+{
+	if (!smmu->gdsc)
+		return 0;
+
+	return regulator_enable(smmu->gdsc);
+}
+
+static int arm_smmu_disable_regulators(struct arm_smmu_device *smmu)
+{
+	if (!smmu->gdsc)
+		return 0;
+
+	return regulator_disable(smmu->gdsc);
 }
 
 /* Wait for any pending TLB invalidations to complete */
@@ -1184,6 +1205,8 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 	arm_smmu_disable_clocks(smmu);
 }
 
+static void arm_smmu_device_reset(struct arm_smmu_device *smmu);
+
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	int ret;
@@ -1197,7 +1220,15 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
-	arm_smmu_enable_clocks(smmu);
+	mutex_lock(&smmu->attach_lock);
+	if (!smmu->attach_count++) {
+		arm_smmu_enable_regulators(smmu);
+		arm_smmu_enable_clocks(smmu);
+		arm_smmu_device_reset(smmu);
+	} else {
+		arm_smmu_enable_clocks(smmu);
+	}
+	mutex_unlock(&smmu->attach_lock);
 
 	if (dev->archdata.iommu) {
 		dev_err(dev, "already attached to IOMMU domain\n");
@@ -1207,7 +1238,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
 	if (IS_ERR_VALUE(ret))
-			goto disable_clocks;
+			goto err_disable_clocks;
 
 	/*
 	 * Sanity check the domain. We don't support domains across
@@ -1218,7 +1249,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 			"cannot attach to SMMU %s whilst already attached to domain on SMMU %s\n",
 			dev_name(smmu_domain->smmu->dev), dev_name(smmu->dev));
 		ret = -EINVAL;
-		goto disable_clocks;
+		goto err_disable_clocks;
 	}
 
 	/* Looks ok, so add the device to the domain */
@@ -1231,22 +1262,46 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
 	if (!ret)
 		dev->archdata.iommu = domain;
-disable_clocks:
+
 	arm_smmu_disable_clocks(smmu);
 	return ret;
+
+err_disable_clocks:
+       arm_smmu_disable_clocks(smmu);
+       mutex_lock(&smmu->attach_lock);
+       if (!--smmu->attach_count)
+               arm_smmu_disable_regulators(smmu);
+       mutex_unlock(&smmu->attach_lock);
+       return ret;
+}
+
+static void arm_smmu_power_off(struct arm_smmu_device *smmu)
+{
+       /* Turn the thing off */
+       arm_smmu_enable_clocks(smmu);
+       writel_relaxed(sCR0_CLIENTPD,
+               ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+       arm_smmu_disable_clocks(smmu);
+       arm_smmu_disable_regulators(smmu);
 }
 
 static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	struct arm_smmu_domain *smmu_domain = domain->priv;
 	struct arm_smmu_master_cfg *cfg;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
 
 	cfg = find_smmu_master_cfg(dev);
 	if (!cfg)
 		return;
 
 	dev->archdata.iommu = NULL;
+
 	arm_smmu_domain_remove_master(smmu_domain, cfg);
+	mutex_lock(&smmu->attach_lock);
+	if (!--smmu->attach_count)
+		arm_smmu_power_off(smmu);
+	mutex_unlock(&smmu->attach_lock);
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1572,6 +1627,20 @@ static int arm_smmu_id_size_to_bits(int size)
 	}
 }
 
+static int arm_smmu_init_regulators(struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+
+	if (!of_get_property(dev->of_node, "vdd-supply", NULL))
+		return 0;
+
+	smmu->gdsc = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(smmu->gdsc))
+		return PTR_ERR(smmu->gdsc);
+
+	return 0;
+}
+
 static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
 {
 	const char *cname;
@@ -1788,6 +1857,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	smmu->dev = dev;
+	mutex_init(&smmu->attach_lock);
 
 	of_id = of_match_node(arm_smmu_of_match, dev->of_node);
 	smmu->version = (enum arm_smmu_arch_version)of_id->data;
@@ -1834,15 +1904,21 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+	err = arm_smmu_init_regulators(smmu);
+	if (err)
+		goto out_put_masters;
+
 	err = arm_smmu_init_clocks(smmu);
 	if (err)
 		goto out_put_masters;
 
+	arm_smmu_enable_regulators(smmu);
 	arm_smmu_enable_clocks(smmu);
-
 	err = arm_smmu_device_cfg_probe(smmu);
+	arm_smmu_disable_clocks(smmu);
+	arm_smmu_disable_regulators(smmu);
 	if (err)
-		goto out_disable_clocks;
+		goto out_put_masters;
 
 	i = 0;
 	smmu->masters = RB_ROOT;
@@ -1868,7 +1944,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 			"found only %d context interrupt(s) but %d required\n",
 			smmu->num_context_irqs, smmu->num_context_banks);
 		err = -ENODEV;
-		goto out_disable_clocks;
+		goto out_put_masters;
 	}
 
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
@@ -1889,16 +1965,11 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	list_add(&smmu->list, &arm_smmu_devices);
 	spin_unlock(&arm_smmu_devices_lock);
 
-	arm_smmu_device_reset(smmu);
-	arm_smmu_disable_clocks(smmu);
 	return 0;
 
 out_free_irqs:
 	while (i--)
 		free_irq(smmu->irqs[i], smmu);
-
-out_disable_clocks:
-	arm_smmu_disable_clocks(smmu);
 
 out_put_masters:
 	for (node = rb_first(&smmu->masters); node; node = rb_next(node)) {
