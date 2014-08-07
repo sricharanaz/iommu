@@ -297,6 +297,7 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
+#define ARM_SMMU_OPT_INVALIDATE_ON_MAP (1 << 1)
 	u32				options;
 	enum arm_smmu_arch_version	version;
 
@@ -365,6 +366,7 @@ struct arm_smmu_option_prop {
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
+	{ ARM_SMMU_OPT_INVALIDATE_ON_MAP, "qcom,smmu-invalidate-on-map" },
 	{ 0, NULL},
 };
 
@@ -1376,6 +1378,14 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
 	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);
+
+	if (!ret &&
+		(smmu_domain->smmu->options & ARM_SMMU_OPT_INVALIDATE_ON_MAP)) {
+		arm_smmu_enable_clocks(smmu_domain->smmu);
+		arm_smmu_tlb_inv_context(smmu_domain);
+		arm_smmu_disable_clocks(smmu_domain->smmu);
+	}
+
 	return ret;
 }
 
