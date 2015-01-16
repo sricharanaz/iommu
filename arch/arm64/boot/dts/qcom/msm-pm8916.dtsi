@@ -31,6 +31,7 @@
 			interrupt-names = "kpdpwr", "resin";
 			qcom,pon-dbc-delay = <15625>;
 			qcom,system-reset;
+			qcom,clear-warm-reset;
 
 			qcom,pon_1 {
 				qcom,pon-type = <0>;
@@ -196,6 +197,7 @@
 			qcom,adc-bit-resolution = <15>;
 			qcom,adc-vdd-reference = <1800>;
 			qcom,adc_tm-vadc = <&pm8916_vadc>;
+			qcom,pmic-revid = <&pm8916_revid>;
 		};
 
 		pm8916_chg: qcom,charger {
@@ -538,6 +540,7 @@
 			reg-names = "qpnp-lpg-channel-base";
 			qcom,channel-id = <0>;
 			qcom,supported-sizes = <6>, <9>;
+			#pwm-cells = <2>;
 		};
 
 		pm8916_vib: qcom,vibrator@c000 {

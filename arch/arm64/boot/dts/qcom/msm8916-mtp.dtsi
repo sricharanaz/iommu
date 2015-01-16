@@ -30,9 +30,10 @@
 			vdd-supply = <&pm8916_l17>;
 			vcc_i2c-supply = <&pm8916_l6>;
 			/* pins used by touchscreen */
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
+			pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_suspend";
 			pinctrl-0 = <&ts_int_active &ts_reset_active>;
 			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
 			synaptics,display-coords = <0 0 1079 1919>;
 			synaptics,panel-coords = <0 0 1079 2084>;
 			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
@@ -40,6 +41,10 @@
 			synaptics,i2c-pull-up;
 			synaptics,power-down;
 			synaptics,disable-gpios;
+			/* Underlying clocks used by secure touch */
+			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup5_i2c_apps_clk>;
+			clock-names = "iface_clk", "core_clk";
 		};
 	};
 
@@ -135,6 +140,7 @@
 		qcom,msm-mclk-freq = <9600000>;
 		qcom,msm-mbhc-hphl-swh = <0>;
 		qcom,msm-mbhc-gnd-swh = <0>;
+		qcom,msm-micbias1-ext-cap;
 		qcom,msm-hs-micbias-type = "internal";
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -145,7 +151,11 @@
 			"MIC BIAS External", "Secondary Mic",
 			"AMIC1", "MIC BIAS External",
 			"AMIC2", "MIC BIAS Internal2",
-			"AMIC3", "MIC BIAS External";
+			"AMIC3", "MIC BIAS External",
+			"DMIC1", "MIC BIAS Internal1",
+			"MIC BIAS Internal1", "Digital Mic1",
+			"DMIC2", "MIC BIAS Internal1",
+			"MIC BIAS Internal1", "Digital Mic2";
 		pinctrl-names = "cdc_lines_act",
 				"cdc_lines_sus",
 				"cdc_lines_sec_ext_act",
@@ -166,8 +176,9 @@
 
 &blsp1_uart2 {
 	status = "ok";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart_console_sleep>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&uart_console_default>;
+	pinctrl-1 = <&uart_console_sleep>;
 };
 
 &soc {
@@ -324,14 +335,24 @@
 
 };
 
-&pmx_mdss {
-	qcom,num-grp-pins = <3>;
-	qcom,pins = <&gp 97>, <&gp 25>, <&gp 98>;
+&mdss_dsi_active {
+	pinmux {
+		function = "gpio";
+		pins = "gpio97", "gpio25", "gpio98";
+	};
+	pinconf {
+		pins = "gpio97", "gpio25", "gpio98";
+	};
 };
 
-&pmx_mdss_te {
-	qcom,num-grp-pins = <1>;
-	qcom,pins = <&gp 24>;
+&mdss_dsi_suspend {
+	pinmux {
+		function = "gpio";
+		pins = "gpio97", "gpio25", "gpio98";
+	};
+	pinconf {
+		pins = "gpio97", "gpio25", "gpio98";
+	};
 };
 
 &mdss_dsi0 {

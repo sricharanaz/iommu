@@ -14,45 +14,68 @@
 #include "dsi-panel-innolux-720p-video.dtsi"
 #include "msm8916-camera-sensor-qrd.dtsi"
 
-&tlmm_pinmux {
+&msm_gpio {
 	akm_reset_pin {
-		qcom,pins = <&gp 36>;
-		qcom,pin-func = <0>;
-		qcom,num-grp-pins = <1>;
-		label = "akm_reset_pin";
 		akm_default: akm_default {
-			drive-strength = <6>;
-			bias-pull-up;
+			pinmux {
+				function = "gpio";
+				pins = "gpio36";
+			};
+			pinconf {
+				pins = "gpio36";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
 		};
 		akm_sleep: akm_sleep {
-			drive-strength = <2>;
-			bias-pull-down;
+			pinmux {
+				function = "gpio";
+				pins = "gpio36";
+			};
+			pinconf {
+				pins = "gpio36";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
 	};
 
 	lis3dh_int1_pin {
-		qcom,pins = <&gp 115>;
-		qcom,num-grp-pins = <1>;
-		label = "lis3dh_int_pin";
 		lis3dh_int1_default: int1_default {
-			drive-strength = <6>;
-			bias-pull-down;
+			pinmux {
+				function = "gpio";
+				pins = "gpio115";
+			};
+			pinconf {
+				pins = "gpio115";
+				drive-strength = <6>;
+				bias-pull-down;
+			};
 		};
 		lis3dh_int1_sleep: int1_sleep {
-			drive-strength = <2>;
-			bias-pull-down;
+			pinmux {
+				function = "gpio";
+				pins = "gpio115";
+			};
+			pinconf {
+				pins = "gpio115";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
 	};
 
 	tps65132-en-pin {
-		qcom,pins = <&gp 32>, <&gp 97>;
-		qcom,num-grp-pins = <2>;
-		label = "tps65132_en_pins";
-		qcom,pin-func = <0>;
-
 		tps65132_en_default: en-default {
-			drive-strength = <2>;
-			bias-pull-down;
+			pinmux {
+				function = "gpio";
+				pins = "gpio32", "gpio97";
+			};
+			pinconf {
+				pins = "gpio32", "gpio97";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
 	};
 };
@@ -89,7 +112,7 @@
 		avago,als-B = <186>;
 		avago,als-C = <75>;
 		avago,als-D = <129>;
-		avago,ga-value = <98>;
+		avago,ga-value = <313>;
 	};
 
 	st@18 {
@@ -149,9 +172,24 @@
 	qcom,mdss-pref-prim-intf = "dsi";
 };
 
-&pmx_mdss {
-	qcom,num-grp-pins = <1>;
-	qcom,pins = <&gp 25>;
+&mdss_dsi_active {
+	pinmux {
+		function = "gpio";
+		pins = "gpio25";
+	};
+	pinconf {
+		pins = "gpio25";
+	};
+};
+
+&mdss_dsi_suspend {
+	pinmux {
+		function = "gpio";
+		pins = "gpio25";
+	};
+	pinconf {
+		pins = "gpio25";
+	};
 };
 
 &mdss_dsi0 {
@@ -240,6 +278,46 @@
 					"cdc_lines_sus";
 			pinctrl-0 = <&cdc_pdm_lines_act>;
 			pinctrl-1 = <&cdc_pdm_lines_sus>;
+	};
+
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		synaptics@70 {
+			compatible = "synaptics,rmi4";
+			reg = <0x70>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <13 0x2008>;
+			vdd-supply = <&vdd_vreg>;
+			vcc_i2c-supply = <&pm8916_l16>;
+			/* pins used by touchscreen */
+			pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_suspend";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+			synaptics,display-coords = <0 0 1100 1756>;
+			synaptics,panel-coords = <0 0 1100 1899>;
+			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
+			synaptics,reset-gpio = <&msm_gpio 12 0x0>;
+			synaptics,i2c-pull-up;
+			synaptics,power-down;
+			synaptics,disable-gpios;
+			synaptics,fw-image-name = "PR1601177-s3207_8916_qrd_00430000.img";
+		};
+	};
+
+	vdd_vreg: vdd_vreg {
+		compatible = "regulator-fixed";
+		status = "ok";
+		regulator-name = "vdd_vreg";
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "synaptics_rmi4_i2c";
+		qcom,disp-maxx = <720>;
+		qcom,disp-maxy = <1280>;
+		qcom,panel-maxx = <720>;
+		qcom,panel-maxy = <1385>;
+		qcom,key-codes = <158 172 139>;
 	};
 };
 
