@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/msm/msm-bus-rule-ops.h>
+//#include <dt-bindings/msm/msm-bus-rule-ops.h>
 
 &soc {
 	ad_hoc_bus: ad-hoc-bus { };

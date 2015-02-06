@@ -42,9 +42,9 @@
 			synaptics,power-down;
 			synaptics,disable-gpios;
 			/* Underlying clocks used by secure touch */
-			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			 <&clock_gcc clk_gcc_blsp1_qup5_i2c_apps_clk>;
-			clock-names = "iface_clk", "core_clk";
+			clocks = <&clock_gcc GCC_BLSP1_AHB_CLK>,
+			 <&clock_gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
 		};
 	};
 
@@ -73,8 +73,8 @@
 			pinctrl-0 = <&nfc_int_active &nfc_disable_active>;
 			pinctrl-1 = <&nfc_int_suspend &nfc_disable_suspend>;
 			qcom,clk-gpio = <&pm8916_gpios 2 0>;
-			clocks = <&clock_rpm clk_bb_clk2_pin>;
-			clock-names = "ref_clk";
+//			clocks = <&clock_rpm clk_bb_clk2_pin>;
+//			clock-names = "ref_clk";
 		};
 	};
 
@@ -430,28 +430,28 @@
 };
 
 /* CoreSight */
-&tpiu {
-      pinctrl-names = "sdcard", "trace", "swduart",
-		      "swdtrc", "jtag", "spmi";
-       /* NIDnT */
-      pinctrl-0 = <&qdsd_clk_sdcard &qdsd_cmd_sdcard
-                  &qdsd_data0_sdcard &qdsd_data1_sdcard
-                  &qdsd_data2_sdcard &qdsd_data3_sdcard>;
-      pinctrl-1 = <&qdsd_clk_trace &qdsd_cmd_trace
-                  &qdsd_data0_trace &qdsd_data1_trace
-                  &qdsd_data2_trace &qdsd_data3_trace>;
-      pinctrl-2 = <&qdsd_cmd_swduart &qdsd_data0_swduart
-                  &qdsd_data1_swduart &qdsd_data2_swduart
-                  &qdsd_data3_swduart>;
-      pinctrl-3 = <&qdsd_clk_swdtrc &qdsd_cmd_swdtrc
-                  &qdsd_data0_swdtrc &qdsd_data1_swdtrc
-                  &qdsd_data2_swdtrc &qdsd_data3_swdtrc>;
-      pinctrl-4 = <&qdsd_cmd_jtag &qdsd_data0_jtag
-                  &qdsd_data1_jtag &qdsd_data2_jtag
-                  &qdsd_data3_jtag>;
-      pinctrl-5 = <&qdsd_clk_spmi &qdsd_cmd_spmi
-                  &qdsd_data0_spmi &qdsd_data3_spmi>;
-};
+//&tpiu {
+//      pinctrl-names = "sdcard", "trace", "swduart",
+//		      "swdtrc", "jtag", "spmi";
+//       /* NIDnT */
+//      pinctrl-0 = <&qdsd_clk_sdcard &qdsd_cmd_sdcard
+//                  &qdsd_data0_sdcard &qdsd_data1_sdcard
+//                  &qdsd_data2_sdcard &qdsd_data3_sdcard>;
+//      pinctrl-1 = <&qdsd_clk_trace &qdsd_cmd_trace
+//                  &qdsd_data0_trace &qdsd_data1_trace
+//                  &qdsd_data2_trace &qdsd_data3_trace>;
+//      pinctrl-2 = <&qdsd_cmd_swduart &qdsd_data0_swduart
+//                  &qdsd_data1_swduart &qdsd_data2_swduart
+//                  &qdsd_data3_swduart>;
+//      pinctrl-3 = <&qdsd_clk_swdtrc &qdsd_cmd_swdtrc
+//                  &qdsd_data0_swdtrc &qdsd_data1_swdtrc
+//                  &qdsd_data2_swdtrc &qdsd_data3_swdtrc>;
+//      pinctrl-4 = <&qdsd_cmd_jtag &qdsd_data0_jtag
+//                  &qdsd_data1_jtag &qdsd_data2_jtag
+//                  &qdsd_data3_jtag>;
+//      pinctrl-5 = <&qdsd_clk_spmi &qdsd_cmd_spmi
+//                  &qdsd_data0_spmi &qdsd_data3_spmi>;
+//};
 
 &spmi_bus {
 	qcom,pm8916@1 {

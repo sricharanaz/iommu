@@ -23,8 +23,8 @@
 		gdsc-supply = <&gdsc_mdss>;
 		vddio-supply = <&pm8916_l6>;
 
-		clocks = <&clock_gcc clk_gcc_mdss_ahb_clk>;
-		clock-names = "iface_clk";
+//		clocks = <&clock_gcc clk_gcc_mdss_ahb_clk>;
+//		clock-names = "iface_clk";
 		clock-rate = <0>;
 
 		qcom,platform-supply-entries {
