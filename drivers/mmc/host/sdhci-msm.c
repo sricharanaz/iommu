@@ -497,6 +497,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
+	writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) &
+			~CORE_CLK_PWRSAVE), host->ioaddr + CORE_VENDOR_SPEC);
+
 	/* Reset the core and Enable SDHC mode */
 	writel_relaxed(readl_relaxed(msm_host->core_mem + CORE_POWER) |
 		       CORE_SW_RST, msm_host->core_mem + CORE_POWER);
