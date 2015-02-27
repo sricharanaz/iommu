@@ -11,13 +11,15 @@
  *
  */
 
-#include <asm/dma-iommu.h>
+//#include <asm/dma-iommu.h>
 #include <linux/dma-attrs.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-direction.h>
 #include <linux/iommu.h>
-#include <linux/msm_iommu_domains.h>
+//#include <linux/msm_iommu_domains.h>
+#ifdef CONFIG_ION
 #include <linux/msm_ion.h>
+#endif
 #include <linux/slab.h>
 #include <linux/types.h>
 #include "media/msm_vidc.h"
@@ -29,6 +31,8 @@ struct smem_client {
 	void *clnt;
 	struct msm_vidc_platform_resources *res;
 };
+
+#ifdef CONFIG_ION
 
 static int get_device_address(struct smem_client *smem_client,
 		struct ion_handle *hndl, unsigned long align,
@@ -388,38 +392,6 @@ static void ion_delete_client(struct smem_client *client)
 	ion_client_destroy(client->clnt);
 }
 
-struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
-		enum hal_buffer buffer_type)
-{
-	struct smem_client *client = clt;
-	int rc = 0;
-	struct msm_smem *mem;
-	if (fd < 0) {
-		dprintk(VIDC_ERR, "Invalid fd: %d\n", fd);
-		return NULL;
-	}
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem) {
-		dprintk(VIDC_ERR, "Failed to allocte shared mem\n");
-		return NULL;
-	}
-	switch (client->mem_type) {
-	case SMEM_ION:
-		rc = ion_user_to_kernel(clt, fd, offset, mem, buffer_type);
-		break;
-	default:
-		dprintk(VIDC_ERR, "Mem type not supported\n");
-		rc = -EINVAL;
-		break;
-	}
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to allocate shared memory\n");
-		kfree(mem);
-		mem = NULL;
-	}
-	return mem;
-}
-
 static int ion_cache_operations(struct smem_client *client,
 	struct msm_smem *mem, enum smem_cache_ops cache_op)
 {
@@ -467,6 +439,41 @@ static int ion_cache_operations(struct smem_client *client,
 cache_op_failed:
 	return rc;
 }
+#endif
+
+struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
+		enum hal_buffer buffer_type)
+{
+	struct smem_client *client = clt;
+	int rc = 0;
+	struct msm_smem *mem;
+	if (fd < 0) {
+		dprintk(VIDC_ERR, "Invalid fd: %d\n", fd);
+		return NULL;
+	}
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem) {
+		dprintk(VIDC_ERR, "Failed to allocte shared mem\n");
+		return NULL;
+	}
+	switch (client->mem_type) {
+#ifdef CONFIG_ION
+	case SMEM_ION:
+		rc = ion_user_to_kernel(clt, fd, offset, mem, buffer_type);
+		break;
+#endif
+	default:
+		dprintk(VIDC_ERR, "Mem type not supported\n");
+		rc = -EINVAL;
+		break;
+	}
+	if (rc) {
+		dprintk(VIDC_ERR, "Failed to allocate shared memory\n");
+		kfree(mem);
+		mem = NULL;
+	}
+	return mem;
+}
 
 int msm_smem_cache_operations(void *clt, struct msm_smem *mem,
 		enum smem_cache_ops cache_op)
@@ -479,12 +486,14 @@ int msm_smem_cache_operations(void *clt, struct msm_smem *mem,
 		return -EINVAL;
 	}
 	switch (client->mem_type) {
+#ifdef CONFIG_ION
 	case SMEM_ION:
 		rc = ion_cache_operations(client, mem, cache_op);
 		if (rc)
 			dprintk(VIDC_ERR,
 			"Failed cache operations: %d\n", rc);
 		break;
+#endif
 	default:
 		dprintk(VIDC_ERR, "Mem type not supported\n");
 		break;
@@ -499,9 +508,11 @@ void *msm_smem_new_client(enum smem_type mtype,
 	void *clnt = NULL;
 	struct msm_vidc_platform_resources *res = platform_resources;
 	switch (mtype) {
+#ifdef CONFIG_ION
 	case SMEM_ION:
 		clnt = ion_new_client();
 		break;
+#endif
 	default:
 		dprintk(VIDC_ERR, "Mem type not supported\n");
 		break;
@@ -542,10 +553,12 @@ struct msm_smem *msm_smem_alloc(void *clt, size_t size, u32 align, u32 flags,
 		return NULL;
 	}
 	switch (client->mem_type) {
+#ifdef CONFIG_ION
 	case SMEM_ION:
 		rc = alloc_ion_mem(client, size, align, flags, buffer_type,
 					mem, map_kernel);
 		break;
+#endif
 	default:
 		dprintk(VIDC_ERR, "Mem type not supported\n");
 		rc = -EINVAL;
@@ -567,9 +580,11 @@ void msm_smem_free(void *clt, struct msm_smem *mem)
 		return;
 	}
 	switch (client->mem_type) {
+#ifdef CONFIG_ION
 	case SMEM_ION:
 		free_ion_mem(client, mem);
 		break;
+#endif
 	default:
 		dprintk(VIDC_ERR, "Mem type not supported\n");
 		break;
@@ -585,9 +600,11 @@ void msm_smem_delete_client(void *clt)
 		return;
 	}
 	switch (client->mem_type) {
+#ifdef CONFIG_ION
 	case SMEM_ION:
 		ion_delete_client(client);
 		break;
+#endif
 	default:
 		dprintk(VIDC_ERR, "Mem type not supported\n");
 		break;

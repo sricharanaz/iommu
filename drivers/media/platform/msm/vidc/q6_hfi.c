@@ -13,8 +13,7 @@
 
 #include <linux/slab.h>
 #include <linux/iommu.h>
-#include <linux/msm_iommu_domains.h>
-#include <linux/qdsp6v2/apr.h>
+//#include <linux/msm_iommu_domains.h>
 #include <soc/qcom/subsystem_restart.h>
 #include "hfi_packetization.h"
 #include "msm_vidc_debug.h"
@@ -23,6 +22,8 @@
 
 
 #if defined(CONFIG_MSM_QDSP6_APR) || defined(CONFIG_MSM_QDSP6_APRV2)
+#include <linux/qdsp6v2/apr.h>
+
 static struct hal_device_data hal_ctxt;
 
 static int write_queue(void *info, u8 *packet)

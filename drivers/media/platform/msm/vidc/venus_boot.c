@@ -14,6 +14,7 @@
 
 #include <asm/dma-iommu.h>
 #include <asm/page.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -22,10 +23,10 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/msm_iommu_domains.h>
+//#include <linux/msm_iommu_domains.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/qcom_iommu.h>
+//#include <linux/qcom_iommu.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -288,6 +289,7 @@ static int pil_venus_auth_and_reset(void)
 		}
 
 		/* Enable this for new SMMU to set the device attribute */
+#if 0
 		if (iommu_domain_set_attr(venus_data->mapping->domain,
 				DOMAIN_ATTR_COHERENT_HTW_DISABLE,
 				&disable_htw)) {
@@ -296,6 +298,9 @@ static int pil_venus_auth_and_reset(void)
 				__func__, dev_name(dev));
 			goto err_iommu_map;
 		}
+#else
+		(void) disable_htw;
+#endif
 
 		dprintk(VIDC_DBG, "Attached and created mapping for %s\n",
 				dev_name(dev));
@@ -303,7 +308,7 @@ static int pil_venus_auth_and_reset(void)
 		/* Map virtual addr space 0 - fw_sz to fw phys addr space */
 		rc = iommu_map(venus_data->mapping->domain,
 			venus_data->fw_iova, pa, venus_data->fw_sz,
-			IOMMU_READ|IOMMU_WRITE|IOMMU_EXEC|IOMMU_PRIV);
+			IOMMU_READ|IOMMU_WRITE|IOMMU_NOEXEC|IOMMU_PRIV);
 		temp = iommu_iova_to_phys(venus_data->mapping->domain,
 				venus_data->fw_iova);
 

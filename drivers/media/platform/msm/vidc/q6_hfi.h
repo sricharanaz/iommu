@@ -13,8 +13,10 @@
 #ifndef __Q6_HFI_H__
 #define __Q6_HFI_H__
 
-#include <linux/qdsp6v2/apr.h>
 #include "vidc_hfi.h"
+
+#if defined(CONFIG_MSM_QDSP6_APR) || defined(CONFIG_MSM_QDSP6_APRV2)
+#include <linux/qdsp6v2/apr.h>
 #include "vidc_hfi_helper.h"
 #include "msm_vidc_resources.h"
 
@@ -121,6 +123,7 @@ struct q6_apr_cmd_session_set_property_packet {
 	struct hfi_cmd_session_set_property_packet pkt;
 };
 
+#endif /* APR */
 int q6_hfi_initialize(struct hfi_device *hdev, u32 device_id,
 		struct msm_vidc_platform_resources *res,
 		hfi_cmd_response_callback callback);

@@ -754,8 +754,13 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb,
 		goto release_mapping;
 	}
 
+#if 0
 	rc = iommu_domain_set_attr(cb->mapping->domain,
 			DOMAIN_ATTR_COHERENT_HTW_DISABLE, &disable_htw);
+#else
+	(void) disable_htw;
+	rc = 0;
+#endif
 	if (rc) {
 		dprintk(VIDC_ERR, "%s - disable coherent HTW failed: %s %d\n",
 				__func__, dev_name(dev), rc);

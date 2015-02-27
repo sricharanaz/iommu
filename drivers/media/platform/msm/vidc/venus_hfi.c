@@ -13,14 +13,14 @@
 
 #include <asm/dma-iommu.h>
 #include <asm/memory.h>
-#include <linux/coresight-stm.h>
+//#include <linux/coresight-stm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/of.h>
-#include <linux/qcom_iommu.h>
+//#include <linux/qcom_iommu.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -3301,6 +3301,7 @@ static void venus_hfi_flush_debug_queue(
 		struct hfi_msg_sys_coverage_packet *pkt =
 			(struct hfi_msg_sys_coverage_packet *) packet;
 		if (pkt->packet_type == HFI_MSG_SYS_COV) {
+#ifdef CONFIG_MSM_VIDC_COV
 			int stm_size = 0;
 			dprintk(VIDC_DBG,
 				"DbgQ pkt size: %d\n", pkt->msg_size);
@@ -3310,6 +3311,7 @@ static void venus_hfi_flush_debug_queue(
 				dprintk(VIDC_ERR,
 					"In %s, stm_log returned size of 0\n",
 					__func__);
+#endif
 		} else {
 			struct hfi_msg_sys_debug_packet *pkt =
 				(struct hfi_msg_sys_debug_packet *) packet;
@@ -3979,8 +3981,12 @@ static int venus_hfi_load_fw(void *dev)
 
 		if (!device->resources.fw.cookie)
 			device->resources.fw.cookie =
+#if 0
 				subsystem_get_with_fwname("venus",
 				device->res->fw_name);
+#else
+				subsystem_get("venus");
+#endif
 
 		if (IS_ERR_OR_NULL(device->resources.fw.cookie)) {
 			dprintk(VIDC_ERR, "Failed to download firmware\n");
