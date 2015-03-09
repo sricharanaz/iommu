@@ -15,6 +15,7 @@ obj-$(CONFIG_MSM_SPM_V2) += spm-v2.o spm_devices.o
 obj-$(CONFIG_MSM_CPU_PWR_CTL) += cpu_pwr_ctl.o
 
 obj-$(CONFIG_MSM_PIL) += peripheral-loader.o
+obj-$(CONFIG_MSM_PIL_SSR_GENERIC) += subsys-pil-tz.o
 
 ifdef CONFIG_MSM_SUBSYSTEM_RESTART
        obj-y += subsystem_notif.o
