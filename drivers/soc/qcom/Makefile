@@ -13,3 +13,9 @@ obj-$(CONFIG_MSM_SMEM)	+=	smem.o smem_debug.o
 obj-$(CONFIG_MSM_SPM_V2) += spm-v2.o spm_devices.o
 
 obj-$(CONFIG_MSM_CPU_PWR_CTL) += cpu_pwr_ctl.o
+
+ifdef CONFIG_MSM_SUBSYSTEM_RESTART
+       obj-y += subsystem_notif.o
+       obj-y += subsystem_restart.o
+       obj-y += ramdump.o
+endif
