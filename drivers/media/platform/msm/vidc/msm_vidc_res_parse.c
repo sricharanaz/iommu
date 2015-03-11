@@ -628,10 +628,9 @@ int read_platform_resources_from_dt(
 
 	rc = of_property_read_string(pdev->dev.of_node, "qcom,firmware-name",
 			&res->fw_name);
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to read firmware name: %d\n", rc);
-		goto err_load_freq_table;
-	}
+	if (rc)
+		dprintk(VIDC_WARN, "Failed to read firmware name: %d\n", rc);
+
 	dprintk(VIDC_DBG, "Firmware filename: %s\n", res->fw_name);
 
 	rc = of_property_read_string(pdev->dev.of_node, "qcom,hfi-version",
