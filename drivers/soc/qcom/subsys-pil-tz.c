@@ -379,12 +379,12 @@ static int piltz_resc_init(struct platform_device *pdev, struct pil_tz_data *d)
 	}
 	d->reg_count = count;
 
-	count = of_read_regs(dev, &d->proxy_regs, "qcom,proxy-reg-names");
-	if (count < 0) {
-		dev_err(dev, "Failed to setup proxy regulators.\n");
-		return count;
-	}
-	d->proxy_reg_count = count;
+	/* count = of_read_regs(dev, &d->proxy_regs, "qcom,proxy-reg-names"); */
+	/* if (count < 0) { */
+	/* 	dev_err(dev, "Failed to setup proxy regulators.\n"); */
+	/* 	return count; */
+	/* } */
+	/* d->proxy_reg_count = count; */
 
 	if (of_find_property(dev->of_node, "qcom,msm-bus,name", &len)) {
 		d->enable_bus_scaling = true;
@@ -473,13 +473,13 @@ static int prepare_enable_clocks(struct device *dev, struct clk **clks,
 	int rc = 0;
 	int i;
 
-	for (i = 0; i < clk_count; i++) {
-		rc = clk_prepare_enable(clks[i]);
-		if (rc) {
-			dev_err(dev, "Clock enable failed\n");
-			goto err;
-		}
-	}
+	/* for (i = 0; i < clk_count; i++) { */
+	/* 	rc = clk_prepare_enable(clks[i]); */
+	/* 	if (rc) { */
+	/* 		dev_err(dev, "Clock enable failed\n"); */
+	/* 		goto err; */
+	/* 	} */
+	/* } */
 
 	return 0;
 err:
