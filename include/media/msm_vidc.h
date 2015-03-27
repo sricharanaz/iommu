@@ -32,6 +32,7 @@
 
 enum smem_type {
 	SMEM_ION,
+	SMEM_DMA,
 };
 
 enum smem_prop {

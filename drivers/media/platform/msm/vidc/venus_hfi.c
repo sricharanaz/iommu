@@ -2350,7 +2350,11 @@ static int venus_hfi_core_init(void *device)
 	venus_hfi_set_registers(dev);
 
 	if (!dev->hal_client) {
+#ifdef CONFIG_ION
 		dev->hal_client = msm_smem_new_client(SMEM_ION, dev->res);
+#else
+		dev->hal_client = msm_smem_new_client(SMEM_DMA, dev->res);
+#endif
 		if (dev->hal_client == NULL) {
 			dprintk(VIDC_ERR, "Failed to alloc ION_Client\n");
 			rc = -ENODEV;
