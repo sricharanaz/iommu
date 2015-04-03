@@ -275,6 +275,7 @@
 //		clocks = <&clock_rpm clk_xo_clk_src>,
 //			<&clock_rpm clk_xo_a_clk_src>;
 //		clock-names = "xo", "xo_a";
+		#power-domain-cells = <1>;
 	};
 
 	clock_gcc_mdss: qcom,gcc-mdss@1a98300 {
