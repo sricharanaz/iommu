@@ -2425,6 +2425,38 @@ static struct clk_branch gcc_smmu_cfg_clk = {
 	},
 };
 
+static struct clk_branch gcc_apps_tcu_clk = {
+	.halt_reg = 0x12018,
+	.clkr = {
+		.enable_reg = 0x4500c,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_apps_tcu_clk",
+			.parent_names = (const char *[]){
+				"bimc_apss_q6_clk_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_gfx_tcu_clk = {
+	.halt_reg = 0x12020,
+	.clkr = {
+		.enable_reg = 0x4500c,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_gfx_tcu_clk",
+			.parent_names = (const char *[]){
+				"bimc_apss_q6_clk_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_venus_tbu_clk = {
 	.halt_reg = 0x12014,
 	.clkr = {
@@ -2692,6 +2724,8 @@ static struct clk_regmap *gcc_msm8916_clocks[] = {
 	[GCC_JPEG_TBU_CLK] = &gcc_jpeg_tbu_clk.clkr,
 	[GCC_MDP_TBU_CLK] = &gcc_mdp_tbu_clk.clkr,
 	[GCC_SMMU_CFG_CLK] = &gcc_smmu_cfg_clk.clkr,
+	[GCC_APPS_TCU_CLK] = &gcc_apps_tcu_clk.clkr,
+	[GCC_GFX_TCU_CLK] = &gcc_gfx_tcu_clk.clkr,
 	[GCC_VENUS_TBU_CLK] = &gcc_venus_tbu_clk.clkr,
 	[GCC_VFE_TBU_CLK] = &gcc_vfe_tbu_clk.clkr,
 	[GCC_USB2A_PHY_SLEEP_CLK] = &gcc_usb2a_phy_sleep_clk.clkr,
