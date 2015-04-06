@@ -473,13 +473,13 @@ static int prepare_enable_clocks(struct device *dev, struct clk **clks,
 	int rc = 0;
 	int i;
 
-	/* for (i = 0; i < clk_count; i++) { */
-	/* 	rc = clk_prepare_enable(clks[i]); */
-	/* 	if (rc) { */
-	/* 		dev_err(dev, "Clock enable failed\n"); */
-	/* 		goto err; */
-	/* 	} */
-	/* } */
+	for (i = 0; i < clk_count; i++) {
+		rc = clk_prepare_enable(clks[i]);
+		if (rc) {
+			dev_err(dev, "Clock enable failed\n");
+			goto err;
+		}
+	}
 
 	return 0;
 err:
