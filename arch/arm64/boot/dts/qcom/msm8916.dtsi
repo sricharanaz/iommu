@@ -1503,8 +1503,7 @@
 		compatible = "qcom,pil-tz-generic";
 		reg = <0x1de0000 0x4000>;
 
-		vdd-supply = <&gdsc_venus>;
-		qcom,proxy-reg-names = "vdd";
+		power-domains = <&clock_gcc VENUS_GDSC>;
 		clocks = <&clock_gcc GCC_VENUS0_VCODEC0_CLK>,
 			 <&clock_gcc GCC_VENUS0_AHB_CLK>,
 			 <&clock_gcc GCC_VENUS0_AXI_CLK>,
