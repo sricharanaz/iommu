@@ -215,7 +215,7 @@ static int msm_iommu_map_iommu(struct msm_iommu_meta *meta,
 		goto out1;
 	}
 
-	ret = iommu_map_sg(domain, data->iova_addr, table->sgl, size, prot);
+	ret = iommu_map_sg(domain, data->iova_addr, table->sgl, table->nents, prot);
 	if (ret) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, domain);
