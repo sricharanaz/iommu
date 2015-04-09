@@ -19,8 +19,6 @@
 #include <linux/regulator/consumer.h>
 #include <soc/qcom/socinfo.h>
 
-/* Private pgprot flag */
-#define IOMMU_PRIV	16
 
 extern pgprot_t     pgprot_kernel;
 extern struct bus_type msm_iommu_sec_bus_type;

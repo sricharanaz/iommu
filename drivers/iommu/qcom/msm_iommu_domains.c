@@ -64,6 +64,86 @@ bool msm_iommu_page_size_is_supported(unsigned long page_size)
 	       page_size == SZ_1M || page_size == SZ_16M;
 }
 
+int msm_iommu_map_extra(struct iommu_domain *domain,
+				unsigned long start_iova,
+				phys_addr_t phy_addr,
+				unsigned long size,
+				unsigned long page_size,
+				int prot)
+{
+	int ret = 0;
+	int i = 0;
+	unsigned long temp_iova = start_iova;
+	/* the extra "padding" should never be written to. map it
+	 * read-only. */
+	prot &= ~IOMMU_WRITE;
+
+	if (msm_iommu_page_size_is_supported(page_size)) {
+		struct scatterlist *sglist;
+		unsigned int nrpages = PFN_ALIGN(size) >> PAGE_SHIFT;
+		struct page *dummy_page = phys_to_page(phy_addr);
+
+		sglist = vmalloc(sizeof(*sglist) * nrpages);
+		if (!sglist) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		sg_init_table(sglist, nrpages);
+
+		for (i = 0; i < nrpages; i++)
+			sg_set_page(&sglist[i], dummy_page, PAGE_SIZE, 0);
+
+		ret = iommu_map_range(domain, temp_iova, sglist, size, prot);
+		if (ret) {
+			pr_err("%s: could not map extra %lx in domain %p\n",
+				__func__, start_iova, domain);
+		}
+
+		vfree(sglist);
+	} else {
+		unsigned long order = get_order(page_size);
+		unsigned long aligned_size = ALIGN(size, page_size);
+		unsigned long nrpages = aligned_size >> (PAGE_SHIFT + order);
+
+		for (i = 0; i < nrpages; i++) {
+			ret = iommu_map(domain, temp_iova, phy_addr, page_size,
+						prot);
+			if (ret) {
+				pr_err("%s: could not map %lx in domain %p, error: %d\n",
+					__func__, start_iova, domain, ret);
+				ret = -EAGAIN;
+				goto out;
+			}
+			temp_iova += page_size;
+		}
+	}
+	return ret;
+out:
+	for (; i > 0; --i) {
+		temp_iova -= page_size;
+		iommu_unmap(domain, start_iova, page_size);
+	}
+	return ret;
+}
+
+void msm_iommu_unmap_extra(struct iommu_domain *domain,
+				unsigned long start_iova,
+				unsigned long size,
+				unsigned long page_size)
+{
+	int i;
+	unsigned long order = get_order(page_size);
+	unsigned long aligned_size = ALIGN(size, page_size);
+	unsigned long nrpages =  aligned_size >> (PAGE_SHIFT + order);
+	unsigned long temp_iova = start_iova;
+
+	for (i = 0; i < nrpages; ++i) {
+		iommu_unmap(domain, temp_iova, page_size);
+		temp_iova += page_size;
+	}
+}
+
 static int msm_iommu_map_iova_phys(struct iommu_domain *domain,
 				   unsigned long iova,
 				   phys_addr_t phys,
