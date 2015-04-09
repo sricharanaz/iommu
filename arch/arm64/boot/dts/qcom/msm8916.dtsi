@@ -1527,7 +1527,6 @@
 		qcom,proxy-timeout-ms = <5000>;
 		qcom,firmware-name = "venus";
 		memory-region = <&venus_qseecom_mem>;
-		qcom,pil-no-auth;
 	};
 
 	qcom,msm-thermal {
@@ -1620,7 +1619,7 @@
 		memory-region = <&modem_adsp_mem>;
 	};
 
-	msm_vidc: qcom,vidc@1d00000 {
+	qcom,vidc@1d00000 {
 		compatible = "qcom,msm-vidc";
 		reg = <0x01d00000 0xff000>;
 		interrupts = <0 44 0>;
@@ -1759,11 +1758,6 @@
 
 &gdsc_venus {
 	status = "okay";
-};
-
-&msm_vidc {
-	qcom,use-non-secure-pil;
-	qcom,fw-bias = <0xb7d00000>;
 };
 
 &gdsc_mdss {
