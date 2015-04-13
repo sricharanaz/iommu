@@ -16,7 +16,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-direction.h>
 #include <linux/iommu.h>
-//#include <linux/msm_iommu_domains.h>
+#include <linux/qcom_iommu.h>
 #ifdef CONFIG_ION
 #include <linux/msm_ion.h>
 #endif
@@ -40,34 +40,24 @@ struct smem_client {
 static int get_device_address(struct smem_client *smem_client,
 		struct dma_buf *buf, unsigned long align,
 		dma_addr_t *iova, unsigned long *buffer_size,
-		unsigned long flags, enum hal_buffer buffer_type,
+		unsigned long flags, struct device *cb_dev,
+		struct dma_iommu_mapping *mapping,
 		struct dma_mapping_info *mapping_info)
 {
 	int rc = 0;
 	struct dma_buf_attachment *attach;
 	struct sg_table *table = NULL;
-	struct context_bank_info *cb = NULL;
 	phys_addr_t phys, orig_phys;
 
-	if (!iova || !buffer_size || !buf || !smem_client || !mapping_info) {
-		dprintk(VIDC_ERR, "Invalid params: %p, %p, %p, %p\n",
-				smem_client, buf, iova, buffer_size);
+	if (!iova || !buffer_size || !buf || !smem_client || !mapping_info || !cb_dev) {
+		dprintk(VIDC_ERR, "Invalid params: %p, %p, %p, %p, %p\n",
+				smem_client, buf, iova, buffer_size, cb_dev);
 		return -EINVAL;
 	}
 
 
-	cb = msm_smem_get_context_bank(smem_client, flags & SMEM_SECURE,
-			buffer_type);
-	if (!cb) {
-		dprintk(VIDC_ERR,
-				"%s: Failed to get context bank device\n",
-				__func__);
-		rc = -EIO;
-		goto mem_map_failed;
-	}
-
 	/* Prepare a dma buf for dma on the given device */
-	attach = dma_buf_attach(buf, cb->dev);
+	attach = dma_buf_attach(buf, cb_dev);
 	if (IS_ERR_OR_NULL(attach)) {
 		rc = PTR_ERR(attach) ?: -ENOMEM;
 		dprintk(VIDC_ERR, "Failed to attach dmabuf\n");
@@ -87,7 +77,7 @@ static int get_device_address(struct smem_client *smem_client,
 			align, *iova, *buffer_size);
 
 	/* Map a scatterlist into an SMMU */
-	rc = dma_map_sg(cb->dev, table->sgl, table->nents,
+	rc = dma_map_sg(cb_dev, table->sgl, table->nents,
 			DMA_BIDIRECTIONAL);
 	if (!rc) {
 		dprintk(VIDC_ERR, "dma_map_sg failed! (%d != %d)\n",
@@ -97,7 +87,7 @@ static int get_device_address(struct smem_client *smem_client,
 	if (table->sgl) {
 		dprintk(VIDC_DBG,
 				"%s: DMA buf: %p, device: %p, attach: %p, table: %p, table sgl: %p, rc: %d, dma_address: %pa\n",
-				__func__, buf, cb->dev, attach,
+				__func__, buf, cb_dev, attach,
 				table, table->sgl, rc,
 				&table->sgl->dma_address);
 
@@ -110,6 +100,7 @@ static int get_device_address(struct smem_client *smem_client,
 	}
 
 	/* Translation check for debugging */
+#if 0
 	orig_phys = sg_phys(table->sgl);
 
 	phys = iommu_iova_to_phys(cb->mapping->domain, *iova);
@@ -120,9 +111,9 @@ static int get_device_address(struct smem_client *smem_client,
 		rc = -EIO;
 		goto mem_iova_to_phys_failed;
 	}
-
-	mapping_info->dev = cb->dev;
-	mapping_info->mapping = cb->mapping;
+#endif
+	mapping_info->dev = cb_dev;
+	mapping_info->mapping = mapping;
 	mapping_info->table = table;
 	mapping_info->attach = attach;
 	mapping_info->buf = buf;
@@ -132,15 +123,15 @@ static int get_device_address(struct smem_client *smem_client,
 
 	dprintk(VIDC_DBG, "mapped dma buf %p to %pa\n", buf, iova);
 	return 0;
+#if 0
 mem_iova_to_phys_failed:
 	dma_unmap_sg(cb->dev, table->sgl, table->nents, DMA_BIDIRECTIONAL);
+#endif
 mem_map_sg_failed:
 	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
 mem_map_table_failed:
 	dma_buf_detach(buf, attach);
 mem_buf_attach_failed:
-	dma_buf_put(buf);
-mem_map_failed:
 	return rc;
 }
 
@@ -179,18 +170,28 @@ static void put_device_address(struct smem_client *smem_client,
 	}
 }
 
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 static int ion_get_device_address(struct smem_client *smem_client,
 		struct ion_handle *hndl, unsigned long align,
 		ion_phys_addr_t *iova, unsigned long *buffer_size,
 		unsigned long flags, enum hal_buffer buffer_type,
 		struct dma_mapping_info *mapping_info)
 {
-	
-	clnt = smem_client->clnt;
+	int rc = 0;
+	struct dma_buf *buf = NULL;
+	struct context_bank_info *cb = NULL;
+	struct ion_client *clnt = smem_client->clnt;
 	if (!clnt) {
 		dprintk(VIDC_ERR, "Invalid client\n");
 		return -EINVAL;
+	}
+	cb = msm_smem_get_context_bank(smem_client, flags & SMEM_SECURE,
+			buffer_type);
+	if (!cb) {
+		dprintk(VIDC_ERR,
+				"%s: Failed to get context bank device\n",
+				__func__);
+		return -EIO;
 	}
 	if (is_iommu_present(smem_client->res)) {
 		/* Convert an Ion handle to a dma buf */
@@ -198,6 +199,11 @@ static int ion_get_device_address(struct smem_client *smem_client,
 		if (IS_ERR_OR_NULL(buf)) {
 			rc = PTR_ERR(buf) ?: -ENOMEM;
 			dprintk(VIDC_ERR, "Share ION buf to DMA failed\n");
+			goto mem_map_failed;
+		}
+		rc = get_device_address(smem_client, buf, align, iova, buffer_size, flags, cb, cb->mapping, mapping_info);
+		if (rc) {
+			dprintk(VIDC_ERR, "ion iommu map failed - %d\n", rc);
 			goto mem_map_failed;
 		}
 	} else {
@@ -208,6 +214,8 @@ static int ion_get_device_address(struct smem_client *smem_client,
 			goto mem_map_failed;
 		}
 	}
+mem_map_failed:
+	return rc;
 }
 
 static int ion_user_to_kernel(struct smem_client *client, int fd, u32 offset,
@@ -238,7 +246,7 @@ static int ion_user_to_kernel(struct smem_client *client, int fd, u32 offset,
 	if (mem->flags & SMEM_SECURE)
 		align = ALIGN(align, SZ_1M);
 
-	rc = get_device_address(client, hndl, align, &iova, &buffer_size,
+	rc = ion_get_device_address(client, hndl, align, &iova, &buffer_size,
 				mem->flags, buffer_type, &mem->mapping_info);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to get device address: %d\n", rc);
@@ -324,7 +332,7 @@ static int alloc_ion_mem(struct smem_client *client, size_t size, u32 align,
 		mem->kvaddr = NULL;
 	}
 
-	rc = get_device_address(client, hndl, align, &iova, &buffer_size,
+	rc = ion_get_device_address(client, hndl, align, &iova, &buffer_size,
 				flags, buffer_type, &mem->mapping_info);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to get device address: %d\n",
@@ -360,7 +368,7 @@ static void free_ion_mem(struct smem_client *client, struct msm_smem *mem)
 		mem->size, mem->kvaddr, mem->buffer_type);
 
 	if (mem->device_addr)
-		put_device_address(client, mem->smem_priv, mem->flags,
+		put_device_address(client, mem->flags,
 			&mem->mapping_info, mem->buffer_type);
 
 	if (mem->kvaddr)
@@ -441,6 +449,11 @@ cache_op_failed:
 }
 #endif
 
+struct msm_smem_vb2_dma {
+	void *alloc_ctx;
+	void *buf_priv;
+};
+
 static int alloc_dma_mem(struct smem_client *client, size_t size, u32 align,
 	u32 flags, enum hal_buffer buffer_type, struct msm_smem *mem,
 	int map_kernel)
@@ -448,7 +461,12 @@ static int alloc_dma_mem(struct smem_client *client, size_t size, u32 align,
 	int rc = 0;
 	enum dma_data_direction dma_dir;
 	unsigned long buffer_size = 0;
-	dma_addr_t iova = 0;
+	struct msm_smem_vb2_dma *vb2_dma;
+#if 0
+	int domain = 0, partition = 0;
+	unsigned long iova = 0;
+#endif
+	struct context_bank_info *cb = NULL;
 
 	align = ALIGN(align, SZ_4K);
 	size = ALIGN(size, SZ_4K);
@@ -473,7 +491,7 @@ static int alloc_dma_mem(struct smem_client *client, size_t size, u32 align,
 	mem->buffer_type = buffer_type;
 	mem->kvaddr = NULL;
 	mem->size = size;
-#ifndef NEW_SMMU
+#if 0
 	rc = msm_smem_get_domain_partition(client, flags, buffer_type,
 			&domain, &partition);
 	if (rc) {
@@ -481,25 +499,26 @@ static int alloc_dma_mem(struct smem_client *client, size_t size, u32 align,
 				rc);
 		return -EINVAL;
 	}
-	mem->smem_priv = vb2_dma_sg_memops.alloc(client->clnt, size, 0);
+	mem->smem_priv = vb2_dma_sg_memops.alloc(client->clnt, size, dma_dir, 0);
 	if (mem->smem_priv == NULL) {
 		dprintk(VIDC_ERR, "VB2 SG memops alloc failed %zu", size);
 		return -EINVAL;
 	}
 	//Get dma_buf from sg_table
 	mem->mapping_info.table = vb2_dma_sg_memops.cookie(mem->smem_priv);
-	mem->mapping_info.buf = vb2_dma_sg_memops.get_dmabuf(mem->smem_priv);
+	mem->mapping_info.buf = vb2_dma_sg_memops.get_dmabuf(mem->smem_priv, O_CLOEXEC);
 	if (IS_ERR(mem->mapping_info.buf)) {
 		rc = PTR_ERR(mem->mapping_info.buf);
 		goto err_put;
 	}
 	rc = msm_map_dma_buf(mem->mapping_info.buf, mem->mapping_info.table, domain, partition, align, 0,
-				&mem->device_addr, &buffer_size, 0, 0);
+				&iova, &buffer_size, 0, 0);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to get device address: %d\n",
 			rc);
 		goto err_put;
 	}
+	mem->device_addr = iova;
 	if (map_kernel) {
 		dprintk(VIDC_DBG, "alloc_dma_mem, map_kernel \n");
 		dma_buf_begin_cpu_access(mem->mapping_info.buf, 0, size, dma_dir);
@@ -512,43 +531,70 @@ static int alloc_dma_mem(struct smem_client *client, size_t size, u32 align,
 		}
 		dprintk(VIDC_DBG, "alloc_dma_mem, map_kernel %p\n", mem->kvaddr);
 	}
+#endif
 
+	cb = msm_smem_get_context_bank(client, flags & SMEM_SECURE,
+			buffer_type);
+	if (!cb) {
+		dprintk(VIDC_ERR,
+				"%s: Failed to get context bank device\n",
+				__func__);
+		return -EIO;
+	}
+
+	vb2_dma = kzalloc(sizeof *vb2_dma, GFP_KERNEL);
+	if (!vb2_dma) {
+		dprintk(VIDC_ERR, "Failed to allocate vb2 dma context\n");
+		return -ENOMEM;
+	}
+
+#if 0
+	vb2_dma->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 #else
+	vb2_dma->alloc_ctx = vb2_dma_contig_init_ctx(cb->dev);
+#endif
+	if (IS_ERR_OR_NULL(vb2_dma->alloc_ctx)) {
+		dprintk(VIDC_ERR, "Failed to init dma contig ctx\n");
+		rc = PTR_ERR(vb2_dma->alloc_ctx) ?: -ENOMEM;
+		goto err_init_ctx;
+	}
 
-	mem->smem_priv = vb2_dma_contig_memops.alloc(client->clnt, size, dma_dir, 0);
-	if (mem->smem_priv == NULL) {
+	vb2_dma->buf_priv = vb2_dma_contig_memops.alloc(vb2_dma->alloc_ctx, size, dma_dir, 0);
+	if (IS_ERR_OR_NULL(vb2_dma->buf_priv)) {
 		dprintk(VIDC_ERR, "VB2 contig memops alloc failed %zu\n", size);
-		return -EINVAL;
+		rc = PTR_ERR(vb2_dma->buf_priv) ?: -ENOMEM;
+		goto err_dma_alloc;
 	}
-	mem->device_addr = (dma_addr_t) vb2_dma_contig_memops.cookie(mem->smem_priv);
-	if (map_kernel) {
-		dprintk(VIDC_DBG, "alloc_dma_mem, map_kernel\n");
-		mem->kvaddr = vb2_dma_contig_memops.vaddr(mem->smem_priv);
-		if (!mem->kvaddr) {
-			dprintk(VIDC_WARN, "Failed to map dma buf %pad\n", &mem->device_addr);
-		}
+	mem->smem_priv = vb2_dma;
+
+	dprintk(VIDC_DBG, "alloc_dma_mem, map_kernel\n");
+	mem->kvaddr = vb2_dma_contig_memops.vaddr(vb2_dma->buf_priv);
+	if (!mem->kvaddr) {
+		dprintk(VIDC_WARN, "Failed to map dma buf %pad\n", &mem->device_addr);
+		rc = -ENOMEM;
+		goto err_put;
 	}
 
-	rc = get_device_address(client, vb2_dma_contig_memops.get_dmabuf(mem->smem_priv, O_CLOEXEC),
-			align, &iova, &buffer_size, flags, buffer_type, &mem->mapping_info);
+	//rc = dma_get_sgtable(&res->pdev->dev, &mem->mapping_info.table, mem->kvaddr, mem->device_addr, size);
+#if 1
+	rc = get_device_address(client, vb2_dma_contig_memops.get_dmabuf(vb2_dma->buf_priv, O_CLOEXEC),
+				align, &mem->device_addr, &buffer_size, flags, cb->dev, cb->mapping, &mem->mapping_info);
+#else
+	rc = get_device_address(client, vb2_dma_contig_memops.get_dmabuf(vb2_dma->buf_priv, O_CLOEXEC),
+			align, &mem->device_addr, &buffer_size, flags, cb, cb->mapping, &mem->mapping_info);
+#endif
 	if (rc) {
-		dprintk(VIDC_ERR, "Failed to get device address: %d\n",
-				rc);
-		goto fail_device_address;
+		dprintk(VIDC_ERR, "Failed to get iova for dma buf %pad\n",
+				vb2_dma_contig_memops.cookie(vb2_dma->buf_priv));
+		goto err_put;
 	}
-	mem->device_addr = iova;
-	if ((u32)mem->device_addr != iova) {
-		dprintk(VIDC_ERR, "iova(%pa) truncated to %#x",
-				&iova, (u32)mem->device_addr);
-		goto fail_device_address;
-	}
-	mem->size = size;
+
 	dprintk(VIDC_DBG,
-			"%s: ion_handle = %p, device_addr = %pa, size = %#zx, kvaddr = %p, buffer_type = %#x, flags = %#lx\n",
+			"%s: ion_handle = %p, device_addr = %pad, size = %#zx, kvaddr = %p, buffer_type = %#x, flags = %#lx\n",
 			__func__, mem->smem_priv, &mem->device_addr,
 			mem->size, mem->kvaddr, mem->buffer_type, mem->flags);
 
-#endif
+
 
 	dprintk(VIDC_DBG,
 		"%s: sg_handle = 0x%p, device_addr = 0x%x, size = %zu, kvaddr = 0x%p, buffer_type = %d\n",
@@ -561,8 +607,16 @@ err_kunmap:
 err_put:
 	vb2_dma_sg_memops.put(mem->smem_priv);
 #else
-fail_device_address:
+err_put:
+	vb2_dma_contig_memops.put(vb2_dma->buf_priv);
+err_dma_alloc:
+	vb2_dma->buf_priv = NULL;
+	vb2_dma_contig_cleanup_ctx(vb2_dma->alloc_ctx);
+err_init_ctx:
+	vb2_dma->alloc_ctx = NULL;
+	kfree(vb2_dma);
 #endif
+	mem->smem_priv = NULL;
 	return rc;
 
 }
@@ -593,8 +647,15 @@ static void free_dma_mem(struct smem_client *client, struct msm_smem *mem)
 		dma_buf_vunmap(mem->mapping_info.buf, mem->kvaddr);
 	}
 #else
+	if (mem->device_addr)
+		put_device_address(client, mem->flags,
+			&mem->mapping_info, mem->buffer_type);
 	if (mem->smem_priv) {
-		vb2_dma_contig_memops.put(mem->smem_priv);
+		struct msm_smem_vb2_dma *vb2_dma = mem->smem_priv;
+		vb2_dma_contig_memops.put(vb2_dma->buf_priv);
+		vb2_dma_contig_cleanup_ctx(vb2_dma->alloc_ctx);
+		kfree(vb2_dma);
+		mem->smem_priv = NULL;
 	}
 #endif
 }
@@ -615,7 +676,7 @@ struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
 		return NULL;
 	}
 	switch (client->mem_type) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		rc = ion_user_to_kernel(clt, fd, offset, mem, buffer_type);
 		break;
@@ -644,7 +705,7 @@ int msm_smem_cache_operations(void *clt, struct msm_smem *mem,
 		return -EINVAL;
 	}
 	switch (client->mem_type) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		rc = ion_cache_operations(client, mem, cache_op);
 		if (rc)
@@ -670,7 +731,7 @@ void *msm_smem_new_client(enum smem_type mtype,
 	void *clnt = NULL;
 	struct msm_vidc_platform_resources *res = platform_resources;
 	switch (mtype) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		clnt = ion_new_client();
 		break;
@@ -722,7 +783,7 @@ struct msm_smem *msm_smem_alloc(void *clt, size_t size, u32 align, u32 flags,
 		return NULL;
 	}
 	switch (client->mem_type) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		rc = alloc_ion_mem(client, size, align, flags, buffer_type,
 					mem, map_kernel);
@@ -753,7 +814,7 @@ void msm_smem_free(void *clt, struct msm_smem *mem)
 		return;
 	}
 	switch (client->mem_type) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		free_ion_mem(client, mem);
 		break;
@@ -776,7 +837,7 @@ void msm_smem_delete_client(void *clt)
 		return;
 	}
 	switch (client->mem_type) {
-#ifdef CONFIG_ION
+#ifdef CONFIG_MSM_VIDC_USES_ION
 	case SMEM_ION:
 		ion_delete_client(client);
 		break;
@@ -811,8 +872,8 @@ struct context_bank_info *msm_smem_get_context_bank(void *clt,
 				cb->buffer_type & buffer_type) {
 			match = cb;
 			dprintk(VIDC_DBG,
-				"context bank found for device: %p mapping: %p\n",
-				match->dev, match->mapping);
+				"context bank found for CB : %s, device: %p mapping: %p\n",
+				match->name, match->dev, match->mapping);
 			break;
 		}
 	}

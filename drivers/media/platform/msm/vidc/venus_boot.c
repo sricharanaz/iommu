@@ -12,7 +12,7 @@
 
 #define VIDC_DBG_LABEL "venus_boot"
 
-#include <asm/dma-iommu.h>
+//#include <asm/dma-iommu.h>
 #include <asm/page.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -148,6 +148,7 @@ static void venus_clock_disable_unprepare(void)
 	}
 }
 
+#if 0
 static int venus_setup_cb(struct device *dev,
 				u32 size)
 {
@@ -167,6 +168,7 @@ static int venus_setup_cb(struct device *dev,
 		__func__, dev, venus_data->mapping, dev_name(dev));
 	return 0;
 }
+#endif
 
 static int pil_venus_mem_setup(size_t size)
 {
@@ -174,6 +176,7 @@ static int pil_venus_mem_setup(size_t size)
 
 	if (!venus_data->mapping) {
 		size = round_up(size, SZ_4K);
+#if 0
 		rc = venus_setup_cb(venus_data->iommu_ctx_bank_dev, size);
 		if (rc) {
 			dprintk(VIDC_ERR,
@@ -182,6 +185,7 @@ static int pil_venus_mem_setup(size_t size)
 				dev_name(venus_data->iommu_ctx_bank_dev));
 			return rc;
 		}
+#endif
 		venus_data->fw_sz = size;
 	}
 
@@ -280,6 +284,7 @@ static int pil_venus_auth_and_reset(void)
 	if (iommu_present) {
 		phys_addr_t temp, pa = fw_bias;
 
+#if 0
 		rc = arm_iommu_attach_device(dev, venus_data->mapping);
 		if (rc) {
 			dprintk(VIDC_ERR,
@@ -289,7 +294,6 @@ static int pil_venus_auth_and_reset(void)
 		}
 
 		/* Enable this for new SMMU to set the device attribute */
-#if 0
 		if (iommu_domain_set_attr(venus_data->mapping->domain,
 				DOMAIN_ATTR_COHERENT_HTW_DISABLE,
 				&disable_htw)) {
@@ -298,9 +302,6 @@ static int pil_venus_auth_and_reset(void)
 				__func__, dev_name(dev));
 			goto err_iommu_map;
 		}
-#else
-		(void) disable_htw;
-#endif
 
 		dprintk(VIDC_DBG, "Attached and created mapping for %s\n",
 				dev_name(dev));
@@ -327,6 +328,7 @@ static int pil_venus_auth_and_reset(void)
 					dev_name(dev));
 			goto err_iommu_map;
 		}
+#endif
 	}
 	/* Bring Arm9 out of reset */
 	writel_relaxed(0, reg_base + VENUS_WRAPPER_SW_RESET);
@@ -334,12 +336,14 @@ static int pil_venus_auth_and_reset(void)
 	venus_data->is_booted = 1;
 	return 0;
 
+#if 0
 err_iommu_map:
 	if (iommu_present)
 		arm_iommu_detach_device(dev);
 release_mapping:
 	if (iommu_present)
 		arm_iommu_release_mapping(venus_data->mapping);
+#endif
 err:
 	return rc;
 }
@@ -362,9 +366,11 @@ static int pil_venus_shutdown(void)
 	mb();
 
 	if (is_iommu_present(venus_data->resources)) {
+#if 0
 		iommu_unmap(venus_data->mapping->domain, venus_data->fw_iova,
 			venus_data->fw_sz);
 		arm_iommu_detach_device(venus_data->iommu_ctx_bank_dev);
+#endif
 	}
 	/*
 	 * Force the VBIF clk to be on to avoid AXI bridge halt ack failure

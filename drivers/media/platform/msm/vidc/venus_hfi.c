@@ -2136,7 +2136,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 	q_hdr->qhdr_type |= HFI_Q_ID_HOST_TO_CTRL_CMD_Q;
 	if ((ion_phys_addr_t)q_hdr->qhdr_start_addr !=
 		iface_q->q_array.align_device_addr) {
-		dprintk(VIDC_ERR, "Invalid CMDQ device address (%pa)",
+		dprintk(VIDC_ERR, "Invalid CMDQ device address (%pa)\n",
 			&iface_q->q_array.align_device_addr);
 	}
 
@@ -2146,7 +2146,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 	q_hdr->qhdr_type |= HFI_Q_ID_CTRL_TO_HOST_MSG_Q;
 	if ((ion_phys_addr_t)q_hdr->qhdr_start_addr !=
 		iface_q->q_array.align_device_addr) {
-		dprintk(VIDC_ERR, "Invalid MSGQ device address (%pa)",
+		dprintk(VIDC_ERR, "Invalid MSGQ device address (%pa)\n",
 			&iface_q->q_array.align_device_addr);
 	}
 
@@ -2161,7 +2161,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 	q_hdr->qhdr_rx_req = 0;
 	if ((ion_phys_addr_t)q_hdr->qhdr_start_addr !=
 		iface_q->q_array.align_device_addr) {
-		dprintk(VIDC_ERR, "Invalid DBGQ device address (%pa)",
+		dprintk(VIDC_ERR, "Invalid DBGQ device address (%pa)\n",
 			&iface_q->q_array.align_device_addr);
 	}
 
@@ -2169,7 +2169,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 	if ((ion_phys_addr_t)value !=
 		dev->iface_q_table.align_device_addr) {
 		dprintk(VIDC_ERR,
-			"Invalid iface_q_table device address (%pa)",
+			"Invalid iface_q_table device address (%pa)\n",
 			&dev->iface_q_table.align_device_addr);
 	}
 	venus_hfi_write_register(dev, VIDC_UC_REGION_ADDR, value);
@@ -2186,7 +2186,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 		if ((ion_phys_addr_t)qdss->mem_map_table_base_addr !=
 				mem_map_table_base_addr) {
 			dprintk(VIDC_ERR,
-					"Invalid mem_map_table_base_addr (%#lx)",
+					"Invalid mem_map_table_base_addr (%#lx)\n",
 					mem_map_table_base_addr);
 		}
 		mem_map = (struct hfi_mem_map *)(qdss + 1);
@@ -2212,7 +2212,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 		value = (u32)dev->qdss.align_device_addr;
 		if ((ion_phys_addr_t)value !=
 				dev->qdss.align_device_addr) {
-			dprintk(VIDC_ERR, "Invalid qdss device address (%pa)",
+			dprintk(VIDC_ERR, "Invalid qdss device address (%pa)\n",
 					&dev->qdss.align_device_addr);
 		}
 		if (dev->qdss.align_device_addr)
@@ -2224,7 +2224,7 @@ static int venus_hfi_interface_queues_init(struct venus_hfi_device *dev)
 	value = (u32)dev->sfr.align_device_addr;
 	if ((ion_phys_addr_t)value !=
 		dev->sfr.align_device_addr) {
-		dprintk(VIDC_ERR, "Invalid sfr device address (%pa)",
+		dprintk(VIDC_ERR, "Invalid sfr device address (%pa)\n",
 			&dev->sfr.align_device_addr);
 	}
 	if (dev->sfr.align_device_addr)
@@ -2350,11 +2350,7 @@ static int venus_hfi_core_init(void *device)
 	venus_hfi_set_registers(dev);
 
 	if (!dev->hal_client) {
-#ifdef CONFIG_ION
-		dev->hal_client = msm_smem_new_client(SMEM_ION, dev->res);
-#else
 		dev->hal_client = msm_smem_new_client(SMEM_DMA, dev->res);
-#endif
 		if (dev->hal_client == NULL) {
 			dprintk(VIDC_ERR, "Failed to alloc ION_Client\n");
 			rc = -ENODEV;
@@ -3590,6 +3586,7 @@ static inline int venus_hfi_prepare_enable_clks(struct venus_hfi_device *device)
 	}
 
 	venus_hfi_for_each_clock(device, cl) {
+#if 1
 		/*
 		 * For the clocks we control, set the rate prior to preparing
 		 * them.  Since we don't really have a load at this point, scale
@@ -3599,8 +3596,11 @@ static inline int venus_hfi_prepare_enable_clks(struct venus_hfi_device *device)
 			clk_set_rate(cl->clk, clk_round_rate(cl->clk, 0));
 
 		rc = clk_prepare_enable(cl->clk);
+#else
+		rc = 0;
+#endif
 		if (rc) {
-			dprintk(VIDC_ERR, "Failed to enable clocks\n");
+			dprintk(VIDC_ERR, "Failed to enable clock %s, %d\n", cl->name, rc);
 			cl_fail = cl;
 			goto fail_clk_enable;
 		}
@@ -3720,8 +3720,8 @@ static int venus_hfi_init_regulators(struct venus_hfi_device *device)
 				rinfo->name);
 		if (IS_ERR_OR_NULL(rinfo->regulator)) {
 			rc = PTR_ERR(rinfo->regulator) ?: -EBADHANDLE;
-			dprintk(VIDC_ERR, "Failed to get regulator: %s\n",
-					rinfo->name);
+			dprintk(VIDC_ERR, "Failed to get regulator: %s, err: %d\n",
+					rinfo->name, rc);
 			rinfo->regulator = NULL;
 			goto err_reg_get;
 		}
@@ -3739,11 +3739,13 @@ static int venus_hfi_init_resources(struct venus_hfi_device *device,
 {
 	int rc = 0;
 
+#if 0
 	rc = venus_hfi_init_regulators(device);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to get all regulators\n");
 		return -ENODEV;
 	}
+#endif
 
 	rc = venus_hfi_init_clocks(device);
 	if (rc) {
@@ -3964,12 +3966,14 @@ static int venus_hfi_load_fw(void *dev)
 		goto fail_vote_buses;
 	}
 
+#if 0
 	rc = venus_hfi_enable_regulators(device);
 	if (rc) {
 		dprintk(VIDC_ERR, "%s : Failed to enable GDSC, Err = %d\n",
 			__func__, rc);
 		goto fail_enable_gdsc;
 	}
+#endif
 
 	/* iommu_attach makes call to TZ for restore_sec_cfg. With this call
 	 * TZ accesses the VMIDMT block which needs all the Venus clocks.
@@ -4004,7 +4008,11 @@ static int venus_hfi_load_fw(void *dev)
 	venus_hfi_enable_hw_power_collapse(device);
 
 	if (!device->res->use_non_secure_pil && !device->res->firmware_base) {
+#if 0
 		rc = protect_cp_mem(device);
+#else
+		rc = 0;
+#endif
 		if (rc) {
 			dprintk(VIDC_ERR, "Failed to protect memory\n");
 			goto fail_protect_mem;

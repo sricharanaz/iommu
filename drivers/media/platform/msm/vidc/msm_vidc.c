@@ -13,13 +13,14 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/msm_vidc.h>
 #include "msm_vidc_internal.h"
 #include "msm_vidc_debug.h"
 #include "msm_vdec.h"
 #include "msm_venc.h"
 #include "msm_vidc_common.h"
-#include <linux/delay.h>
 #include "vidc_hfi_api.h"
 #include "msm_vidc_dcvs.h"
 
@@ -1109,7 +1110,8 @@ static inline int vb2_bufq_init(struct msm_vidc_inst *inst,
 		q->ops = msm_vdec_get_vb2q_ops();
 	else if (sess == MSM_VIDC_ENCODER)
 		q->ops = msm_venc_get_vb2q_ops();
-	q->mem_ops = &msm_vidc_vb2_mem_ops;
+	//q->mem_ops = &msm_vidc_vb2_mem_ops;
+	q->mem_ops = &vb2_dma_contig_memops;
 	q->drv_priv = inst;
 	return vb2_queue_init(q);
 }
@@ -1214,7 +1216,7 @@ void *msm_vidc_open(int core_id, int session_type)
 		i <= SESSION_MSG_INDEX(SESSION_MSG_END); i++) {
 		init_completion(&inst->completions[i]);
 	}
-#ifdef CONFIG_ION
+#if 0
 	inst->mem_client = msm_smem_new_client(SMEM_ION,
 					&inst->core->resources);
 #else
