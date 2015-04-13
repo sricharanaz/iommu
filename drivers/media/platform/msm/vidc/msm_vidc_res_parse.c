@@ -13,6 +13,7 @@
 
 #include <asm/dma-iommu.h>
 #include <linux/iommu.h>
+#include <linux/qcom_iommu.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
@@ -653,12 +654,16 @@ int read_platform_resources_from_dt(
 		dprintk(VIDC_ERR, "Failed to load reg table: %d\n", rc);
 		goto err_load_reg_table;
 	}
-
+#if 0
 	rc = msm_vidc_load_bus_vectors(res);
+#else
+	rc = 0;
+#endif
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to load bus vectors: %d\n", rc);
 		goto err_load_bus_vectors;
 	}
+
 	rc = msm_vidc_load_buffer_usage_table(res);
 	if (rc) {
 		dprintk(VIDC_ERR,
@@ -724,20 +729,18 @@ err_load_freq_table:
 	return rc;
 }
 
-static int msm_vidc_setup_context_bank(struct context_bank_info *cb,
-		struct device *dev)
+static int msm_vidc_setup_context_bank(struct context_bank_info *cb)
 {
 	int rc = 0;
 	int order = 0;
 	bool disable_htw = true;
 
-	if (!dev || !cb) {
+	if (!cb || !cb->dev) {
 		dprintk(VIDC_ERR,
 			"%s: Invalid Input params\n", __func__);
 		return -EINVAL;
 	}
 
-	cb->dev = dev;
 	cb->mapping = arm_iommu_create_mapping(&platform_bus_type,
 			cb->addr_range.start, cb->addr_range.size, order);
 
@@ -763,13 +766,13 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb,
 #endif
 	if (rc) {
 		dprintk(VIDC_ERR, "%s - disable coherent HTW failed: %s %d\n",
-				__func__, dev_name(dev), rc);
+				__func__, dev_name(cb->dev), rc);
 		goto detach_device;
 	}
 
-	dprintk(VIDC_DBG, "Attached %s and created mapping\n", dev_name(dev));
+	dprintk(VIDC_DBG, "Attached %s and created mapping\n", dev_name(cb->dev));
 	dprintk(VIDC_DBG,
-		"Context bank name:%s, buffer_type: %#x, is_secure: %d, address range start: %#x, size: %#x, dev: %p, mapping: %p",
+		"Context bank name: %s, buffer_type: %#x, is_secure: %d, address range start: %#x, size: %#x, dev: %p, mapping: %p",
 		cb->name, cb->buffer_type, cb->is_secure, cb->addr_range.start,
 		cb->addr_range.size, cb->dev, cb->mapping);
 
@@ -789,12 +792,12 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	int rc = 0;
 	struct context_bank_info *cb = NULL;
 	struct device_node *np = NULL;
+	struct device_node *phandle = NULL;
 
 	if (!dev || !res) {
 		dprintk(VIDC_ERR, "%s - invalid inputs\n", __func__);
 		return -EINVAL;
 	}
-
 	np = dev->of_node;
 	cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
 	if (!cb) {
@@ -805,40 +808,81 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	INIT_LIST_HEAD(&cb->list);
 	list_add_tail(&cb->list, &res->context_banks);
 
-	rc = of_property_read_string(np, "label", &cb->name);
-	if (rc) {
-		dprintk(VIDC_DBG,
-			"Failed to read cb label from device tree\n");
-		rc = 0;
-	}
+	phandle = of_parse_phandle(np, "qcom,vidc-domain-phandle", 0);
+	if (phandle) {
+		dprintk(VIDC_DBG, "QSMMU entry found\n");
+		rc = of_property_read_string(phandle, "label", &cb->name);
+		if (rc) {
+			dprintk(VIDC_ERR,
+					"Failed to read cb label from phandle\n");
+			goto err_setup_cb;
+		}
+		cb->dev = msm_iommu_get_ctx(cb->name);
+		if (IS_ERR_OR_NULL(cb->dev)) {
+			dprintk(VIDC_ERR,
+					"Failed to get context bank device for %s\n",
+					cb->name);
+			rc = PTR_ERR(cb->dev) ?: -ENODEV;
+			goto err_setup_cb;
+		}
 
-	dprintk(VIDC_DBG, "%s: context bank has name %s\n", __func__, cb->name);
-	rc = of_property_read_u32_array(np, "virtual-addr-pool",
-			(u32 *)&cb->addr_range, 2);
-	if (rc) {
-		dprintk(VIDC_ERR,
-			"Could not read addr pool for context bank : %s %d\n",
-			cb->name, rc);
-		goto err_setup_cb;
-	}
+		rc = of_property_read_u32_array(phandle,
+				"qcom,virtual-addr-pool",
+				(u32 *)&cb->addr_range, 2);
+		if (rc) {
+			dprintk(VIDC_ERR,
+					"Could not read addr pool for context bank : %s %d\n",
+					cb->name, rc);
+			goto err_setup_cb;
+		}
 
-	cb->is_secure = of_property_read_bool(np, "secure-addr-range");
-	dprintk(VIDC_DBG, "context bank %s : secure = %d\n",
-			cb->name, cb->is_secure);
+		cb->is_secure = of_property_read_bool(phandle,
+				"qcom,secure-domain");
 
-	/* setup buffer type for each sub device*/
-	rc = of_property_read_u32(np, "buffer-types", &cb->buffer_type);
-	if (rc) {
-		dprintk(VIDC_ERR, "failed to load buffer_type info %d\n", rc);
-		rc = -ENOENT;
-		goto err_setup_cb;
+		rc = of_property_read_u32(np, "qcom,vidc-partition-buffer-types", &cb->buffer_type);
+		if (rc) {
+			dprintk(VIDC_ERR, "failed to load buffer_type info %d\n", rc);
+			rc = -ENOENT;
+			goto err_setup_cb;
+		}
+
+	} else {
+		cb->dev = dev;
+		rc = of_property_read_string(np, "label", &cb->name);
+		if (rc) {
+			dprintk(VIDC_DBG,
+					"Failed to read cb label from device tree\n");
+			rc = 0;
+		}
+
+		dprintk(VIDC_DBG, "%s: context bank has name %s\n", __func__, cb->name);
+		rc = of_property_read_u32_array(np, "virtual-addr-pool",
+				(u32 *)&cb->addr_range, 2);
+		if (rc) {
+			dprintk(VIDC_ERR,
+					"Could not read addr pool for context bank : %s %d\n",
+					cb->name, rc);
+			goto err_setup_cb;
+		}
+
+		cb->is_secure = of_property_read_bool(np, "secure-addr-range");
+		dprintk(VIDC_DBG, "context bank %s : secure = %d\n",
+				cb->name, cb->is_secure);
+
+		/* setup buffer type for each sub device*/
+		rc = of_property_read_u32(np, "buffer-types", &cb->buffer_type);
+		if (rc) {
+			dprintk(VIDC_ERR, "failed to load buffer_type info %d\n", rc);
+			rc = -ENOENT;
+			goto err_setup_cb;
+		}
 	}
 	dprintk(VIDC_DBG,
-		"context bank %s address start = %x address size = %x buffer_type = %x\n",
-		cb->name, cb->addr_range.start,
+		"context bank %s (dev %p) address start = %x address size = %x buffer_type = %x\n",
+		cb->name, cb->dev, cb->addr_range.start,
 		cb->addr_range.size, cb->buffer_type);
 
-	rc = msm_vidc_setup_context_bank(cb, dev);
+	rc = msm_vidc_setup_context_bank(cb);
 	if (rc) {
 		dprintk(VIDC_ERR, "Cannot setup context bank %d\n", rc);
 		goto err_setup_cb;
