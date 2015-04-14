@@ -729,7 +729,7 @@ err_load_freq_table:
 	return rc;
 }
 
-static int msm_vidc_setup_context_bank(struct context_bank_info *cb)
+static int msm_vidc_setup_context_bank(struct context_bank_info *cb, bool old_smmu)
 {
 	int rc = 0;
 	int order = 0;
@@ -741,8 +741,13 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb)
 		return -EINVAL;
 	}
 
-	cb->mapping = arm_iommu_create_mapping(&platform_bus_type,
-			cb->addr_range.start, cb->addr_range.size, order);
+	if (cb->is_secure && old_smmu) {
+		cb->mapping = arm_iommu_create_mapping(&msm_iommu_sec_bus_type,
+				cb->addr_range.start, cb->addr_range.size, order);
+	} else {
+		cb->mapping = arm_iommu_create_mapping(&platform_bus_type,
+				cb->addr_range.start, cb->addr_range.size, order);
+	}
 
 	if (IS_ERR_OR_NULL(cb->mapping)) {
 		dprintk(VIDC_ERR, "%s - failed to create mapping\n", __func__);
@@ -793,6 +798,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	struct context_bank_info *cb = NULL;
 	struct device_node *np = NULL;
 	struct device_node *phandle = NULL;
+	bool old_smmu = false;
 
 	if (!dev || !res) {
 		dprintk(VIDC_ERR, "%s - invalid inputs\n", __func__);
@@ -811,6 +817,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	phandle = of_parse_phandle(np, "qcom,vidc-domain-phandle", 0);
 	if (phandle) {
 		dprintk(VIDC_DBG, "QSMMU entry found\n");
+		old_smmu = true;
 		rc = of_property_read_string(phandle, "label", &cb->name);
 		if (rc) {
 			dprintk(VIDC_ERR,
@@ -882,7 +889,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 		cb->name, cb->dev, cb->addr_range.start,
 		cb->addr_range.size, cb->buffer_type);
 
-	rc = msm_vidc_setup_context_bank(cb);
+	rc = msm_vidc_setup_context_bank(cb, old_smmu);
 	if (rc) {
 		dprintk(VIDC_ERR, "Cannot setup context bank %d\n", rc);
 		goto err_setup_cb;
