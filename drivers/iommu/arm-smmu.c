@@ -182,6 +182,7 @@
 #define ARM_SMMU_CB(smmu, n)		((n) * (1 << (smmu)->pgshift))
 
 #define ARM_SMMU_CB_SCTLR		0x0
+#define ARM_SMMU_CB_ACTLR		0x4
 #define ARM_SMMU_CB_RESUME		0x8
 #define ARM_SMMU_CB_TTBCR2		0x10
 #define ARM_SMMU_CB_TTBR0_LO		0x20
@@ -253,6 +254,16 @@
 
 #define FSYNR0_WNR			(1 << 4)
 
+/* Definitions for implementation-defined registers */
+#define ACTLR_QCOM_OSH_SHIFT		28
+#define ACTLR_QCOM_OSH			1
+
+#define ACTLR_QCOM_ISH_SHIFT		29
+#define ACTLR_QCOM_ISH			1
+
+#define ACTLR_QCOM_NSH_SHIFT		30
+#define ACTLR_QCOM_NSH			1
+
 static int force_stage;
 module_param_named(force_stage, force_stage, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(force_stage,
@@ -281,9 +292,15 @@ struct arm_smmu_master {
 	struct arm_smmu_master_cfg	cfg;
 };
 
+enum smmu_model_id {
+	SMMU_MODEL_DEFAULT,
+	SMMU_MODEL_QCOM_V2,
+};
+
 struct arm_smmu_device {
 	struct device			*dev;
 
+	enum smmu_model_id		model;
 	void __iomem			*base;
 	unsigned long			size;
 	unsigned long			pgshift;
@@ -902,6 +919,14 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	if (stage1) {
 		reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
 		writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
+
+		if (smmu->model == SMMU_MODEL_QCOM_V2) {
+			reg = ACTLR_QCOM_ISH << ACTLR_QCOM_ISH_SHIFT |
+				ACTLR_QCOM_OSH << ACTLR_QCOM_OSH_SHIFT |
+				ACTLR_QCOM_NSH << ACTLR_QCOM_NSH_SHIFT;
+			writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
+		}
+
 		if (smmu->version > ARM_SMMU_V1) {
 			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
 			switch (smmu->va_size) {
@@ -1905,6 +1930,7 @@ static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,mmu-400", .data = (void *)ARM_SMMU_V1 },
 	{ .compatible = "arm,mmu-401", .data = (void *)ARM_SMMU_V1 },
 	{ .compatible = "arm,mmu-500", .data = (void *)ARM_SMMU_V2 },
+	{ .compatible = "qcom,smmu-v2", .data = (void *)ARM_SMMU_V2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
@@ -1997,6 +2023,9 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	dev_notice(dev, "registered %d master devices\n", num_masters);
 
 	parse_driver_options(smmu);
+
+	if (of_device_is_compatible(dev->of_node, "qcom,smmu-v2"))
+		smmu->model = SMMU_MODEL_QCOM_V2;
 
 	if (smmu->version > ARM_SMMU_V1 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
