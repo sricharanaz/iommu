@@ -326,6 +326,9 @@ struct arm_smmu_device {
 	struct list_head		list;
 	struct device_node		*node;
 	struct rb_root			masters;
+
+	int				num_clocks;
+	struct clk			**clocks;
 };
 
 struct arm_smmu_cfg {
@@ -372,6 +375,31 @@ static struct arm_smmu_option_prop arm_smmu_options[] = {
 static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
+}
+
+static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < smmu->num_clocks; ++i) {
+		ret = clk_prepare_enable(smmu->clocks[i]);
+		if (ret) {
+			dev_err(smmu->dev, "Couldn't enable clock #%d\n", i);
+			while (i--)
+				clk_disable_unprepare(smmu->clocks[i]);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
+{
+	int i;
+
+	for (i = 0; i < smmu->num_clocks; ++i)
+		clk_disable_unprepare(smmu->clocks[i]);
 }
 
 static void parse_driver_options(struct arm_smmu_device *smmu)
@@ -1562,6 +1590,47 @@ static int arm_smmu_id_size_to_bits(int size)
 	}
 }
 
+static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
+{
+	const char *cname;
+	struct property *prop;
+	int i;
+	struct device *dev = smmu->dev;
+
+	smmu->num_clocks =
+		of_property_count_strings(dev->of_node, "clock-names");
+
+	if (smmu->num_clocks < 1)
+		return 0;
+
+	smmu->clocks = devm_kzalloc(
+		dev, sizeof(*smmu->clocks) * smmu->num_clocks,
+		GFP_KERNEL);
+
+	if (!smmu->clocks) {
+		dev_err(dev,
+			"Failed to allocate memory for clocks\n");
+		return -ENODEV;
+	}
+
+	i = 0;
+	of_property_for_each_string(dev->of_node, "clock-names",
+				    prop, cname) {
+		struct clk *c = devm_clk_get(dev, cname);
+
+		if (IS_ERR(c)) {
+			dev_err(dev, "Couldn't get clock: %s",
+				cname);
+			return -ENODEV;
+		}
+
+		smmu->clocks[i] = c;
+
+		++i;
+	}
+	return 0;
+}
+
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
 	unsigned long size;
@@ -1801,9 +1870,15 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+	err = arm_smmu_init_clocks(smmu);
+	if (err)
+		goto out_put_masters;
+
+	arm_smmu_enable_clocks(smmu);
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
-		return err;
+		goto out_disable_clocks;
 
 	i = 0;
 	smmu->masters = RB_ROOT;
@@ -1814,7 +1889,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		if (err) {
 			dev_err(dev, "failed to add master %s\n",
 				masterspec.np->name);
-			goto out_put_masters;
+			goto out_disable_clocks;
 		}
 
 		i++;
@@ -1829,7 +1904,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 			"found only %d context interrupt(s) but %d required\n",
 			smmu->num_context_irqs, smmu->num_context_banks);
 		err = -ENODEV;
-		goto out_put_masters;
+		goto out_disable_clocks;
 	}
 
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
@@ -1858,6 +1933,9 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 out_free_irqs:
 	while (i--)
 		free_irq(smmu->irqs[i], smmu);
+
+out_disable_clocks:
+	arm_smmu_disable_clocks(smmu);
 
 out_put_masters:
 	for (node = rb_first(&smmu->masters); node; node = rb_next(node)) {
@@ -1903,6 +1981,8 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+	arm_smmu_disable_clocks(smmu);
+
 	return 0;
 }
 
