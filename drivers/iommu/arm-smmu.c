@@ -47,7 +47,7 @@
 #include "io-pgtable.h"
 
 /* Maximum number of stream IDs assigned to a single device */
-#define MAX_MASTER_STREAMIDS		MAX_PHANDLE_ARGS
+#define MAX_MASTER_STREAMIDS		45
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
