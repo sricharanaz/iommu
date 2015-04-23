@@ -779,10 +779,8 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	++ctx_drvdata->attach_count;
 
-	if (ctx_drvdata->attach_count > 1) {
-		domain->priv =  ctx_drvdata->attached_domain->priv;
+	if (ctx_drvdata->attach_count > 1)
 		goto already_attached;
-	}
 
 	if (!list_empty(&ctx_drvdata->attached_elm)) {
 		ret = -EBUSY;
