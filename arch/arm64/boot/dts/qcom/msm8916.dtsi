@@ -1678,16 +1678,10 @@
 			};
 		};
 
-		non_secure_cb_0 {
+		non_secure_cb {
 			compatible = "qcom,msm-vidc,context-bank";
-			qcom,vidc-domain-phandle = <&venus_domain_ns_0>;
-			qcom,vidc-partition-buffer-types = <0x7ff>;
-		};
-
-		non_secure_cb_1 {
-			compatible = "qcom,msm-vidc,context-bank";
-			qcom,vidc-domain-phandle = <&venus_domain_ns_1>;
-			qcom,vidc-partition-buffer-types = <0x800>;
+			qcom,vidc-domain-phandle = <&venus_domain_ns>;
+			qcom,vidc-partition-buffer-types = <0xfff>;
 		};
 
 		secure_bitstream_cb {

@@ -15,19 +15,12 @@
 		compatible = "qcom,iommu-domains";
 
 		/*
-		 * non-secure addr pool from 1500 MB to 3532 MB
-		 *                           3532 MB to 3548 MB
+		 * non-secure addr pool from 1500 MB to 3548 MB
 		 */
-		venus_domain_ns_0: qcom,iommu-domain1 {
+		venus_domain_ns: qcom,iommu-domain1 {
 			label = "venus_ns";
 			qcom,iommu-contexts = <&venus_ns>;
-			qcom,virtual-addr-pool = <0x5dc00000 0x7f000000>;
-		};
-
-		venus_domain_ns_1: qcom,iommu-domain5 {
-			label = "venus_ns";
-			qcom,iommu-contexts = <&venus_ns>;
-			qcom,virtual-addr-pool = <0xdcc00000 0x1000000>;
+			qcom,virtual-addr-pool = <0x5dc00000 0x8f000000>;
 		};
 
 		/*
