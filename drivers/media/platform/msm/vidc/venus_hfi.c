@@ -3361,8 +3361,7 @@ static void venus_hfi_response_handler(struct venus_hfi_device *device)
 					"Received HFI_MSG_SYS_RELEASE_RESOURCE\n");
 				complete(&release_resources_done);
 			} else if (rc == HFI_MSG_SYS_INIT_DONE) {
-				dprintk(VIDC_DBG,
-					"Received HFI_MSG_SYS_INIT_DONE\n");
+				printk("Received HFI_MSG_SYS_INIT_DONE\n");
 				if (venus_hfi_alloc_set_imem(device, true))
 					dprintk(VIDC_WARN,
 						"Failed to allocate IMEM. Performance will be impacted\n");

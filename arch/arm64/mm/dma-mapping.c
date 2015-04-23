@@ -141,6 +141,8 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 	}
 
+	printk("\n __dma_alloc_coherent size %x", size);
+
 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
 		flags |= GFP_DMA;
@@ -1437,6 +1439,8 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size,
 	struct dma_iommu_mapping *mapping;
 	int err = -ENOMEM;
 
+	printk("\n arm_iommu_create_mapping base = %x size =%d order =%d", base,
+								size, order);
 	if (!count)
 		return ERR_PTR(-EINVAL);
 

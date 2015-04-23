@@ -303,7 +303,7 @@ static void hfi_process_sys_init_done(
 	int prop_id;
 	enum vidc_status status = VIDC_ERR_NONE;
 
-	dprintk(VIDC_DBG, "RECEIVED: SYS_INIT_DONE\n");
+	printk("RECEIVED: SYS_INIT_DONE\n");
 	if (sizeof(struct hfi_msg_sys_init_done_packet) > pkt->size) {
 		dprintk(VIDC_ERR,
 				"hal_process_sys_init_done: bad_pkt_size: %d\n",

@@ -1928,7 +1928,7 @@ int msm_comm_check_core_init(struct msm_vidc_core *core)
 				core->id, core->state);
 		goto exit;
 	}
-	dprintk(VIDC_DBG, "Waiting for SYS_INIT_DONE\n");
+	printk("Waiting for SYS_INIT_DONE\n");
 	rc = wait_for_completion_timeout(
 		&core->completions[SYS_MSG_INDEX(SYS_INIT_DONE)],
 		msecs_to_jiffies(msm_vidc_hw_rsp_timeout));
@@ -1941,7 +1941,7 @@ int msm_comm_check_core_init(struct msm_vidc_core *core)
 		core->state = VIDC_CORE_INIT_DONE;
 		rc = 0;
 	}
-	dprintk(VIDC_DBG, "SYS_INIT_DONE!!!\n");
+	printk("SYS_INIT_DONE!!!\n");
 exit:
 	mutex_unlock(&core->lock);
 	return rc;

@@ -650,6 +650,7 @@ static int pil_auth_and_reset(struct pil_desc *pil)
 	if (d->subsys_desc.no_auth)
 		return 0;
 
+	printk("\n auth and reset");
 	desc.args[0] = proc = d->pas_id;
 	desc.arginfo = SCM_ARGS(1);
 
@@ -657,14 +658,17 @@ static int pil_auth_and_reset(struct pil_desc *pil)
 	if (rc)
 		return rc;
 
+	printk("\n enable regulators");
 	rc = prepare_enable_clocks(pil->dev, d->clks, d->clk_count);
 	if (rc)
 		goto err_clks;
 
+	printk("\n enable clocks");
 	rc = scm_pas_enable_bw();
 	if (rc)
 		goto err_reset;
 
+	printk("\n enable hw");
 	if (!is_scm_armv8()) {
 		rc = scm_call(SCM_SVC_PIL, PAS_AUTH_AND_RESET_CMD, &proc,
 				sizeof(proc), &scm_ret, sizeof(scm_ret));
