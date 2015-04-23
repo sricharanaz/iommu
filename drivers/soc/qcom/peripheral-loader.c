@@ -372,7 +372,6 @@ static int pil_alloc_region(struct pil_priv *priv, phys_addr_t min_addr,
 		aligned_size = ALIGN(size, SZ_1M);
 
 	dma_set_attr(DMA_ATTR_SKIP_ZEROING, &priv->desc->attrs);
-	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &priv->desc->attrs);
 
 	region = dma_alloc_attrs(priv->desc->dev, aligned_size,
 				&priv->region_start, GFP_KERNEL,
@@ -385,6 +384,8 @@ static int pil_alloc_region(struct pil_priv *priv, phys_addr_t min_addr,
 	}
 
 	priv->region = region;
+
+        printk("\n priv->region %x", priv->region);
 	priv->region_end = priv->region_start + size;
 	priv->base_addr = min_addr;
 	priv->region_size = aligned_size;
@@ -560,9 +561,14 @@ static int pil_load_seg(struct pil_desc *desc, struct pil_seg *seg)
 			return ret;
 		}
 
+		printk("\n dest %x src %x size %d",
+			desc->priv->region + (seg->paddr - desc->priv->region_start),
+			fw->data, seg->filesz);
+
 		memcpy(desc->priv->region + (seg->paddr - desc->priv->region_start),
 			fw->data, seg->filesz);
 
+		printk("\n memcpy done");
 		wmb();
 		flush_cache_all();
 		release_firmware(fw);
@@ -635,6 +641,7 @@ int pil_boot(struct pil_desc *desc)
 	const struct firmware *fw;
 	struct pil_priv *priv = desc->priv;
 
+	printk("\n pil_boot");
 	/* Reinitialize for new image */
 	pil_release_mmap(desc);
 
@@ -646,6 +653,8 @@ int pil_boot(struct pil_desc *desc)
 		goto out;
 	}
 
+
+	printk("\n loaded firmware");
 	if (fw->size < sizeof(*ehdr)) {
 		pil_err(desc, "Not big enough to be an elf header\n");
 		ret = -EIO;
@@ -679,6 +688,7 @@ int pil_boot(struct pil_desc *desc)
 	if (ret)
 		goto release_fw;
 
+	printk("\n initmmap");
 	desc->priv->unvoted_flag = 0;
 	ret = pil_proxy_vote(desc);
 	if (ret) {
@@ -693,6 +703,7 @@ int pil_boot(struct pil_desc *desc)
 		goto err_boot;
 	}
 
+	printk("\n init_image");
 	if (desc->ops->mem_setup)
 		ret = desc->ops->mem_setup(desc, priv->region_start,
 				priv->region_end - priv->region_start);
@@ -701,12 +712,14 @@ int pil_boot(struct pil_desc *desc)
 		goto err_deinit_image;
 	}
 
+	printk("\n mem_setup");
 	list_for_each_entry(seg, &desc->priv->segs, list) {
 		ret = pil_load_seg(desc, seg);
 		if (ret)
 			goto err_deinit_image;
 	}
 
+	printk("\n load_reg");
 	ret = desc->ops->auth_and_reset(desc);
 	if (ret) {
 		pil_err(desc, "Failed to bring out of reset\n");
