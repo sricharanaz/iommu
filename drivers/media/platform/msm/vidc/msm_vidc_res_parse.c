@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
+#include <media/videobuf2-dma-contig.h>
 #include "msm_vidc_debug.h"
 #include "msm_vidc_resources.h"
 #include "msm_vidc_res_parse.h"
@@ -775,11 +776,19 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb, bool old_sm
 		goto detach_device;
 	}
 
+	cb->alloc_ctx = vb2_dma_contig_init_ctx(cb->dev);
+	if (IS_ERR_OR_NULL(cb->alloc_ctx)) {
+		dprintk(VIDC_ERR, "%s - Failed to init dma contig ctx\n",
+				__func__);
+		rc = PTR_ERR(cb->alloc_ctx) ?: -ENOMEM;
+		goto detach_device;
+	}
+
 	dprintk(VIDC_DBG, "Attached %s and created mapping\n", dev_name(cb->dev));
 	dprintk(VIDC_DBG,
-		"Context bank name: %s, buffer_type: %#x, is_secure: %d, address range start: %#x, size: %#x, dev: %p, mapping: %p",
+		"Context bank name: %s, buffer_type: %#x, is_secure: %d, address range start: %#x, size: %#x, dev: %p, mapping: %p, alloc_ctx: %p",
 		cb->name, cb->buffer_type, cb->is_secure, cb->addr_range.start,
-		cb->addr_range.size, cb->dev, cb->mapping);
+		cb->addr_range.size, cb->dev, cb->mapping, cb->alloc_ctx);
 
 	return rc;
 
@@ -804,6 +813,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 		dprintk(VIDC_ERR, "%s - invalid inputs\n", __func__);
 		return -EINVAL;
 	}
+
 	np = dev->of_node;
 	cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
 	if (!cb) {

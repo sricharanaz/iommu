@@ -53,6 +53,7 @@ struct context_bank_info {
 	struct addr_range addr_range;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
+	void *alloc_ctx;
 };
 
 struct buffer_usage_table {
