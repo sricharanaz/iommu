@@ -1513,8 +1513,92 @@ static void msm_venc_buf_queue(struct vb2_buffer *vb)
 		dprintk(VIDC_ERR, "Failed to queue buffer: %d\n", rc);
 }
 
+static int msm_venc_buf_init(struct vb2_buffer *vb)
+{
+	int rc = 0, i = 0;
+	struct vb2_queue *q = vb->vb2_queue;
+	struct msm_vidc_inst *inst = q->drv_priv;
+	struct buffer_info* binfo = NULL;
+	struct vidc_buffer_addr_info buffer_info;
+	enum hal_buffer buffer_type = HAL_BUFFER_INPUT;
+	struct dma_buf* dbuf;
+	struct hfi_device *hdev;
+
+	dprintk(VIDC_DBG, "msm_venc_buf_init \n");
+	if (q->memory == V4L2_MEMORY_USERPTR ||
+		q->memory == V4L2_MEMORY_DMABUF) {
+		dprintk(VIDC_DBG,
+			"Ignore buf init for userptr & DMABUF modes");
+		return rc;
+	}
+	if (!inst) {
+		return -EINVAL;
+	}
+
+	hdev = inst->core->device;
+	binfo = kzalloc(sizeof(*binfo), GFP_KERNEL);
+	if (!binfo) {
+		dprintk(VIDC_ERR, "Out of memory\n");
+		rc = -ENOMEM;
+		return rc;
+	}
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		buffer_type = HAL_BUFFER_INPUT;
+	else if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		buffer_type = HAL_BUFFER_OUTPUT;
+
+	for (i = 0; i < vb->num_planes; ++i) {
+		if (vb->vb2_queue->mem_ops->get_dmabuf != NULL) {
+			dbuf = vb->vb2_queue->mem_ops->get_dmabuf(
+						vb->planes[i].mem_priv, 0);
+		}
+		else {
+			dprintk(VIDC_ERR, "get_dmabuf is not supported \n");
+			rc = -EINVAL;
+			goto free_binfo;
+		}
+		binfo->handle[i] = msm_smem_map_dma_buf(
+					inst->mem_client, dbuf, buffer_type);
+		binfo->mapped[i] = true;
+		binfo->device_addr[i] = binfo->handle[i]->device_addr;
+		binfo->size[i] = vb->v4l2_planes[i].length;
+		dprintk(VIDC_DBG, "%s: device_addr 0x %pa, index %d, plane %d, size %d",
+				__func__, &binfo->device_addr[i], vb->v4l2_buf.index, i, binfo->size[i]);
+	}
+	binfo->num_planes = vb->num_planes;
+	binfo->memory = q->memory;
+	binfo->v4l2_index = vb->v4l2_buf.index;
+	binfo->type = q->type;
+
+	mutex_lock(&inst->registeredbufs.lock);
+	list_add_tail(&binfo->list, &inst->registeredbufs.list);
+	mutex_unlock(&inst->registeredbufs.lock);
+
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		//set buffer to FW, TODO move to dymaic buf mode
+		buffer_info.buffer_size = vb->v4l2_planes[0].length;
+		buffer_info.buffer_type =
+			msm_comm_get_hal_output_buffer(inst);
+		buffer_info.num_buffers = 1;
+		buffer_info.align_device_addr = binfo->device_addr[0];
+		buffer_info.extradata_addr = 0;
+		buffer_info.extradata_size = 0;
+		rc = call_hfi_op(hdev, session_set_buffers,
+					(void *)inst->session, &buffer_info);
+		if (rc)
+			dprintk(VIDC_ERR,
+				"vidc_hal_session_set_buffers failed\n");
+	}
+
+	return rc;
+free_binfo:
+	kfree(binfo);
+	return rc;
+}
+
 static const struct vb2_ops msm_venc_vb2q_ops = {
 	.queue_setup = msm_venc_queue_setup,
+	.buf_init = msm_venc_buf_init,
 	.start_streaming = msm_venc_start_streaming,
 	.buf_queue = msm_venc_buf_queue,
 	.stop_streaming = msm_venc_stop_streaming,

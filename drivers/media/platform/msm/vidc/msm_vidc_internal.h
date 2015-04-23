@@ -37,7 +37,7 @@
 #include "vidc_hfi_api.h"
 
 #define MSM_VIDC_DRV_NAME "msm_vidc_driver"
-#define MSM_VIDC_VERSION KERNEL_VERSION(0, 0, 1);
+#define MSM_VIDC_VERSION KERNEL_VERSION(1, 0, 0);
 #define MAX_DEBUGFS_NAME 50
 #define DEFAULT_TIMEOUT 3
 #define DEFAULT_HEIGHT 1088
@@ -358,6 +358,8 @@ int output_buffer_cache_invalidate(struct msm_vidc_inst *inst,
 				struct buffer_info *binfo);
 int qbuf_dynamic_buf(struct msm_vidc_inst *inst,
 			struct buffer_info *binfo);
+struct buffer_info *get_registered_mmap_buf(struct msm_vidc_inst *inst,
+		struct v4l2_buffer *b, int *plane);
 int unmap_and_deregister_buf(struct msm_vidc_inst *inst,
 			struct buffer_info *binfo);
 
@@ -375,4 +377,6 @@ struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
 struct context_bank_info *msm_smem_get_context_bank(void *clt,
 		bool is_secure, enum hal_buffer buffer_type);
 void msm_vidc_fw_unload_handler(struct work_struct *work);
+struct msm_smem* msm_smem_map_dma_buf(void* smem_client,
+				struct dma_buf* dbuf, enum hal_buffer type);
 #endif

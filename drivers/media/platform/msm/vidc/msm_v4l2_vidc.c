@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,10 +17,10 @@
 #include <linux/ioctl.h>
 #include <linux/list.h>
 #include <linux/module.h>
-//#include <linux/msm_iommu_domains.h>
+#include <linux/msm_iommu_domains.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-//#include <linux/qcom_iommu.h>
+#include <linux/qcom_iommu.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/version.h>
@@ -148,6 +148,11 @@ int msm_v4l2_reqbufs(struct file *file, void *fh,
 	return msm_vidc_reqbufs((void *)vidc_inst, b);
 }
 
+int msm_v4l2_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
+{
+	return msm_vidc_querybuf(get_vidc_inst(file, fh), b);
+}
+
 int msm_v4l2_prepare_buf(struct file *file, void *fh,
 				struct v4l2_buffer *b)
 {
@@ -251,6 +256,7 @@ static const struct v4l2_ioctl_ops msm_v4l2_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap_mplane = msm_v4l2_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane = msm_v4l2_g_fmt,
 	.vidioc_reqbufs = msm_v4l2_reqbufs,
+	.vidioc_querybuf = msm_v4l2_querybuf,
 	.vidioc_prepare_buf = msm_v4l2_prepare_buf,
 	.vidioc_qbuf = msm_v4l2_qbuf,
 	.vidioc_dqbuf = msm_v4l2_dqbuf,
@@ -278,12 +284,23 @@ static unsigned int msm_v4l2_poll(struct file *filp,
 	return msm_vidc_poll((void *)vidc_inst, filp, pt);
 }
 
+static int msm_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct msm_vidc_inst *vidc_inst = get_vidc_inst(file, NULL);
+	int rc = msm_vidc_mmap(vidc_inst, vma);
+	if (rc) {
+		dprintk(VIDC_ERR, "msm_vidc_mmap error %d \n", rc);
+	}
+	return rc;
+}
+
 static const struct v4l2_file_operations msm_v4l2_vidc_fops = {
 	.owner = THIS_MODULE,
 	.open = msm_v4l2_open,
 	.release = msm_v4l2_close,
 	.ioctl = video_ioctl2,
 	.poll = msm_v4l2_poll,
+	.mmap = msm_v4l2_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = v4l2_compat_ioctl32,
 #endif

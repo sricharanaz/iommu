@@ -1928,7 +1928,7 @@ int msm_comm_check_core_init(struct msm_vidc_core *core)
 				core->id, core->state);
 		goto exit;
 	}
-	printk("Waiting for SYS_INIT_DONE\n");
+	dprintk(VIDC_DBG, "Waiting for SYS_INIT_DONE\n");
 	rc = wait_for_completion_timeout(
 		&core->completions[SYS_MSG_INDEX(SYS_INIT_DONE)],
 		msecs_to_jiffies(msm_vidc_hw_rsp_timeout));
@@ -1941,7 +1941,7 @@ int msm_comm_check_core_init(struct msm_vidc_core *core)
 		core->state = VIDC_CORE_INIT_DONE;
 		rc = 0;
 	}
-	printk("SYS_INIT_DONE!!!\n");
+	dprintk(VIDC_DBG, "SYS_INIT_DONE!!!\n");
 exit:
 	mutex_unlock(&core->lock);
 	return rc;
@@ -2831,7 +2831,7 @@ int msm_comm_try_state(struct msm_vidc_inst *inst, int state)
 		if (rc || state == get_flipped_state(inst->state, state))
 			break;
 	default:
-		dprintk(VIDC_ERR, "State not recognized\n");
+		dprintk(VIDC_ERR, "State %d not recognized\n", flipped_state);
 		rc = -EINVAL;
 		break;
 	}
@@ -2856,7 +2856,9 @@ int msm_comm_qbuf(struct vb2_buffer *vb)
 	struct vidc_frame_data frame_data;
 	struct msm_vidc_core *core;
 	struct hfi_device *hdev;
-	int extra_idx = 0;
+	int extra_idx = 0, plane = 0;
+	struct buffer_info* binfo;
+	dma_addr_t device_addr;
 
 	if (!vb || !vb->vb2_queue)  {
 		dprintk(VIDC_ERR, "%s: Invalid input: %p\n",
@@ -2903,12 +2905,24 @@ int msm_comm_qbuf(struct vb2_buffer *vb)
 		mutex_unlock(&inst->pendingq.lock);
 	} else {
 		int64_t time_usec = timeval_to_ns(&vb->v4l2_buf.timestamp);
+		if (vb->v4l2_buf.memory == V4L2_MEMORY_MMAP) {
+			binfo = get_registered_mmap_buf(
+					inst, &vb->v4l2_buf, &plane);
+			if (binfo == NULL) {
+				dprintk(VIDC_ERR, "unable to find binfo %d", vb->v4l2_buf.index);
+				rc = -EINVAL;
+				goto err_bad_input;
+			}
+			device_addr = binfo->device_addr[0];
+		} else {
+			device_addr = vb->v4l2_planes[0].m.userptr;
+		}
 		do_div(time_usec, NSEC_PER_USEC);
 		memset(&frame_data, 0 , sizeof(struct vidc_frame_data));
 		frame_data.alloc_len = vb->v4l2_planes[0].length;
 		frame_data.filled_len = vb->v4l2_planes[0].bytesused;
 		frame_data.offset = vb->v4l2_planes[0].data_offset;
-		frame_data.device_addr = vb->v4l2_planes[0].m.userptr;
+		frame_data.device_addr = device_addr;
 		frame_data.timestamp = time_usec;
 		frame_data.flags = 0;
 		frame_data.clnt_data = frame_data.device_addr;

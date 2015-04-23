@@ -3361,7 +3361,8 @@ static void venus_hfi_response_handler(struct venus_hfi_device *device)
 					"Received HFI_MSG_SYS_RELEASE_RESOURCE\n");
 				complete(&release_resources_done);
 			} else if (rc == HFI_MSG_SYS_INIT_DONE) {
-				printk("Received HFI_MSG_SYS_INIT_DONE\n");
+				dprintk(VIDC_DBG,
+					"Received HFI_MSG_SYS_INIT_DONE\n");
 				if (venus_hfi_alloc_set_imem(device, true))
 					dprintk(VIDC_WARN,
 						"Failed to allocate IMEM. Performance will be impacted\n");
@@ -3585,7 +3586,6 @@ static inline int venus_hfi_prepare_enable_clks(struct venus_hfi_device *device)
 	}
 
 	venus_hfi_for_each_clock(device, cl) {
-#if 1
 		/*
 		 * For the clocks we control, set the rate prior to preparing
 		 * them.  Since we don't really have a load at this point, scale
@@ -3595,9 +3595,6 @@ static inline int venus_hfi_prepare_enable_clks(struct venus_hfi_device *device)
 			clk_set_rate(cl->clk, clk_round_rate(cl->clk, 0));
 
 		rc = clk_prepare_enable(cl->clk);
-#else
-		rc = 0;
-#endif
 		if (rc) {
 			dprintk(VIDC_ERR, "Failed to enable clock %s, %d\n", cl->name, rc);
 			cl_fail = cl;

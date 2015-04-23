@@ -26,6 +26,11 @@
 
 #define MAX_EVENTS 30
 
+/* Offset base for buffers on the destination queue - used to distinguish
+ * between source and destination buffers when mmapping - they receive the same
+ * offsets but for different queues */
+#define DST_QUEUE_OFF_BASE	(1 << 30)
+
 static int get_poll_flags(void *instance)
 {
 	struct msm_vidc_inst *inst = instance;
@@ -211,6 +216,32 @@ int msm_vidc_reqbufs(void *instance, struct v4l2_requestbuffers *b)
 }
 EXPORT_SYMBOL(msm_vidc_reqbufs);
 
+struct buffer_info *get_registered_mmap_buf(struct msm_vidc_inst *inst,
+		struct v4l2_buffer *b, int *plane)
+{
+	struct buffer_info *temp;
+	struct buffer_info *ret = NULL;
+
+	if (!inst || !b) {
+		dprintk(VIDC_ERR, "Invalid input\n");
+		return NULL;
+	}
+
+	*plane = 0;
+	mutex_lock(&inst->registeredbufs.lock);
+	list_for_each_entry(temp, &inst->registeredbufs.list, list) {
+		if (temp && temp->v4l2_index == b->index
+				&& temp->type == b->type) {
+			ret = temp;
+			*plane = 0;
+			//TODO: Add for loop for plane no
+			break;
+		}
+	}
+	mutex_unlock(&inst->registeredbufs.lock);
+	return ret;
+}
+
 struct buffer_info *get_registered_buf(struct msm_vidc_inst *inst,
 		struct v4l2_buffer *b, int idx, int *plane)
 {
@@ -231,7 +262,7 @@ struct buffer_info *get_registered_buf(struct msm_vidc_inst *inst,
 	mutex_lock(&inst->registeredbufs.lock);
 	list_for_each_entry(temp, &inst->registeredbufs.list, list) {
 		for (i = 0; i < min(temp->num_planes, VIDEO_MAX_PLANES); i++) {
-			bool fd_matches = fd == temp->fd[i];
+			bool fd_matches = false;
 			bool device_addr_matches = device_addr ==
 						temp->device_addr[i];
 			bool contains_within = CONTAINS(temp->buff_off[i],
@@ -239,11 +270,15 @@ struct buffer_info *get_registered_buf(struct msm_vidc_inst *inst,
 				CONTAINS(buff_off, size, temp->buff_off[i]);
 			bool overlaps = OVERLAPS(buff_off, size,
 					temp->buff_off[i], temp->size[i]);
+			if (b->memory == V4L2_MEMORY_DMABUF)
+				fd_matches = fd == temp->fd[i];
 
 			if ((fd_matches || device_addr_matches) &&
 				(contains_within || overlaps)) {
 				dprintk(VIDC_DBG,
 						"This memory region is already mapped\n");
+				dprintk(VIDC_DBG, "**sachins - fd_matches %d, device_addr_matches %d, contains_within %d, overlaps %d\n",
+						fd_matches, device_addr_matches, contains_within, overlaps);
 				ret = temp;
 				*plane = i;
 				break;
@@ -432,7 +467,7 @@ static inline void save_v4l2_buffer(struct v4l2_buffer *b,
 	}
 }
 
-int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
+static int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 {
 	struct buffer_info *binfo = NULL;
 	struct buffer_info *temp = NULL, *iterator = NULL;
@@ -458,8 +493,13 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 		goto exit;
 	}
 
-	dprintk(VIDC_DBG, "[MAP] Create binfo = %p fd = %d type = %d\n",
-			binfo, b->m.planes[0].reserved[0], b->type);
+	if (b->memory == V4L2_MEMORY_MMAP) {
+		dprintk(VIDC_DBG, "[MAP] Create binfo = %p mem_offset = %#x type = %d, length = %d\n",
+				binfo, b->m.planes[0].m.mem_offset, b->type, b->length);
+	} else {
+		dprintk(VIDC_DBG, "[MAP] Create binfo = %p fd = %d type = %d, length = %d\n",
+				binfo, b->m.planes[0].reserved[0], b->type, b->length);
+	}
 
 	for (i = 0; i < b->length; ++i) {
 		if (EXTRADATA_IDX(b->length) &&
@@ -700,6 +740,73 @@ int output_buffer_cache_invalidate(struct msm_vidc_inst *inst,
 	return 0;
 }
 
+int msm_vidc_mmap(void* instance, struct vm_area_struct *vma)
+{
+	int rc = 0;
+	struct msm_vidc_inst *inst = instance;
+	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+
+	if (!inst)
+		return -EINVAL;
+
+	if (offset < DST_QUEUE_OFF_BASE) {
+		dprintk(VIDC_DBG, "mmaping output plane\n");
+		rc = vb2_mmap(&inst->bufq[OUTPUT_PORT].vb2_bufq, vma);
+	} else {		/* capture */
+		dprintk(VIDC_DBG, "mmaping capture plane\n");
+		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
+		rc = vb2_mmap(&inst->bufq[CAPTURE_PORT].vb2_bufq, vma);
+	}
+
+	return rc;
+}
+
+int msm_vidc_querybuf(void *instance, struct v4l2_buffer *b)
+{
+	struct msm_vidc_inst *inst = instance;
+	int i = 0, rc = 0;
+
+	if (!inst || !b)
+		return -EINVAL;
+
+	if (b->memory != V4L2_MEMORY_MMAP) {
+		dprintk(VIDC_ERR, "Only MMAP bufs can be queried\n");
+		return -EINVAL;
+	}
+
+	dprintk(VIDC_DBG, "Before QueryBuf offset 0x%x for buffer index %d \n",
+				b->m.planes[0].m.mem_offset, b->index);
+	if (b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		dprintk(VIDC_DBG, "querybuf on output port \n");
+		vb2_querybuf(&inst->bufq[OUTPUT_PORT].vb2_bufq, b);
+	} else if (b->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		dprintk(VIDC_DBG, "querybuf on capture port \n");
+		vb2_querybuf(&inst->bufq[CAPTURE_PORT].vb2_bufq, b);
+		for (i = 0; i < b->length; i++) {
+			b->m.planes[i].m.mem_offset += DST_QUEUE_OFF_BASE;
+		}
+	}
+	return rc;
+}
+
+int msm_vidc_exportbuf(void *instance, struct v4l2_exportbuffer *b)
+{
+	struct msm_vidc_inst *inst = instance;
+	int rc = 0;
+
+	if (!inst || !b)
+		return -EINVAL;
+
+	if (b->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		dprintk(VIDC_DBG, "exportbuf on capture port \n");
+		rc = vb2_expbuf(&inst->bufq[CAPTURE_PORT].vb2_bufq, b);
+	} else if (b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		dprintk(VIDC_DBG, "exportbuf on output port \n");
+		rc = vb2_expbuf(&inst->bufq[OUTPUT_PORT].vb2_bufq, b);
+	}
+	return rc;
+}
+
 int msm_vidc_prepare_buf(void *instance, struct v4l2_buffer *b)
 {
 	struct msm_vidc_inst *inst = instance;
@@ -779,7 +886,8 @@ int msm_vidc_release_buffers(void *instance, int buffer_type)
 				plane[i].reserved[0] = bi->fd[i];
 				plane[i].reserved[1] = bi->buff_off[i];
 				plane[i].length = bi->size[i];
-				plane[i].m.userptr = bi->device_addr[i];
+				if (bi->memory == V4L2_MEMORY_USERPTR)
+					plane[i].m.userptr = bi->device_addr[i];
 				buffer_info.m.planes = plane;
 				dprintk(VIDC_DBG,
 					"Releasing buffer: %d, %d, %d\n",
@@ -887,6 +995,11 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 			return rc;
 	}
 
+	if (b->memory == V4L2_MEMORY_MMAP) {
+		dprintk(VIDC_DBG, "no cache opsi, mmap");
+		goto do_qbuf;
+	}
+
 	for (i = 0; i < b->length; ++i) {
 		if (!inst->map_output_buffer)
 			continue;
@@ -906,7 +1019,8 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 				b->m.planes[i].length);
 			goto err_invalid_buff;
 		}
-		b->m.planes[i].m.userptr = binfo->device_addr[i];
+		if (b->memory == V4L2_MEMORY_USERPTR)
+			b->m.planes[i].m.userptr = binfo->device_addr[i];
 		dprintk(VIDC_DBG, "Queueing device address = %pa\n",
 				&binfo->device_addr[i]);
 
@@ -934,6 +1048,7 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 		}
 	}
 
+do_qbuf:
 	if (inst->session_type == MSM_VIDC_DECODER)
 		return msm_vdec_qbuf(instance, b);
 	if (inst->session_type == MSM_VIDC_ENCODER)
@@ -967,6 +1082,11 @@ int msm_vidc_dqbuf(void *instance, struct v4l2_buffer *b)
 
 	if (rc)
 		return rc;
+
+	if (b->memory == V4L2_MEMORY_MMAP) {
+		dprintk(VIDC_DBG, "Ignore cache ops for MMAP buffers");
+		return rc;
+	}
 
 	for (i = 0; i < b->length; i++) {
 		if (!inst->map_output_buffer)
@@ -1216,13 +1336,8 @@ void *msm_vidc_open(int core_id, int session_type)
 		i <= SESSION_MSG_INDEX(SESSION_MSG_END); i++) {
 		init_completion(&inst->completions[i]);
 	}
-#if 0
-	inst->mem_client = msm_smem_new_client(SMEM_ION,
-					&inst->core->resources);
-#else
 	inst->mem_client = msm_smem_new_client(SMEM_DMA,
 						&inst->core->resources);
-#endif
 	if (!inst->mem_client) {
 		dprintk(VIDC_ERR, "Failed to create memory client\n");
 		goto fail_mem_client;

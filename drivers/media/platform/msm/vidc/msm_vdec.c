@@ -616,7 +616,7 @@ struct msm_vidc_format vdec_formats[] = {
 		.name = "YCbCr Semiplanar 4:2:0",
 		.description = "Y/CbCr 4:2:0",
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.num_planes = 2,
+		.num_planes = 1, /* TODO: was 2 */
 		.get_frame_size = get_frame_size_nv12,
 		.type = CAPTURE_PORT,
 	},
@@ -624,7 +624,7 @@ struct msm_vidc_format vdec_formats[] = {
 		.name = "UBWC YCbCr Semiplanar 4:2:0",
 		.description = "UBWC Y/CbCr 4:2:0",
 		.fourcc = V4L2_PIX_FMT_NV12_UBWC,
-		.num_planes = 2,
+		.num_planes = 1, /* TODO: was 2 */
 		.get_frame_size = get_frame_size_nv12_ubwc,
 		.type = CAPTURE_PORT,
 	},
@@ -1529,6 +1529,7 @@ static int msm_vdec_queue_setup(struct vb2_queue *q,
 	struct hfi_device *hdev;
 	struct hal_buffer_count_actual new_buf_count;
 	enum hal_property property_id;
+	struct context_bank_info *cb;
 
 	if (!q || !num_buffers || !num_planes
 		|| !sizes || !q->drv_priv) {
@@ -1551,9 +1552,16 @@ static int msm_vdec_queue_setup(struct vb2_queue *q,
 		if (*num_buffers < MIN_NUM_OUTPUT_BUFFERS ||
 				*num_buffers > MAX_NUM_OUTPUT_BUFFERS)
 			*num_buffers = MIN_NUM_OUTPUT_BUFFERS;
+		cb = msm_smem_get_context_bank(inst->mem_client, false, HAL_BUFFER_INPUT);
+		if (!cb) {
+			dprintk(VIDC_ERR,"Failed to find context bank for input buffer\n");
+			rc = -EINVAL;
+			break;
+		}
 		for (i = 0; i < *num_planes; i++) {
 			sizes[i] = get_frame_size(inst,
 					inst->fmts[OUTPUT_PORT], q->type, i);
+			alloc_ctxs[i] = cb->alloc_ctx;
 		}
 		property_id = HAL_PARAM_BUFFER_COUNT_ACTUAL;
 		new_buf_count.buffer_type = HAL_BUFFER_INPUT;
@@ -1616,16 +1624,34 @@ static int msm_vdec_queue_setup(struct vb2_queue *q,
 				inst->buff_req.buffer[1].buffer_count_actual,
 				inst->buff_req.buffer[1].buffer_size,
 				inst->buff_req.buffer[1].buffer_alignment);
+		cb = msm_smem_get_context_bank(inst->mem_client, false,
+				msm_comm_get_hal_output_buffer(inst));
+		if (!cb) {
+			dprintk(VIDC_ERR,"Failed to find context bank for output buffer\n");
+			rc = -EINVAL;
+			break;
+		}
 		sizes[0] = bufreq->buffer_size;
+		alloc_ctxs[0] = cb->alloc_ctx;
 		extra_idx =
 			EXTRADATA_IDX(inst->fmts[CAPTURE_PORT]->num_planes);
 		if (extra_idx && extra_idx < VIDEO_MAX_PLANES) {
 			bufreq = get_buff_req_buffer(inst,
 					HAL_BUFFER_EXTRADATA_OUTPUT);
-			if (bufreq)
+			cb = msm_smem_get_context_bank(inst->mem_client, false,
+					HAL_BUFFER_EXTRADATA_OUTPUT);
+			if (!cb) {
+				dprintk(VIDC_ERR,"Failed to find context bank for extradata output buffer\n");
+				rc = -EINVAL;
+				break;
+			}
+			alloc_ctxs[extra_idx] = cb->alloc_ctx;
+			if (bufreq) {
 				sizes[extra_idx] = bufreq->buffer_size;
-			else
+			} else {
+				*num_planes = 1;
 				sizes[extra_idx] = 0;
+			}
 		}
 		break;
 	default:
@@ -1633,6 +1659,90 @@ static int msm_vdec_queue_setup(struct vb2_queue *q,
 		rc = -EINVAL;
 		break;
 	}
+	return rc;
+}
+
+static int msm_vdec_buf_init(struct vb2_buffer *vb)
+{
+	int rc = 0, i = 0;
+	struct vb2_queue *q = vb->vb2_queue;
+	struct msm_vidc_inst *inst = q->drv_priv;
+	struct buffer_info* binfo = NULL;
+	struct vidc_buffer_addr_info buffer_info;
+	enum hal_buffer buffer_type = HAL_BUFFER_INPUT;
+	struct dma_buf* dbuf;
+	struct hfi_device *hdev;
+
+	dprintk(VIDC_DBG, "msm_vdec_buf_init \n");
+	if (q->memory == V4L2_MEMORY_USERPTR ||
+		q->memory == V4L2_MEMORY_DMABUF) {
+		dprintk(VIDC_DBG,
+			"Ignore buf init for userptr & DMABUF modes");
+		return rc;
+	}
+	if (!inst) {
+		return -EINVAL;
+	}
+
+	hdev = inst->core->device;
+	binfo = kzalloc(sizeof(*binfo), GFP_KERNEL);
+	if (!binfo) {
+		dprintk(VIDC_ERR, "Out of memory\n");
+		rc = -ENOMEM;
+		return rc;
+	}
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		buffer_type = HAL_BUFFER_INPUT;
+	else if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		buffer_type = HAL_BUFFER_OUTPUT;
+
+	for (i = 0; i < vb->num_planes; ++i) {
+		if (vb->vb2_queue->mem_ops->get_dmabuf != NULL) {
+			dbuf = vb->vb2_queue->mem_ops->get_dmabuf(
+						vb->planes[i].mem_priv, 0);
+		}
+		else {
+			dprintk(VIDC_ERR, "get_dmabuf is not supported \n");
+			rc = -EINVAL;
+			goto free_binfo;
+		}
+		binfo->handle[i] = msm_smem_map_dma_buf(
+					inst->mem_client, dbuf, buffer_type);
+		binfo->mapped[i] = true;
+		binfo->device_addr[i] = binfo->handle[i]->device_addr;
+		binfo->size[i] = vb->v4l2_planes[i].length;
+		dprintk(VIDC_DBG, "%s: device_addr 0x %pa, index %d, plane %d, size %d",
+				__func__, &binfo->device_addr[i], vb->v4l2_buf.index, i, binfo->size[i]);
+	}
+	binfo->num_planes = vb->num_planes;
+	binfo->memory = q->memory;
+	binfo->v4l2_index = vb->v4l2_buf.index;
+	binfo->type = q->type;
+
+	mutex_lock(&inst->registeredbufs.lock);
+	list_add_tail(&binfo->list, &inst->registeredbufs.list);
+	mutex_unlock(&inst->registeredbufs.lock);
+
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		//set buffer to FW, TODO move to dymaic buf mode
+		buffer_info.buffer_size = vb->v4l2_planes[0].length;
+		buffer_info.buffer_type =
+			msm_comm_get_hal_output_buffer(inst);
+		buffer_info.num_buffers = 1;
+		buffer_info.align_device_addr = binfo->device_addr[0];
+		buffer_info.extradata_addr = 0;
+		buffer_info.extradata_size = 0;
+		rc = call_hfi_op(hdev, session_set_buffers,
+					(void *)inst->session, &buffer_info);
+		if (rc)
+			dprintk(VIDC_ERR,
+				"vidc_hal_session_set_buffers failed\n");
+
+	}
+
+	return rc;
+free_binfo:
+	kfree(binfo);
 	return rc;
 }
 
@@ -1871,6 +1981,7 @@ exit:
 
 static const struct vb2_ops msm_vdec_vb2q_ops = {
 	.queue_setup = msm_vdec_queue_setup,
+	.buf_init = msm_vdec_buf_init,
 	.start_streaming = msm_vdec_start_streaming,
 	.buf_queue = msm_vdec_buf_queue,
 	.stop_streaming = msm_vdec_stop_streaming,
