@@ -760,8 +760,6 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	int is_secure;
 	bool set_m2v = false;
 
-	printk("\n msm_iommu_attach_dev dom =%x dev=%x", domain, dev);
-
 	mutex_lock(&msm_iommu_lock);
 
 	priv = domain->priv;
@@ -932,9 +930,6 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 	struct msm_iommu_priv *priv;
 	int ret = 0;
 
-	printk("\n msm_iommu_map domain dom = %x va = %x pa = %x len = %x prot = %x",
-			domain, va, pa, len, prot);
-
 	mutex_lock(&msm_iommu_lock);
 
 	priv = domain->priv;
@@ -961,8 +956,6 @@ static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long va,
 {
 	struct msm_iommu_priv *priv;
 	int ret = -ENODEV;
-
-	printk("\n msm_iommu_unmap dom=%x va=%x len=%x", domain, va, len);
 
 	mutex_lock(&msm_iommu_lock);
 
