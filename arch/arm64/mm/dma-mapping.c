@@ -747,10 +747,11 @@ __iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
  * Create a mapping in device IO address space for specified pages
  */
 static dma_addr_t
-__iommu_create_mapping(struct device *dev, struct page **pages, size_t size)
+__iommu_create_mapping(struct device *dev, struct page **pages, size_t size,
+		       int npages)
 {
 	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
-	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned int count = npages;
 	dma_addr_t dma_addr, iova;
 	int i, ret;
 
@@ -837,7 +838,7 @@ static void *__iommu_alloc_atomic(struct device *dev, size_t size,
 	if (!addr)
 		return NULL;
 
-	*handle = __iommu_create_mapping(dev, &page, size);
+	*handle = __iommu_create_mapping(dev, &page, size, 1);
 	if (*handle == DMA_ERROR_CODE)
 		goto err_mapping;
 
@@ -882,7 +883,8 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 	if (!pages)
 		return NULL;
 
-	*handle = __iommu_create_mapping(dev, pages, size);
+	*handle = __iommu_create_mapping(dev, pages, size,
+					 PAGE_ALIGN(size) >> PAGE_SHIFT);
 	if (*handle == DMA_ERROR_CODE)
 		goto err_buffer;
 
