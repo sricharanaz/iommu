@@ -4057,7 +4057,9 @@ static void venus_hfi_unload_fw(void *dev)
 		if (venus_hfi_halt_axi(device))
 			dprintk(VIDC_WARN, "Failed to halt AXI\n");
 		venus_hfi_disable_unprepare_clks(device);
+#if 0
 		venus_hfi_disable_regulators(device);
+#endif
 		venus_hfi_unvote_buses(device);
 		device->power_enabled = false;
 		device->resources.fw.cookie = NULL;
