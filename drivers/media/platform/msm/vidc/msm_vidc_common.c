@@ -1148,6 +1148,39 @@ static void handle_session_close(enum command_response cmd, void *data)
 	}
 }
 
+static struct vb2_buffer *get_vb_from_v4l2_index(struct msm_vidc_inst* inst,
+			struct buf_queue *bufq, unsigned long dev_addr)
+{
+
+	struct vb2_buffer *vb = NULL;
+	struct vb2_queue *q = NULL;
+	struct buffer_info* binfo = NULL;
+	int found = 0, plane = 0;
+	if (!inst || !bufq) {
+		dprintk(VIDC_ERR, "Invalid parameter\n");
+		return NULL;
+	}
+	q = &bufq->vb2_bufq;
+	mutex_lock(&bufq->lock);
+	list_for_each_entry(vb, &q->queued_list, queued_entry) {
+		binfo = get_registered_mmap_buf(inst, &vb->v4l2_buf, &plane);
+		if (binfo != NULL && binfo->device_addr[plane] == dev_addr) {
+			found = 1;
+			dprintk(VIDC_DBG, "Found v4l2_buf idx %d, addr %#lx\n",
+					vb->v4l2_buf.index, dev_addr);
+			break;
+		}
+	}
+	mutex_unlock(&bufq->lock);
+	if (!found) {
+		dprintk(VIDC_DBG,
+			"Failed to find buffer in queued list: %#lx, qtype = %d\n",
+			dev_addr, q->type);
+		vb = NULL;
+	}
+	return vb;
+}
+
 static struct vb2_buffer *get_vb_from_device_addr(struct buf_queue *bufq,
 		unsigned long dev_addr)
 {
@@ -1197,8 +1230,13 @@ static void handle_ebd(enum command_response cmd, void *data)
 			__func__);
 		return;
 	}
-	vb = get_vb_from_device_addr(&inst->bufq[OUTPUT_PORT],
+	if (inst->bufq[OUTPUT_PORT].vb2_bufq.memory == V4L2_MEMORY_MMAP) {
+		vb = get_vb_from_v4l2_index(inst, &inst->bufq[OUTPUT_PORT],
+						response->clnt_data);
+	} else {
+		vb = get_vb_from_device_addr(&inst->bufq[OUTPUT_PORT],
 				response->clnt_data);
+	}
 	if (vb) {
 		vb->v4l2_planes[0].bytesused = response->input_done.filled_len;
 		vb->v4l2_planes[0].data_offset = response->input_done.offset;
@@ -1206,7 +1244,8 @@ static void handle_ebd(enum command_response cmd, void *data)
 			dprintk(VIDC_INFO, "data_offset overflow length\n");
 		if (vb->v4l2_planes[0].bytesused > vb->v4l2_planes[0].length)
 			dprintk(VIDC_INFO, "bytesused overflow length\n");
-		if (vb->v4l2_planes[0].m.userptr !=
+		if (vb->v4l2_buf.memory == V4L2_MEMORY_USERPTR &&
+			vb->v4l2_planes[0].m.userptr !=
 			response->input_done.packet_buffer)
 			dprintk(VIDC_INFO, "Unexpected buffer address\n");
 		empty_buf_done = (struct vidc_hal_ebd *)&response->input_done;
@@ -1410,8 +1449,13 @@ static void handle_fbd(enum command_response cmd, void *data)
 	fill_buf_done = (struct vidc_hal_fbd *)&response->output_done;
 	buffer_type = msm_comm_get_hal_output_buffer(inst);
 	if (fill_buf_done->buffer_type == buffer_type) {
-		vb = get_vb_from_device_addr(&inst->bufq[CAPTURE_PORT],
-				fill_buf_done->packet_buffer1);
+		if (inst->bufq[CAPTURE_PORT].vb2_bufq.memory == V4L2_MEMORY_MMAP) {
+			vb = get_vb_from_v4l2_index(inst, &inst->bufq[CAPTURE_PORT],
+					fill_buf_done->packet_buffer1);
+		} else {
+			vb = get_vb_from_device_addr(&inst->bufq[CAPTURE_PORT],
+					fill_buf_done->packet_buffer1);
+		}
 	} else {
 		if (handle_multi_stream_buffers(inst,
 				fill_buf_done->packet_buffer1))
