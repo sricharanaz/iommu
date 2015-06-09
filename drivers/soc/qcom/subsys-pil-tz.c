@@ -619,8 +619,10 @@ static int pil_mem_setup_trusted(struct pil_desc *pil, phys_addr_t addr,
 	int ret;
 	struct scm_desc desc = {0};
 
-	if (d->subsys_desc.no_auth)
+	if (d->subsys_desc.no_auth) {
+		set_firmware_base(addr);
 		return 0;
+	}
 
 	desc.args[0] = request.proc = d->pas_id;
 	desc.args[1] = request.start_addr = addr;

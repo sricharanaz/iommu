@@ -12,7 +12,7 @@
 
 #define VIDC_DBG_LABEL "venus_boot"
 
-//#include <asm/dma-iommu.h>
+#include <asm/dma-iommu.h>
 #include <asm/page.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -148,7 +148,6 @@ static void venus_clock_disable_unprepare(void)
 	}
 }
 
-#if 0
 static int venus_setup_cb(struct device *dev,
 				u32 size)
 {
@@ -159,16 +158,21 @@ static int venus_setup_cb(struct device *dev,
 	venus_data->mapping = arm_iommu_create_mapping(
 		&platform_bus_type, va_start, va_size, order);
 	if (IS_ERR_OR_NULL(venus_data->mapping)) {
-		dprintk(VIDC_ERR, "%s: failed to create mapping for %s\n",
+		printk("%s: failed to create mapping for %s\n",
 		__func__, dev_name(dev));
 		return -ENODEV;
 	}
-	dprintk(VIDC_DBG,
-		"%s Attached device %p and created mapping %p for %s\n",
+	printk("%s Attached device %p and created mapping %p for %s\n",
 		__func__, dev, venus_data->mapping, dev_name(dev));
 	return 0;
 }
-#endif
+
+phys_addr_t venus_firmware_base;
+
+void set_firmware_base(phys_addr_t phys)
+{
+	venus_firmware_base = phys;
+}
 
 static int pil_venus_mem_setup(size_t size)
 {
@@ -176,16 +180,14 @@ static int pil_venus_mem_setup(size_t size)
 
 	if (!venus_data->mapping) {
 		size = round_up(size, SZ_4K);
-#if 0
 		rc = venus_setup_cb(venus_data->iommu_ctx_bank_dev, size);
 		if (rc) {
-			dprintk(VIDC_ERR,
-				"%s: Failed to setup context bank for venus : %s\n",
+			printk("%s: Failed to setup context bank for venus : %s\n",
 				__func__,
 				dev_name(venus_data->iommu_ctx_bank_dev));
 			return rc;
 		}
-#endif
+
 		venus_data->fw_sz = size;
 	}
 
@@ -198,7 +200,7 @@ static int pil_venus_auth_and_reset(void)
 
 	/* Need to enable this for new SMMU to set the device attribute */
 	bool disable_htw = true;
-	phys_addr_t fw_bias = venus_data->resources->firmware_base;
+	phys_addr_t fw_bias = venus_firmware_base;
 	void __iomem *reg_base = venus_data->reg_base;
 	u32 ver;
 	bool iommu_present = is_iommu_present(venus_data->resources);
@@ -249,7 +251,6 @@ static int pil_venus_auth_and_reset(void)
 		writel_relaxed(0, reg_base + fw_start_addr);
 		writel_relaxed(venus_data->fw_sz, reg_base + fw_end_addr);
 	} else {
-		rc = regulator_enable(venus_data->gdsc);
 		if (rc) {
 			dprintk(VIDC_ERR, "GDSC enable failed\n");
 			goto err;
@@ -258,7 +259,6 @@ static int pil_venus_auth_and_reset(void)
 		rc = venus_clock_prepare_enable();
 		if (rc) {
 			dprintk(VIDC_ERR, "Clock prepare and enable failed\n");
-			regulator_disable(venus_data->gdsc);
 			goto err;
 		}
 
@@ -270,7 +270,6 @@ static int pil_venus_auth_and_reset(void)
 				reg_base + VENUS_VBIF_AT_NEW_HIGH);
 		writel_relaxed(0x7F007F, reg_base + VENUS_VBIF_ADDR_TRANS_EN);
 		venus_clock_disable_unprepare();
-		regulator_disable(venus_data->gdsc);
 	}
 	/* Make sure all register writes are committed. */
 	mb();
@@ -284,23 +283,12 @@ static int pil_venus_auth_and_reset(void)
 	if (iommu_present) {
 		phys_addr_t temp, pa = fw_bias;
 
-#if 0
 		rc = arm_iommu_attach_device(dev, venus_data->mapping);
 		if (rc) {
 			dprintk(VIDC_ERR,
 				"Failed to attach iommu for %s : %d\n",
 				dev_name(dev), rc);
 			goto release_mapping;
-		}
-
-		/* Enable this for new SMMU to set the device attribute */
-		if (iommu_domain_set_attr(venus_data->mapping->domain,
-				DOMAIN_ATTR_COHERENT_HTW_DISABLE,
-				&disable_htw)) {
-			dprintk(VIDC_ERR,
-				"%s: Failed to disable COHERENT_HTW: %s\n",
-				__func__, dev_name(dev));
-			goto err_iommu_map;
 		}
 
 		dprintk(VIDC_DBG, "Attached and created mapping for %s\n",
@@ -318,8 +306,7 @@ static int pil_venus_auth_and_reset(void)
 				"%s : iova_to_phys didn't match what we mapped! (mapped: %p, got: %p)\n",
 				dev_name(dev), &pa, &temp);
 		} else {
-			dprintk(VIDC_DBG,
-				"%s - Successfully mapped and performed test translation!\n",
+			printk("%s - Successfully mapped and performed test translation!\n",
 				dev_name(dev));
 		}
 
@@ -328,7 +315,6 @@ static int pil_venus_auth_and_reset(void)
 					dev_name(dev));
 			goto err_iommu_map;
 		}
-#endif
 	}
 	/* Bring Arm9 out of reset */
 	writel_relaxed(0, reg_base + VENUS_WRAPPER_SW_RESET);
@@ -336,14 +322,12 @@ static int pil_venus_auth_and_reset(void)
 	venus_data->is_booted = 1;
 	return 0;
 
-#if 0
 err_iommu_map:
 	if (iommu_present)
 		arm_iommu_detach_device(dev);
 release_mapping:
 	if (iommu_present)
 		arm_iommu_release_mapping(venus_data->mapping);
-#endif
 err:
 	return rc;
 }
@@ -366,11 +350,9 @@ static int pil_venus_shutdown(void)
 	mb();
 
 	if (is_iommu_present(venus_data->resources)) {
-#if 0
 		iommu_unmap(venus_data->mapping->domain, venus_data->fw_iova,
 			venus_data->fw_sz);
 		arm_iommu_detach_device(venus_data->iommu_ctx_bank_dev);
-#endif
 	}
 	/*
 	 * Force the VBIF clk to be on to avoid AXI bridge halt ack failure
@@ -417,29 +399,11 @@ static int venus_notifier_cb(struct notifier_block *this, unsigned long code,
 		if (ret)
 			return ret;
 
-		ret = of_property_read_string(data->pdev->dev.of_node,
-				"qcom,proxy-reg-names", &venus_data->reg_name);
-		if (ret)
-			return ret;
-
-		venus_data->gdsc = devm_regulator_get(
-				&data->pdev->dev, venus_data->reg_name);
-		if (IS_ERR(venus_data->gdsc)) {
-			dprintk(VIDC_ERR, "Failed to get Venus GDSC\n");
-			return -ENODEV;
-		}
-
 		venus_data_set = true;
 	}
 
 	if (code != SUBSYS_AFTER_POWERUP && code != SUBSYS_AFTER_SHUTDOWN)
 		return NOTIFY_DONE;
-
-	ret = regulator_enable(venus_data->gdsc);
-	if (ret) {
-		dprintk(VIDC_ERR, "GDSC enable failed\n");
-		return ret;
-	}
 
 	ret = venus_clock_prepare_enable();
 	if (ret) {
@@ -455,11 +419,9 @@ static int venus_notifier_cb(struct notifier_block *this, unsigned long code,
 		pil_venus_shutdown();
 
 	venus_clock_disable_unprepare();
-	regulator_disable(venus_data->gdsc);
 
 	return NOTIFY_DONE;
 err_clks:
-	regulator_disable(venus_data->gdsc);
 	return ret;
 }
 

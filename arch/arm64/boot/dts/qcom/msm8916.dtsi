@@ -1503,6 +1503,7 @@
 	qcom,venus@1de0000 {
 		compatible = "qcom,pil-tz-generic";
 		reg = <0x1de0000 0x4000>;
+		qcom,pil-no-auth;
 
 		power-domains = <&clock_gcc VENUS_GDSC>;
 		clocks = <&clock_gcc GCC_VENUS0_VCODEC0_CLK>,
@@ -1648,6 +1649,7 @@
 			<0x9181000 0x1000>;
 		qcom,max-hw-load = <352800>; /* 720p @ 30 + 1080p @ 30 */
 		qcom,enable-idle-indicator;
+		qcom,use-non-secure-pil;
 		qcom,msm-bus-clients {
 			qcom,msm-bus-client@0 {
 				qcom,msm-bus,name = "venc-ddr";
@@ -1675,6 +1677,11 @@
 					<63 512 677600 1331000>, /* 720p 60 fps */
 					<63 512 677600 1331000>; /* 1080p 30 fps */
 				qcom,bus-configs = <0x030fcfff>;
+			};
+
+			firmware_cb {
+				compatible = "qcom,msm-vidc,context-bank";
+				qcom,fw-context-bank;
 			};
 		};
 
