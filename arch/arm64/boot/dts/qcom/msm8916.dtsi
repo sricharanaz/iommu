@@ -1693,11 +1693,13 @@
 
                                buffer-types = <0xfff>;
                                virtual-addr-pool = <0x5dc00000 0x8f000000>;
+				use-32bit-va;
                 };
 
                 firmware_cb {
 			compatible = "qcom,msm-vidc,context-bank";
 			qcom,fw-context-bank;
+			use-32bit-va;
 			iommus = <&apps_smmu 0x8c0>,
 				 <&apps_smmu 0x8c6>;
 		};
