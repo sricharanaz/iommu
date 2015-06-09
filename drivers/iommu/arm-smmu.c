@@ -387,6 +387,7 @@ struct arm_smmu_domain {
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	struct mutex			init_mutex; /* Protects smmu pointer */
+	int				use_32bit_va;
 };
 
 static struct iommu_ops arm_smmu_ops;
@@ -915,6 +916,9 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 #else
 		reg = CBA2R_RW64_32BIT;
 #endif
+		if (smmu_domain->use_32bit_va)
+			reg = CBA2R_RW64_32BIT;
+
 		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
 	}
 
@@ -1041,10 +1045,13 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		start = smmu->num_s2_context_banks;
 		ias = smmu->va_size;
 		oas = smmu->ipa_size;
-		if (IS_ENABLED(CONFIG_64BIT))
+		if (IS_ENABLED(CONFIG_64BIT) && !(smmu_domain->use_32bit_va)) {
 			fmt = ARM_64_LPAE_S1;
-		else
+		} else {
 			fmt = ARM_32_LPAE_S1;
+			ias = 32;
+			oas = 32;
+		}
 		break;
 	case ARM_SMMU_DOMAIN_NESTED:
 		/*
@@ -1056,10 +1063,13 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		start = 0;
 		ias = smmu->ipa_size;
 		oas = smmu->pa_size;
-		if (IS_ENABLED(CONFIG_64BIT))
+		if (IS_ENABLED(CONFIG_64BIT) && !(smmu_domain->use_32bit_va)) {
 			fmt = ARM_64_LPAE_S2;
-		else
+		} else {
 			fmt = ARM_32_LPAE_S2;
+			ias = 32;
+			oas = 32;
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -1343,6 +1353,9 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		dev_err(dev, "already attached to IOMMU domain\n");
 		return -EEXIST;
 	}
+
+	smmu_domain->use_32bit_va = of_property_read_bool(dev->of_node,
+							  "use-32bit-va");
 
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
