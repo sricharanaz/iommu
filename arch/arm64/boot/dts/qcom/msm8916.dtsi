@@ -1679,16 +1679,27 @@
 				qcom,bus-configs = <0x030fcfff>;
 			};
 
-			firmware_cb {
-				compatible = "qcom,msm-vidc,context-bank";
-				qcom,fw-context-bank;
-			};
 		};
 
 		non_secure_cb {
 			compatible = "qcom,msm-vidc,context-bank";
-			qcom,vidc-domain-phandle = <&venus_domain_ns>;
-			qcom,vidc-partition-buffer-types = <0xfff>;
+                        iommus = <&apps_smmu 0x800>,
+                                 <&apps_smmu 0x801>,
+                                 <&apps_smmu 0x802>,
+                                 <&apps_smmu 0x803>,
+                                 <&apps_smmu 0x804>,
+                                 <&apps_smmu 0x805>,
+                                 <&apps_smmu 0x807>;
+
+                               buffer-types = <0xfff>;
+                               virtual-addr-pool = <0x5dc00000 0x8f000000>;
+                };
+
+                firmware_cb {
+			compatible = "qcom,msm-vidc,context-bank";
+			qcom,fw-context-bank;
+			iommus = <&apps_smmu 0x8c0>,
+				 <&apps_smmu 0x8c6>;
 		};
 
 		secure_bitstream_cb {
