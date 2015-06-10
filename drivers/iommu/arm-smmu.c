@@ -1354,7 +1354,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -EEXIST;
 	}
 
-	smmu_domain->use_32bit_va = of_property_read_bool(dev.of_node,
+	smmu_domain->use_32bit_va = of_property_read_bool(dev->of_node,
 							  "use-32bit-va");
 
 	/* Ensure that the domain is finalised */

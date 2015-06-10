@@ -606,6 +606,8 @@ static int pil_init_image_trusted(struct pil_desc *pil,
 	return scm_ret;
 }
 
+void set_firmware_base(phys_addr_t phys);
+
 static int pil_mem_setup_trusted(struct pil_desc *pil, phys_addr_t addr,
 			       size_t size)
 {

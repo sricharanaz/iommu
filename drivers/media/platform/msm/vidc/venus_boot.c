@@ -297,7 +297,7 @@ static int pil_venus_auth_and_reset(void)
 		/* Map virtual addr space 0 - fw_sz to fw phys addr space */
 		rc = iommu_map(venus_data->mapping->domain,
 			venus_data->fw_iova, pa, venus_data->fw_sz,
-			IOMMU_READ|IOMMU_WRITE|IOMMU_NOEXEC|IOMMU_PRIV);
+			IOMMU_READ|IOMMU_WRITE);
 		temp = iommu_iova_to_phys(venus_data->mapping->domain,
 				venus_data->fw_iova);
 

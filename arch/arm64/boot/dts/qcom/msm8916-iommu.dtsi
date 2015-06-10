@@ -12,10 +12,6 @@
 
 #include "msm-iommu-v2.dtsi"
 
-&gfx_iommu {
-	status = "ok";
-};
-
 &soc {
        apps_smmu: arm,smmu@1e00000 {
                compatible = "qcom,smmu-v2";
