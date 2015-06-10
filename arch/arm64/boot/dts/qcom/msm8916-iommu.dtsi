@@ -12,10 +12,64 @@
 
 #include "msm-iommu-v2.dtsi"
 
-&gfx_iommu {
-	status = "ok";
-};
+&soc {
+        gfx_smmu: arm,smmu@1f00000 {
+                compatible = "qcom,smmu-v2";
+               reg = <0x1f00000 0x10000>;
+               #global-interrupts = <1>;
+               interrupts = <0 43 0>,
+                            <0 241 0>,
+                            <0 241 0>,
+			    <0 241 0>,
+			    <0 241 0>;
+               #iommu-cells = <1>;
+                clocks = <&gcc GCC_SMMU_CFG_CLK>,
+                         <&gcc GCC_GFX_TCU_CLK>;
+                clock-names = "iface_clk", "core_clk";
+                status = "okay";
+        };
 
-&apps_iommu {
-	status = "ok";
-};
+       apps_smmu: arm,smmu@1e00000 {
+               compatible = "qcom,smmu-v2";
+               reg = <0x1e00000 0x40000
+                       0x1ef0000 0x3000>;
+               #global-interrupts = <1>;
+               interrupts = <0 43 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                            <0 70 0>,
+                           <0 70 0>,
+                            <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                            <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                            <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                             <0 70 0>,
+                            <0 70 0>;
+               #iommu-cells = <1>;
+               clocks = <&gcc GCC_SMMU_CFG_CLK>,
+                       <&gcc GCC_APSS_TCU_CLK>;
+               clock-names = "iface_clk", "core_clk";
+               #clock-cells = <1>;
+               status = "okay";
+       };
+ };
