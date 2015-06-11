@@ -427,6 +427,7 @@ static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
 {
 	int i;
 
+	return 0;
 	for (i = 0; i < smmu->num_clocks; ++i)
 		clk_disable_unprepare(smmu->clocks[i]);
 }
