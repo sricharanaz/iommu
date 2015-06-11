@@ -1527,7 +1527,6 @@
 		qcom,pas-id = <9>;
 		qcom,proxy-timeout-ms = <5000>;
 		qcom,firmware-name = "venus";
-		memory-region = <&venus_qseecom_mem>;
 	};
 
 	qcom,msm-thermal {
