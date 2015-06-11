@@ -34,6 +34,10 @@
 		    <&gcc GFX3D_CLK_SRC>;
 		power-domains = <&gcc OXILI_GDSC>;
 		qcom,chipid = <0x03000600>;
+
+		iommus = <&gfx_smmu 0>,
+			 <&gfx_smmu 1>;
+
 		qcom,gpu-pwrlevels {
 			compatible = "qcom,gpu-pwrlevels";
 			qcom,gpu-pwrlevel@0 {
@@ -68,6 +72,8 @@
 			 <&gcc GCC_MDSS_VSYNC_CLK>;
 		clock-names = "iface_clk", "bus_clk", "core_clk_src",
 			      "core_clk", "lut_clk", "vsync_clk";
+
+		iommus = <&apps_smmu 0xc00>;
 	};
 
 	mdss_dsi0: qcom,mdss_dsi@1a98000 {
