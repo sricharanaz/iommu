@@ -324,6 +324,7 @@ struct arm_smmu_device {
 	unsigned int			*irqs;
 
 	struct list_head		list;
+	struct device_node		*node;
 	struct rb_root			masters;
 };
 
@@ -1439,6 +1440,39 @@ out_unlock:
 	return ret;
 }
 
+static int arm_smmu_of_xlate(struct device *dev,
+			     struct of_phandle_args *spec)
+{
+	struct arm_smmu_device *smmu;
+	struct arm_smmu_master *master;
+	int streamid;
+
+	spin_lock(&arm_smmu_devices_lock);
+	list_for_each_entry(smmu, &arm_smmu_devices, list) {
+		if (smmu->node == spec->np)
+			break;
+	}
+	spin_unlock(&arm_smmu_devices_lock);
+
+	if (!smmu || (smmu->node != spec->np))
+		return -ENODEV;
+
+	spec->np = dev->of_node;
+
+	master = find_smmu_master(smmu, spec->np);
+	if (!master) {
+		if (register_smmu_master(smmu, smmu->dev, spec))
+			return -ENODEV;
+		arm_smmu_add_device(dev);
+	} else {
+		streamid = master->cfg.num_streamids;
+		master->cfg.streamids[streamid] = spec->args[0];
+		master->cfg.num_streamids++;
+	}
+
+	return 0;
+}
+
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
@@ -1455,6 +1489,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.domain_get_attr	= arm_smmu_domain_get_attr,
 	.domain_set_attr	= arm_smmu_domain_set_attr,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
+	.of_xlate		= arm_smmu_of_xlate,
 };
 
 static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
@@ -1809,6 +1844,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 			goto out_free_irqs;
 		}
 	}
+
+	smmu->node = dev->of_node;
 
 	INIT_LIST_HEAD(&smmu->list);
 	spin_lock(&arm_smmu_devices_lock);
