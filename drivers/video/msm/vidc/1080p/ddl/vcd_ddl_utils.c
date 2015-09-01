@@ -10,10 +10,8 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/memory_alloc.h>
 #include <linux/delay.h>
-#include <mach/msm_subsystem_map.h>
-#include <mach/peripheral-loader.h>
+#include <linux/peripheral-loader.h>
 #include "vcd_ddl_utils.h"
 #include "vcd_ddl.h"
 #include "vcd_res_tracker_api.h"

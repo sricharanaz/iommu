@@ -13,7 +13,6 @@
 #ifndef _VCD_CORE_H_
 #define _VCD_CORE_H_
 
-#include <linux/msm_ion.h>
 #include <media/msm/vcd_api.h>
 #include "vcd_ddl_api.h"
 

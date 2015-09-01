@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/memory_alloc.h>
-#include <mach/msm_subsystem_map.h>
 #include <asm/div64.h>
 #include <media/msm/vidc_type.h>
 #include "vcd.h"

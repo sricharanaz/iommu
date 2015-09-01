@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <asm/system.h>
 #include "vidc.h"
 
 extern u8 *VIDC_BASE_PTR;
