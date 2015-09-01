@@ -27,7 +27,6 @@
 #include <linux/workqueue.h>
 #include <linux/clk.h>
 #include <linux/timer.h>
-#include <mach/msm_subsystem_map.h>
 #include <media/msm/vidc_type.h>
 #include <media/msm/vcd_api.h>
 #include <media/msm/vidc_init.h>
@@ -388,7 +387,7 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 		if (ion_flag == ION_FLAG_CACHED && buff_handle) {
 			DBG("%s: Cache invalidate: size %u", __func__,
 				vcd_frame_data->alloc_len);
-			msm_ion_do_cache_op(client_ctx->user_ion_client,
+			ion_do_cache_op(client_ctx->user_ion_client,
 					buff_handle,
 					(unsigned long *) NULL,
 					(unsigned long)vcd_frame_data->\
@@ -1666,7 +1665,7 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 						buffer_index,
 						&buff_handle);
 			if (ion_flag == ION_FLAG_CACHED && buff_handle) {
-				msm_ion_do_cache_op(client_ctx->user_ion_client,
+				ion_do_cache_op(client_ctx->user_ion_client,
 				buff_handle,
 				(unsigned long *) NULL,
 				(unsigned long) vcd_input_buffer.data_len,

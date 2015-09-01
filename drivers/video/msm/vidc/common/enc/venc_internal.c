@@ -1715,7 +1715,7 @@ u32 vid_enc_encode_frame(struct video_client_ctx *client_ctx,
 
 		if (vcd_input_buffer.data_len > 0) {
 			if (ion_flag == ION_FLAG_CACHED && buff_handle) {
-				msm_ion_do_cache_op(
+				ion_do_cache_op(
 				client_ctx->user_ion_client,
 				buff_handle,
 				(unsigned long *) NULL,

@@ -46,7 +46,6 @@
 static struct vidc_dev *vidc_device_p;
 static dev_t vidc_dev_num;
 static struct class *vidc_class;
-static unsigned int vidc_mmu_subsystem[] = {MSM_SUBSYSTEM_VIDEO};
 
 static const struct file_operations vidc_fops = {
 	.owner = THIS_MODULE,
@@ -128,7 +127,7 @@ static void vidc_work_handler(struct work_struct *work)
 
 static DECLARE_WORK(vidc_work, vidc_work_handler);
 
-static int __devinit vidc_720p_probe(struct platform_device *pdev)
+static int __init vidc_720p_probe(struct platform_device *pdev)
 {
 	struct resource *resource;
 	DBG("Enter %s()\n", __func__);
@@ -171,7 +170,7 @@ static int __devinit vidc_720p_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit vidc_720p_remove(struct platform_device *pdev)
+static int vidc_720p_remove(struct platform_device *pdev)
 {
 	if (pdev->id) {
 		ERR("Invalid plaform device ID = %d\n", pdev->id);
@@ -402,6 +401,7 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 	u32 *num_of_buffers = NULL;
 	u32 i = 0;
 	struct buf_addr_table *buf_addr_table;
+
 	if (buffer == BUFFER_TYPE_INPUT) {
 		buf_addr_table = client_ctx->input_buf_addr_table;
 		num_of_buffers = &client_ctx->num_of_input_buffers;
@@ -415,15 +415,11 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 
 	if (!*num_of_buffers)
 		goto bail_out_cleanup;
+
 	if (!client_ctx->user_ion_client)
 		goto bail_out_cleanup;
+
 	for (i = 0; i < *num_of_buffers; ++i) {
-		if (buf_addr_table[i].client_data) {
-			msm_subsystem_unmap_buffer(
-			(struct msm_mapped_buffer *)
-			buf_addr_table[i].client_data);
-			buf_addr_table[i].client_data = NULL;
-		}
 		if (!IS_ERR_OR_NULL(buf_addr_table[i].buff_ion_handle)) {
 			if (!IS_ERR_OR_NULL(client_ctx->user_ion_client)) {
 				if (!res_trk_check_for_sec_session() &&
@@ -638,28 +634,6 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 			__func__, client_ctx, user_vaddr);
 		goto bail_out_add;
 	} else {
-		if (!vcd_get_ion_status()) {
-			if (get_pmem_file(pmem_fd, &phys_addr,
-					kernel_vaddr, &len, &file)) {
-				ERR("%s(): get_pmem_file failed\n", __func__);
-				goto bail_out_add;
-			}
-			put_pmem_file(file);
-			flags = (buffer == BUFFER_TYPE_INPUT)
-			? MSM_SUBSYSTEM_MAP_IOVA :
-			MSM_SUBSYSTEM_MAP_IOVA|MSM_SUBSYSTEM_ALIGN_IOVA_8K;
-			mapped_buffer = msm_subsystem_map_buffer(phys_addr,
-			length, flags, vidc_mmu_subsystem,
-			sizeof(vidc_mmu_subsystem)/sizeof(unsigned int));
-			if (IS_ERR(mapped_buffer)) {
-				pr_err("buffer map failed");
-				goto bail_out_add;
-			}
-			buf_addr_table[*num_of_buffers].client_data = (void *)
-				mapped_buffer;
-			buf_addr_table[*num_of_buffers].dev_addr =
-				mapped_buffer->iova[0];
-		} else {
 			buff_ion_handle = ion_import_dma_buf(
 				client_ctx->user_ion_client, pmem_fd);
 			if (IS_ERR_OR_NULL(buff_ion_handle)) {
@@ -710,7 +684,6 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 				buf_addr_table[*num_of_buffers].dev_addr =
 						 iova;
 			}
-		}
 		(*kernel_vaddr) = phys_addr;
 		phys_addr += buffer_addr_offset;
 		(*kernel_vaddr) += buffer_addr_offset;

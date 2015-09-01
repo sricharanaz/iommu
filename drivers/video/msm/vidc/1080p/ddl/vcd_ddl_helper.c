@@ -173,7 +173,7 @@ u32 ddl_decoder_dpb_transact(struct ddl_decoder_data *decoder,
 					DDL_MSG_LOW("%s: Cache clean: size %u",
 						__func__, in_out_frame->vcd_frm.
 						alloc_len);
-					msm_ion_do_cache_op(
+					ion_do_cache_op(
 						ddl_context->video_ion_client,
 						in_out_frame->vcd_frm.\
 						buff_ion_handle,
@@ -279,7 +279,7 @@ u32 ddl_decoder_dpb_init(struct ddl_client_context *ddl)
 						vcd_frm->alloc_len - luma_size);
 					if (vcd_frm->ion_flag ==
 						ION_FLAG_CACHED) {
-						msm_ion_do_cache_op(
+						ion_do_cache_op(
 						ddl_context->video_ion_client,
 						vcd_frm->buff_ion_handle,
 						(unsigned long *)kernel_vaddr,
@@ -691,7 +691,7 @@ u32 ddl_allocate_dec_hw_buffers(struct ddl_client_context *ddl)
 		if (!ptr)
 			goto fail_free_exit;
 		else
-			msm_ion_do_cache_op(ddl_context->video_ion_client,
+			ion_do_cache_op(ddl_context->video_ion_client,
 					dec_bufs->context.alloc_handle,
 					dec_bufs->context.virtual_base_addr,
 					dec_bufs->context.buffer_size,
@@ -777,7 +777,7 @@ u32 ddl_allocate_dec_hw_buffers(struct ddl_client_context *ddl)
 			if (!res_trk_check_for_sec_session()) {
 				memset(dec_bufs->desc.align_virtual_addr,
 					   0, buf_size.sz_desc);
-				msm_ion_do_cache_op(
+				ion_do_cache_op(
 					ddl_context->video_ion_client,
 					dec_bufs->desc.alloc_handle,
 					dec_bufs->desc.virtual_base_addr,
@@ -980,7 +980,7 @@ u32 ddl_allocate_enc_hw_buffers(struct ddl_client_context *ddl)
 			if (!ptr)
 				goto fail_enc_free_exit;
 			else
-				msm_ion_do_cache_op(
+				ion_do_cache_op(
 					ddl_context->video_ion_client,
 					enc_bufs->context.alloc_handle,
 					enc_bufs->context.virtual_base_addr,

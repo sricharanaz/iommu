@@ -31,6 +31,58 @@
 
 struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 
+enum {
+        DI_PARTITION_NUM = 0,
+        DI_DOMAIN_NUM = 1,
+        DI_MAX,
+};
+
+int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
+                        int domain_num, int partition_num, unsigned long align,
+                        unsigned long iova_length, unsigned long *iova,
+                        unsigned long *buffer_size,
+                        unsigned long flags, unsigned long iommu_flags);
+
+void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
+                        int domain_num, int partition_num);
+
+#define ION_FLAG_CACHED	1
+#define ION_SET_CACHED(__cache)         (__cache | ION_FLAG_CACHED)
+#define ION_SET_UNCACHED(__cache)       (__cache & ~ION_FLAG_CACHED)
+
+#define ION_IS_CACHED(__flags)  ((__flags) & ION_FLAG_CACHED)
+#define ION_IOMMU_UNMAP_DELAYED 1
+
+/**
+ * struct ion_iommu_map - represents a mapping of an ion buffer to an iommu
+ * @iova_addr - iommu virtual address
+ * @node - rb node to exist in the buffer's tree of iommu mappings
+ * @domain_info - contains the partition number and domain number
+ *              domain_info[1] = domain number
+ *              domain_info[0] = partition number
+ * @ref - for reference counting this mapping
+ * @mapped_size - size of the iova space mapped
+ *              (may not be the same as the buffer size)
+ * @flags - iommu domain/partition specific flags.
+ *
+ * Represents a mapping of one ion buffer to a particular iommu domain
+ * and address range. There may exist other mappings of this buffer in
+ * different domains or address ranges. All mappings will have the same
+ * cacheability and security.
+ */
+struct ion_iommu_map {
+        unsigned long iova_addr;
+        struct rb_node node;
+        union {
+                int domain_info[DI_MAX];
+                uint64_t key;
+        };
+        struct ion_buffer *buffer;
+        struct kref ref;
+        int mapped_size;
+        unsigned long flags;
+};
+
 /**
  * struct ion_buffer - metadata for a particular buffer
  * @ref:		reference count
@@ -84,6 +136,8 @@ struct ion_buffer {
 	int handle_count;
 	char task_comm[TASK_COMM_LEN];
 	pid_t pid;
+	struct rb_root iommu_maps;
+	unsigned int iommu_map_cnt;
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
@@ -121,6 +175,17 @@ struct ion_heap_ops {
 	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,
 			struct vm_area_struct *vma);
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
+        int (*map_iommu)(struct ion_buffer *buffer,
+                                struct ion_iommu_map *map_data,
+                                unsigned int domain_num,
+                                unsigned int partition_num,
+                                unsigned long align,
+                                unsigned long iova_length,
+                                unsigned long flags);
+        void (*unmap_iommu)(struct ion_iommu_map *data);
+        int (*cache_op)(struct ion_heap *heap, struct ion_buffer *buffer,
+                        void *vaddr, unsigned int offset,
+                        unsigned int length, unsigned int cmd);
 };
 
 /**

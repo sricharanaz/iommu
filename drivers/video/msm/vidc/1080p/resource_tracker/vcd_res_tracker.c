@@ -16,10 +16,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
-#include <mach/clk.h>
-#include <mach/msm_memtypes.h>
 #include <linux/interrupt.h>
-#include <linux/memory_alloc.h>
 #include <asm/sizes.h>
 #include <media/msm/vidc_init.h>
 #include "vidc.h"

@@ -20,6 +20,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#include <linux/msm_ion.h>
+#include <asm/cacheflush.h>
+#include <linux/iommu.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -159,6 +162,92 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 {
 }
 
+int ion_cma_map_iommu(struct ion_buffer *buffer,
+				struct ion_iommu_map *data,
+				unsigned int domain_num,
+				unsigned int partition_num,
+				unsigned long align,
+				unsigned long iova_length,
+				unsigned long flags)
+{
+	int ret = 0;
+	struct iommu_domain *domain;
+	unsigned long extra;
+	unsigned long extra_iova_addr;
+	struct ion_cma_buffer_info *info = buffer->priv_virt;
+	struct sg_table *table = info->table;
+	int prot = IOMMU_WRITE | IOMMU_READ;
+
+	data->mapped_size = iova_length;
+
+
+	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
+				buffer->size, prot);
+
+	if (ret) {
+		pr_err("%s: could not map %lx in domain %p\n",
+			__func__, data->iova_addr, domain);
+		goto out1;
+	}
+
+	return ret;
+
+out2:
+	iommu_unmap(domain, data->iova_addr, buffer->size);
+out1:
+out:
+	return ret;
+}
+
+
+void ion_cma_unmap_iommu(struct ion_iommu_map *data)
+{
+	unsigned int domain_num;
+	unsigned int partition_num;
+	struct iommu_domain *domain;
+
+	iommu_unmap(domain, data->iova_addr, data->mapped_size);
+
+	return;
+}
+
+int ion_cma_cache_ops(struct ion_heap *heap,
+			struct ion_buffer *buffer, void *vaddr,
+			unsigned int offset, unsigned int length,
+			unsigned int cmd)
+{
+	switch (cmd) {
+	case ION_IOC_CLEAN_CACHES:
+		if (!vaddr)
+			dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
+				buffer->sg_table->nents, DMA_TO_DEVICE);
+		else
+			dmac_map_area(vaddr, length, DMA_TO_DEVICE);
+		break;
+	case ION_IOC_INV_CACHES:
+		if (!vaddr)
+			dma_sync_sg_for_cpu(NULL, buffer->sg_table->sgl,
+				buffer->sg_table->nents, DMA_FROM_DEVICE);
+		else
+			dmac_unmap_area(vaddr, length, DMA_FROM_DEVICE);
+		break;
+	case ION_IOC_CLEAN_INV_CACHES:
+		if (!vaddr) {
+			dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
+				buffer->sg_table->nents, DMA_TO_DEVICE);
+			dma_sync_sg_for_cpu(NULL, buffer->sg_table->sgl,
+				buffer->sg_table->nents, DMA_FROM_DEVICE);
+		} else {
+			dmac_flush_range(vaddr, vaddr + length);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
@@ -168,6 +257,9 @@ static struct ion_heap_ops ion_cma_ops = {
 	.map_user = ion_cma_mmap,
 	.map_kernel = ion_cma_map_kernel,
 	.unmap_kernel = ion_cma_unmap_kernel,
+	.map_iommu = ion_cma_map_iommu,
+	.unmap_iommu = ion_cma_unmap_iommu,
+	.cache_op = ion_cma_cache_ops,
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)

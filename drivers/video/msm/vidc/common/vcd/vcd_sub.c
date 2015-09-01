@@ -27,7 +27,6 @@ struct vcd_msm_map_buffer {
 	u32 in_use;
 };
 static struct vcd_msm_map_buffer msm_mapped_buffer_table[MAP_TABLE_SZ];
-static unsigned int vidc_mmu_subsystem[] = {MSM_SUBSYSTEM_VIDEO};
 
 static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 			 struct vcd_clnt_ctxt *cctxt)
@@ -61,33 +60,6 @@ static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 	}
 	res_trk_set_mem_type(DDL_MM_MEM);
 	memtype = res_trk_get_mem_type();
-	if (!cctxt->vcd_enable_ion) {
-		map_buffer->phy_addr = (phys_addr_t)
-		allocate_contiguous_memory_nomap(sz, memtype, SZ_4K);
-		if (!map_buffer->phy_addr) {
-			pr_err("%s() acm alloc failed", __func__);
-			goto free_map_table;
-		}
-		flags = MSM_SUBSYSTEM_MAP_IOVA | MSM_SUBSYSTEM_MAP_KADDR;
-		map_buffer->mapped_buffer =
-		msm_subsystem_map_buffer((unsigned long)map_buffer->phy_addr,
-		sz, flags, vidc_mmu_subsystem,
-		sizeof(vidc_mmu_subsystem)/sizeof(unsigned int));
-		if (IS_ERR(map_buffer->mapped_buffer)) {
-			pr_err(" %s() buffer map failed", __func__);
-			goto free_acm_alloc;
-		}
-		mapped_buffer = map_buffer->mapped_buffer;
-		if (!mapped_buffer->vaddr || !mapped_buffer->iova[0]) {
-			pr_err("%s() map buffers failed", __func__);
-			goto free_map_buffers;
-		}
-		*phy_addr = (u8 *) mapped_buffer->iova[0];
-		*kernel_vaddr = (u8 *) mapped_buffer->vaddr;
-		VCD_MSG_LOW("vcd_pmem_alloc: phys(0x%x), virt(0x%x), "\
-			"sz(%u), flags(0x%x)", (u32)*phy_addr,
-			(u32)*kernel_vaddr, sz, (u32)flags);
-	} else {
 		map_buffer->alloc_handle = ion_alloc(
 			    cctxt->vcd_ion_client, sz, SZ_4K,
 			    memtype, res_trk_get_ion_flags());
@@ -146,19 +118,9 @@ static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 		VCD_MSG_LOW("vcd_ion_alloc: phys(0x%x), virt(0x%x), "\
 			"sz(%u), ionflags(0x%x)", (u32)*phy_addr,
 			(u32)*kernel_vaddr, sz, (u32)ionflag);
-	}
 
 	return 0;
 
-free_map_buffers:
-	if (map_buffer->mapped_buffer)
-		msm_subsystem_unmap_buffer(map_buffer->mapped_buffer);
-free_acm_alloc:
-	if (!cctxt->vcd_enable_ion) {
-		free_contiguous_memory_by_paddr(
-		(unsigned long)map_buffer->phy_addr);
-	}
-	return -ENOMEM;
 ion_map_bailout:
 	ion_unmap_kernel(cctxt->vcd_ion_client, map_buffer->alloc_handle);
 ion_free_bailout:
@@ -208,11 +170,6 @@ static int vcd_pmem_free(u8 *kernel_vaddr, u8 *phy_addr,
 			ion_free(cctxt->vcd_ion_client,
 			map_buffer->alloc_handle);
 		}
-	} else {
-		VCD_MSG_LOW("vcd_pmem_free: phys(0x%x), virt(0x%x)",
-			(u32)phy_addr, (u32)kernel_vaddr);
-		free_contiguous_memory_by_paddr(
-			(unsigned long)map_buffer->phy_addr);
 	}
 bailout:
 	kernel_vaddr = NULL;
@@ -280,7 +237,6 @@ u32 vcd_get_ion_flag(struct video_client_ctx *client_ctx,
 		VCD_MSG_ERROR("Couldn't get ion flag");
 		return 0;
 	}
-
 }
 
 void vcd_reset_device_channels(struct vcd_dev_ctxt *dev_ctxt)

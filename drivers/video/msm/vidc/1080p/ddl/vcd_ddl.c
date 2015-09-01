@@ -10,7 +10,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <mach/msm_memtypes.h>
 #include "vcd_ddl.h"
 #include "vcd_ddl_metadata.h"
 #include "vcd_res_tracker_api.h"
@@ -301,7 +300,7 @@ u32 ddl_encode_start(u32 *ddl_handle, void *client_data)
 		DDL_MSG_ERROR("ddl_enc_start:Seq_hdr_alloc_failed");
 		return VCD_ERR_ALLOC_FAIL;
 	}
-	msm_ion_do_cache_op(ddl_context->video_ion_client,
+	ion_do_cache_op(ddl_context->video_ion_client,
 				encoder->seq_header.alloc_handle,
 				encoder->seq_header.virtual_base_addr,
 				encoder->seq_header.buffer_size,
