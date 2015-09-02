@@ -21,14 +21,13 @@
 #include <media/msm/vidc_init.h>
 #include "vidc.h"
 #include "vcd_res_tracker.h"
+#include <linux/msm_ion.h>
 
 #define PIL_FW_SIZE 0x200000
 
 static unsigned int vidc_clk_table[5] = {
 	228570000, 228570000, 228570000, 228570000,  228570000,
 };
-static unsigned int restrk_mmu_subsystem[] =	{
-		MSM_SUBSYSTEM_VIDEO, MSM_SUBSYSTEM_VIDEO_FWARE};
 static struct res_trk_context resource_context;
 
 #define VIDC_FW	"vidc_1080p.fw"
@@ -96,54 +95,9 @@ static void *res_trk_pmem_map
 				addr->physical_base_addr);
 		addr->align_virtual_addr = addr->virtual_base_addr + offset;
 		addr->buffer_size = buffer_size;
-	} else {
-		if (!res_trk_check_for_sec_session()) {
-			if (!addr->alloced_phys_addr) {
-				pr_err(" %s() alloced addres NULL", __func__);
-				goto bail_out;
-			}
-			flags = MSM_SUBSYSTEM_MAP_IOVA |
-				MSM_SUBSYSTEM_MAP_KADDR;
-			if (alignment == DDL_KILO_BYTE(128))
-					index = 1;
-			else if (alignment > SZ_4K)
-				flags |= MSM_SUBSYSTEM_ALIGN_IOVA_8K;
-			addr->mapped_buffer =
-			msm_subsystem_map_buffer(
-			(unsigned long)addr->alloced_phys_addr,
-			sz, flags, &restrk_mmu_subsystem[index],
-			sizeof(restrk_mmu_subsystem[index])/
-				sizeof(unsigned int));
-			if (IS_ERR(addr->mapped_buffer)) {
-				pr_err(" %s() buffer map failed", __func__);
-				goto bail_out;
-			}
-			mapped_buffer = addr->mapped_buffer;
-			if (!mapped_buffer->vaddr || !mapped_buffer->iova[0]) {
-				pr_err("%s() map buffers failed\n", __func__);
-				goto bail_out;
-			}
-			addr->physical_base_addr =
-				 (u8 *)mapped_buffer->iova[0];
-			addr->virtual_base_addr =
-					mapped_buffer->vaddr;
-		} else {
-			addr->physical_base_addr =
-				(u8 *) addr->alloced_phys_addr;
-			addr->virtual_base_addr =
-				(u8 *)addr->alloced_phys_addr;
-		}
-		addr->align_physical_addr = (u8 *) DDL_ALIGN((u32)
-		addr->physical_base_addr, alignment);
-		offset = (u32)(addr->align_physical_addr -
-				addr->physical_base_addr);
-		addr->align_virtual_addr = addr->virtual_base_addr + offset;
-		addr->buffer_size = sz;
 	}
 	return addr->virtual_base_addr;
 bail_out:
-	if (IS_ERR(addr->mapped_buffer))
-		msm_subsystem_unmap_buffer(addr->mapped_buffer);
 	return NULL;
 ion_unmap_bail_out:
 	if (!IS_ERR_OR_NULL(addr->alloc_handle)) {
@@ -171,8 +125,6 @@ static void res_trk_pmem_free(struct ddl_buf_addr *addr)
 			addr->alloc_handle = NULL;
 		}
 	} else {
-		if (addr->mapped_buffer)
-			msm_subsystem_unmap_buffer(addr->mapped_buffer);
 		if (addr->alloced_phys_addr)
 			free_contiguous_memory_by_paddr(
 			(unsigned long)addr->alloced_phys_addr);
@@ -226,18 +178,6 @@ static int res_trk_pmem_alloc
 			addr->alloced_phys_addr = fw_addr;
 			addr->buffer_size = sz;
 		}
-	} else {
-		addr->alloced_phys_addr = (phys_addr_t)
-			allocate_contiguous_memory_nomap(alloc_size,
-					res_trk_get_mem_type(), SZ_4K);
-		if (!addr->alloced_phys_addr) {
-			DDL_MSG_ERROR("%s() : acm alloc failed (%d)\n",
-					__func__, alloc_size);
-			rc = -ENOMEM;
-			goto bail_out;
-		}
-		addr->buffer_size = sz;
-		return rc;
 	}
 bail_out:
 	return rc;
@@ -262,9 +202,7 @@ static void res_trk_pmem_unmap(struct ddl_buf_addr *addr)
 			addr->virtual_base_addr = NULL;
 			addr->physical_base_addr = NULL;
 		}
-	} else if (addr->mapped_buffer)
-		msm_subsystem_unmap_buffer(addr->mapped_buffer);
-	addr->mapped_buffer = NULL;
+	}
 }
 
 static u32 res_trk_get_clk()

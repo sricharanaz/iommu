@@ -28,13 +28,22 @@ struct ion_mapper;
 struct ion_client;
 struct ion_buffer;
 
-/*
- * This should be removed some day when phys_addr_t's are fully
- * plumbed in the kernel, and all instances of ion_phys_addr_t should
- * be converted to phys_addr_t.  For the time being many kernel interfaces
- * do not accept phys_addr_t's that would have to
- */
+#define VIDEO_DOMAIN	1
+#define VIDEO_MAIN_POOL	1
+/* This should be removed some day when phys_addr_t's are fully
+   plumbed in the kernel, and all instances of ion_phys_addr_t should
+   be converted to phys_addr_t.  For the time being many kernel interfaces
+   do not accept phys_addr_t's that would have to */
 #define ion_phys_addr_t unsigned long
+
+int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
+                        int domain_num, int partition_num, unsigned long align,
+                        unsigned long iova_length, unsigned long *iova,
+                        unsigned long *buffer_size,
+                        unsigned long flags, unsigned long iommu_flags);
+
+void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
+                        int domain_num, int partition_num);
 
 /**
  * struct ion_platform_heap - defines a heap in the given platform
@@ -204,5 +213,9 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
 int ion_handle_get_flags(struct ion_client *client, struct ion_handle *handle,
                         unsigned long *flags);
+
+int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
+                        void *uaddr, unsigned long offset, unsigned long len,
+                        unsigned int cmd);
 
 #endif /* _LINUX_ION_H */

@@ -37,15 +37,6 @@ enum {
         DI_MAX,
 };
 
-int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num, unsigned long align,
-                        unsigned long iova_length, unsigned long *iova,
-                        unsigned long *buffer_size,
-                        unsigned long flags, unsigned long iommu_flags);
-
-void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num);
-
 #define ION_FLAG_CACHED	1
 #define ION_SET_CACHED(__cache)         (__cache | ION_FLAG_CACHED)
 #define ION_SET_UNCACHED(__cache)       (__cache & ~ION_FLAG_CACHED)

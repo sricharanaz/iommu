@@ -17,6 +17,7 @@
 #include "vcd_ddl_metadata.h"
 #include "vcd_res_tracker_api.h"
 #include <linux/delay.h>
+#include <linux/msm_ion.h>
 
 static void ddl_decoder_input_done_callback(
 	struct ddl_client_context *ddl, u32 frame_transact_end);
@@ -1773,7 +1774,7 @@ static void ddl_handle_enc_frame_done(struct ddl_client_context *ddl,
 	if (!IS_ERR_OR_NULL(output_frame->buff_ion_handle)) {
 		ion_do_cache_op(ddl_context->video_ion_client,
 			output_frame->buff_ion_handle,
-			(unsigned long *)NULL,
+			(unsigned long *)NULL, 0,
 			(unsigned long) output_frame->alloc_len,
 			ION_IOC_INV_CACHES);
 	}

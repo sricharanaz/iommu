@@ -140,7 +140,7 @@ void ddl_vidc_channel_set(struct ddl_client_context *ddl)
 	if (!res_trk_check_for_sec_session() && hw_ctxt) {
 		memset(hw_ctxt, 0, ctxt_mem_size);
 		ion_do_cache_op(ddl_context->video_ion_client,
-			alloc_handle, hw_ctxt, ctxt_mem_size,
+			alloc_handle, hw_ctxt, 0, ctxt_mem_size,
 			ION_IOC_CLEAN_INV_CACHES);
 		arg1 = 1 << 29;
 	}

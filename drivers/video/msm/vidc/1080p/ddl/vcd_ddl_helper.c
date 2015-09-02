@@ -13,6 +13,7 @@
 #include "vcd_ddl.h"
 #include "vcd_ddl_shared_mem.h"
 #include "vcd_res_tracker_api.h"
+#include <linux/msm_ion.h>
 
 struct ddl_context *ddl_get_context(void)
 {
@@ -177,7 +178,7 @@ u32 ddl_decoder_dpb_transact(struct ddl_decoder_data *decoder,
 						ddl_context->video_ion_client,
 						in_out_frame->vcd_frm.\
 						buff_ion_handle,
-						NULL,
+						NULL, 0,
 						(unsigned long)in_out_frame->
 						vcd_frm.alloc_len,
 						ION_IOC_CLEAN_CACHES);
@@ -282,7 +283,7 @@ u32 ddl_decoder_dpb_init(struct ddl_client_context *ddl)
 						ion_do_cache_op(
 						ddl_context->video_ion_client,
 						vcd_frm->buff_ion_handle,
-						(unsigned long *)kernel_vaddr,
+						(unsigned long *)kernel_vaddr, 0,
 						(unsigned long)vcd_frm->
 						alloc_len,
 						ION_IOC_CLEAN_INV_CACHES);
@@ -693,7 +694,7 @@ u32 ddl_allocate_dec_hw_buffers(struct ddl_client_context *ddl)
 		else
 			ion_do_cache_op(ddl_context->video_ion_client,
 					dec_bufs->context.alloc_handle,
-					dec_bufs->context.virtual_base_addr,
+					dec_bufs->context.virtual_base_addr, 0,
 					dec_bufs->context.buffer_size,
 					ION_IOC_CLEAN_INV_CACHES);
 	}
@@ -780,7 +781,7 @@ u32 ddl_allocate_dec_hw_buffers(struct ddl_client_context *ddl)
 				ion_do_cache_op(
 					ddl_context->video_ion_client,
 					dec_bufs->desc.alloc_handle,
-					dec_bufs->desc.virtual_base_addr,
+					dec_bufs->desc.virtual_base_addr, 0,
 					dec_bufs->desc.buffer_size,
 					ION_IOC_CLEAN_INV_CACHES);
 			}
@@ -983,7 +984,7 @@ u32 ddl_allocate_enc_hw_buffers(struct ddl_client_context *ddl)
 				ion_do_cache_op(
 					ddl_context->video_ion_client,
 					enc_bufs->context.alloc_handle,
-					enc_bufs->context.virtual_base_addr,
+					enc_bufs->context.virtual_base_addr, 0,
 					enc_bufs->context.buffer_size,
 					ION_IOC_CLEAN_INV_CACHES);
 		}

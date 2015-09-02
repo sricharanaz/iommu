@@ -26,7 +26,6 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
-#include <mach/msm_subsystem_map.h>
 #include <media/msm/vidc_type.h>
 #include <media/msm/vcd_api.h>
 #include <media/msm/vidc_init.h>
@@ -1718,7 +1717,7 @@ u32 vid_enc_encode_frame(struct video_client_ctx *client_ctx,
 				ion_do_cache_op(
 				client_ctx->user_ion_client,
 				buff_handle,
-				(unsigned long *) NULL,
+				(unsigned long *) NULL, 0,
 				(unsigned long) vcd_input_buffer.data_len,
 				ION_IOC_CLEAN_CACHES);
 			}
@@ -1826,27 +1825,6 @@ u32 vid_enc_set_recon_buffers(struct video_client_ctx *client_ctx,
 	control->offset = venc_recon->offset;
 	control->user_virtual_addr = venc_recon->pbuffer;
 
-	if (!vcd_get_ion_status()) {
-		if (get_pmem_file(control->pmem_fd, (unsigned long *)
-			(&(control->physical_addr)), (unsigned long *)
-			(&control->kernel_virtual_addr),
-			(unsigned long *) (&len), &file)) {
-				ERR("%s(): get_pmem_file failed\n", __func__);
-				return false;
-			}
-			put_pmem_file(file);
-			flags = MSM_SUBSYSTEM_MAP_IOVA;
-			mapped_buffer = msm_subsystem_map_buffer(
-			(unsigned long)control->physical_addr, len,
-			flags, vidc_mmu_subsystem,
-			sizeof(vidc_mmu_subsystem)/sizeof(unsigned int));
-			if (IS_ERR(mapped_buffer)) {
-				pr_err("buffer map failed");
-				return false;
-			}
-			control->client_data = (void *) mapped_buffer;
-			control->dev_addr = (u8 *)mapped_buffer->iova[0];
-	} else {
 		client_ctx->recon_buffer_ion_handle[i] = ion_import_dma_buf(
 				client_ctx->user_ion_client, control->pmem_fd);
 		if (IS_ERR_OR_NULL(client_ctx->recon_buffer_ion_handle[i])) {
@@ -1904,7 +1882,6 @@ u32 vid_enc_set_recon_buffers(struct video_client_ctx *client_ctx,
 			control->client_data = NULL;
 			control->dev_addr = (u8 *)iova;
 		}
-	}
 
 	vcd_property_hdr.prop_id = VCD_I_RECON_BUFFERS;
 	vcd_property_hdr.sz =
@@ -1960,9 +1937,6 @@ u32 vid_enc_free_recon_buffers(struct video_client_ctx *client_ctx,
 			venc_recon->pbuffer);
 		return false;
 	}
-	if (control->client_data)
-		msm_subsystem_unmap_buffer((struct msm_mapped_buffer *)
-		control->client_data);
 
 	vcd_property_hdr.prop_id = VCD_I_FREE_RECON_BUFFERS;
 	vcd_property_hdr.sz = sizeof(struct vcd_property_buffer_size);

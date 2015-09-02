@@ -14,6 +14,7 @@
 #include <media/msm/vidc_type.h>
 #include "vcd.h"
 #include "vdec_internal.h"
+#include <linux/msm_ion.h>
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MAP_TABLE_SZ 64
@@ -154,8 +155,6 @@ static int vcd_pmem_free(u8 *kernel_vaddr, u8 *phy_addr,
 		pr_err("%s() Entry not found", __func__);
 		goto bailout;
 	}
-	if (map_buffer->mapped_buffer)
-		msm_subsystem_unmap_buffer(map_buffer->mapped_buffer);
 	if (cctxt->vcd_enable_ion) {
 		VCD_MSG_LOW("vcd_ion_free: phys(0x%x), virt(0x%x)",
 			(u32)phy_addr, (u32)kernel_vaddr);
@@ -2450,10 +2449,6 @@ u32 vcd_handle_first_fill_output_buffer_for_enc(
 						buff_ion_handle);
 						return VCD_ERR_FAIL;
 					}
-				} else {
-					VCD_MSG_ERROR("%s: ION status is NULL",
-						__func__);
-					return VCD_ERR_FAIL;
 				}
 				seq_hdr.sequence_header = kernel_vaddr;
 				seq_hdr.sequence_header_len =

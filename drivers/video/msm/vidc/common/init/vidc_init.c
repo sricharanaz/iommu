@@ -32,6 +32,7 @@
 #include <media/msm/vidc_init.h>
 #include "vidc_init_internal.h"
 #include "vcd_res_tracker_api.h"
+#include <linux/msm_ion.h>
 
 #if DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
@@ -439,11 +440,6 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 			}
 		}
 	}
-	if (client_ctx->vcd_h264_mv_buffer.client_data) {
-		msm_subsystem_unmap_buffer((struct msm_mapped_buffer *)
-		client_ctx->vcd_h264_mv_buffer.client_data);
-		client_ctx->vcd_h264_mv_buffer.client_data = NULL;
-	}
 	if (!IS_ERR_OR_NULL(client_ctx->h264_mv_ion_handle)) {
 		if (!IS_ERR_OR_NULL(client_ctx->user_ion_client)) {
 			ion_unmap_kernel(client_ctx->user_ion_client,
@@ -461,9 +457,6 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 		}
 	}
 
-	if (client_ctx->vcd_meta_buffer.client_data)
-		msm_subsystem_unmap_buffer((struct msm_mapped_buffer *)
-		client_ctx->vcd_meta_buffer.client_data);
 	if (!IS_ERR_OR_NULL(client_ctx->meta_buffer_ion_handle)) {
 			ion_unmap_kernel(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_ion_handle);
@@ -479,9 +472,6 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 		client_ctx->meta_buffer_ion_handle = NULL;
 	}
 
-	if (client_ctx->vcd_meta_buffer.client_data_iommu)
-		msm_subsystem_unmap_buffer((struct msm_mapped_buffer *)
-		client_ctx->vcd_meta_buffer.client_data_iommu);
 	if (!IS_ERR_OR_NULL(client_ctx->meta_buffer_iommu_ion_handle)) {
 		ion_unmap_kernel(client_ctx->user_ion_client,
 			client_ctx->meta_buffer_iommu_ion_handle);
@@ -817,11 +807,6 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 			" user_virt_addr = 0x%08lx NOT found",
 			__func__, client_ctx, user_vaddr);
 		goto bail_out_del;
-	}
-	if (buf_addr_table[i].client_data) {
-		msm_subsystem_unmap_buffer(
-		(struct msm_mapped_buffer *)buf_addr_table[i].client_data);
-		buf_addr_table[i].client_data = NULL;
 	}
 	*kernel_vaddr = buf_addr_table[i].kernel_vaddr;
 	if (buf_addr_table[i].buff_ion_handle) {

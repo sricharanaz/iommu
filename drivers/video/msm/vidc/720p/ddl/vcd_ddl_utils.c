@@ -155,37 +155,6 @@ void ddl_pmem_alloc(struct ddl_buf_addr *buff_addr, size_t sz, u32 align)
 			(u32)buff_addr->physical_base_addr,
 			(u32)buff_addr->virtual_base_addr,
 			alloc_size, align, len);
-	} else {
-		physical_addr = (u32)
-			allocate_contiguous_memory_nomap(alloc_size,
-						ddl_context->memtype, SZ_4K);
-		if (!physical_addr) {
-			ERR("\n%s(): DDL pmem allocate failed\n",
-			       __func__);
-			goto bailout;
-		}
-		buff_addr->physical_base_addr = (u32 *) physical_addr;
-		flags = MSM_SUBSYSTEM_MAP_KADDR;
-		buff_addr->mapped_buffer =
-		msm_subsystem_map_buffer((unsigned long)physical_addr,
-		alloc_size, flags, NULL, 0);
-		if (IS_ERR(buff_addr->mapped_buffer)) {
-			ERR("\n%s() buffer map failed\n", __func__);
-			goto free_pmem_buffer;
-		}
-		mapped_buffer = buff_addr->mapped_buffer;
-		if (!mapped_buffer->vaddr) {
-			ERR("\n%s() mapped virtual address is NULL\n",
-				__func__);
-			goto unmap_pmem_buffer;
-		}
-		buff_addr->virtual_base_addr = mapped_buffer->vaddr;
-		DBG("ddl_pmem_alloc: mem_type(0x%x), phys(0x%x),"\
-			" virt(0x%x), sz(%u), align(%u)",
-			(u32)buff_addr->mem_type,
-			(u32)buff_addr->physical_base_addr,
-			(u32)buff_addr->virtual_base_addr,
-			alloc_size, SZ_4K);
 	}
 
 	memset(buff_addr->virtual_base_addr, 0 , sz + guard_bytes);
@@ -207,8 +176,6 @@ void ddl_pmem_alloc(struct ddl_buf_addr *buff_addr, size_t sz, u32 align)
 	return;
 
 unmap_pmem_buffer:
-	if (buff_addr->mapped_buffer)
-		msm_subsystem_unmap_buffer(buff_addr->mapped_buffer);
 free_pmem_buffer:
 	if (buff_addr->physical_base_addr)
 		free_contiguous_memory_by_paddr((unsigned long)
@@ -255,9 +222,6 @@ void ddl_pmem_free(struct ddl_buf_addr *buff_addr)
 				buff_addr->alloc_handle);
 		}
 	} else {
-		if (buff_addr->mapped_buffer)
-			msm_subsystem_unmap_buffer(
-				buff_addr->mapped_buffer);
 		if (buff_addr->physical_base_addr)
 			free_contiguous_memory_by_paddr((unsigned long)
 				buff_addr->physical_base_addr);

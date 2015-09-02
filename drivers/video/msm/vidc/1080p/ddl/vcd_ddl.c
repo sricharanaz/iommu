@@ -302,7 +302,7 @@ u32 ddl_encode_start(u32 *ddl_handle, void *client_data)
 	}
 	ion_do_cache_op(ddl_context->video_ion_client,
 				encoder->seq_header.alloc_handle,
-				encoder->seq_header.virtual_base_addr,
+				encoder->seq_header.virtual_base_addr, 0,
 				encoder->seq_header.buffer_size,
 				ION_IOC_CLEAN_INV_CACHES);
 	if (encoder->slice_delivery_info.enable) {
