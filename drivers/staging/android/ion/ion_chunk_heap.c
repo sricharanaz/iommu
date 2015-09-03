@@ -205,8 +205,7 @@ int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 
 static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 				struct ion_iommu_map *data,
-				unsigned int domain_num,
-				unsigned int partition_num,
+				struct dma_iommu_mapping *mapping,
 				unsigned long align,
 				unsigned long iova_length,
 				unsigned long flags)
@@ -223,6 +222,7 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 
 	extra = iova_length - buffer->size;
 
+        data->iova_addr = alloc_iova(mapping, iova_length);
 	ret = default_iommu_map_sg(domain, data->iova_addr, buffer->sg_table->sgl,
 			      buffer->size, prot);
 	if (ret) {
@@ -233,10 +233,8 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 
 	return ret;
 
-out2:
-	iommu_unmap(domain, data->iova_addr, buffer->size);
 out1:
-out:
+	iommu_unmap(domain, data->iova_addr, buffer->size);
 	return ret;
 }
 

@@ -64,10 +64,7 @@ enum {
 struct ion_iommu_map {
         unsigned long iova_addr;
         struct rb_node node;
-        union {
-                int domain_info[DI_MAX];
-                uint64_t key;
-        };
+	struct dma_iommu_mapping *mapping;
         struct ion_buffer *buffer;
         struct kref ref;
         int mapped_size;
@@ -168,8 +165,7 @@ struct ion_heap_ops {
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
         int (*map_iommu)(struct ion_buffer *buffer,
                                 struct ion_iommu_map *map_data,
-                                unsigned int domain_num,
-                                unsigned int partition_num,
+				struct dma_iommu_mapping *mapping,
                                 unsigned long align,
                                 unsigned long iova_length,
                                 unsigned long flags);

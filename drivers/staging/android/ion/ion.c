@@ -158,9 +158,9 @@ static void ion_iommu_add(struct ion_buffer *buffer,
                 parent = *p;
                 entry = rb_entry(parent, struct ion_iommu_map, node);
 
-                if (iommu->key < entry->key) {
+                if (iommu->mapping < entry->mapping) {
                         p = &(*p)->rb_left;
-                } else if (iommu->key > entry->key) {
+                } else if (iommu->mapping > entry->mapping) {
                         p = &(*p)->rb_right;
                 } else {
                         BUG();
@@ -172,14 +172,11 @@ static void ion_iommu_add(struct ion_buffer *buffer,
 }
 
 static struct ion_iommu_map *ion_iommu_lookup(struct ion_buffer *buffer,
-                                                unsigned int domain_no,
-                                                unsigned int partition_no)
+					      struct dma_iommu_mapping *mapping)
 {
         struct rb_node **p = &buffer->iommu_maps.rb_node;
         struct rb_node *parent = NULL;
         struct ion_iommu_map *entry;
-        uint64_t key = domain_no;
-        key = key << 32 | partition_no;
 
         printk("\n ion_iommu_lookup");
 
@@ -187,9 +184,9 @@ static struct ion_iommu_map *ion_iommu_lookup(struct ion_buffer *buffer,
                 parent = *p;
                 entry = rb_entry(parent, struct ion_iommu_map, node);
 
-                if (key < entry->key)
+                if (mapping < entry->mapping)
                         p = &(*p)->rb_left;
-                else if (key > entry->key)
+                else if (mapping > entry->mapping)
                         p = &(*p)->rb_right;
                 else
                         return entry;
@@ -1768,7 +1765,7 @@ int ion_handle_get_flags(struct ion_client *client, struct ion_handle *handle,
 EXPORT_SYMBOL(ion_handle_get_flags);
 
 static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
-                int domain_num, int partition_num, unsigned long align,
+                struct dma_iommu_mapping *mapping, unsigned long align,
                 unsigned long iova_length, unsigned long flags,
                 unsigned long *iova)
 {
@@ -1781,15 +1778,14 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
                 return ERR_PTR(-ENOMEM);
 
         data->buffer = buffer;
+	data->mapping = mapping;
 
         printk("\n __ion_iommu_map");
         ret = buffer->heap->ops->map_iommu(buffer, data,
-                                                domain_num,
-                                                partition_num,
+						mapping,
                                                 align,
                                                 iova_length,
                                                 flags);
-
         if (ret)
                 goto out;
 
@@ -1806,7 +1802,7 @@ out:
 }
 
 int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num, unsigned long align,
+                        struct dma_iommu_mapping *mapping, unsigned long align,
                         unsigned long iova_length, unsigned long *iova,
                         unsigned long *buffer_size,
                         unsigned long flags, unsigned long iommu_flags)
@@ -1867,9 +1863,9 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
                 goto out;
         }
 
-        iommu_map = ion_iommu_lookup(buffer, domain_num, partition_num);
+        iommu_map = ion_iommu_lookup(buffer, mapping);
         if (!iommu_map) {
-                iommu_map = __ion_iommu_map(buffer, domain_num, partition_num,
+                iommu_map = __ion_iommu_map(buffer, mapping,
                                             align, iova_length, flags, iova);
                 if (!IS_ERR_OR_NULL(iommu_map)) {
                         iommu_map->flags = iommu_flags;
@@ -1917,31 +1913,24 @@ static void ion_iommu_release(struct kref *kref)
 }
 
 void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num)
+		     struct dma_iommu_mapping *mapping)
 {
         struct ion_iommu_map *iommu_map;
         struct ion_buffer *buffer;
 
         mutex_lock(&client->lock);
         buffer = handle->buffer;
-
         mutex_lock(&buffer->lock);
 
-        iommu_map = ion_iommu_lookup(buffer, domain_num, partition_num);
+        iommu_map = ion_iommu_lookup(buffer, mapping);
 
-        if (!iommu_map) {
-                WARN(1, "%s: (%d,%d) was never mapped for %p\n", __func__,
-                                domain_num, partition_num, buffer);
+        if (!iommu_map)
                 goto out;
-        }
 
         kref_put(&iommu_map->ref, ion_iommu_release);
-
         buffer->iommu_map_cnt--;
 out:
         mutex_unlock(&buffer->lock);
-
         mutex_unlock(&client->lock);
-
 }
 EXPORT_SYMBOL(ion_unmap_iommu);

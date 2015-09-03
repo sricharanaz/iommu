@@ -23,7 +23,6 @@
 
 struct vcd_msm_map_buffer {
 	phys_addr_t phy_addr;
-	struct msm_mapped_buffer *mapped_buffer;
 	struct ion_handle *alloc_handle;
 	u32 in_use;
 };
@@ -34,7 +33,6 @@ static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 {
 	u32 memtype, i = 0, flags = 0;
 	struct vcd_msm_map_buffer *map_buffer = NULL;
-	struct msm_mapped_buffer *mapped_buffer = NULL;
 	unsigned long iova = 0;
 	unsigned long buffer_size = 0;
 	int ret = 0;
@@ -84,8 +82,7 @@ static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 		if (res_trk_get_core_type() != (u32)VCD_CORE_720P) {
 			ret = ion_map_iommu(cctxt->vcd_ion_client,
 				map_buffer->alloc_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL,
+				video_main_mapping,
 				SZ_4K,
 				0,
 				(unsigned long *)&iova,
@@ -114,8 +111,6 @@ static int vcd_pmem_alloc(size_t sz, u8 **kernel_vaddr, u8 **phy_addr,
 			goto free_map_table;
 		}
 		*phy_addr = (u8 *)map_buffer->phy_addr;
-		mapped_buffer = NULL;
-		map_buffer->mapped_buffer = NULL;
 		VCD_MSG_LOW("vcd_ion_alloc: phys(0x%x), virt(0x%x), "\
 			"sz(%u), ionflags(0x%x)", (u32)*phy_addr,
 			(u32)*kernel_vaddr, sz, (u32)ionflag);
@@ -142,19 +137,6 @@ static int vcd_pmem_free(u8 *kernel_vaddr, u8 *phy_addr,
 		pr_err("\n%s: Invalid parameters", __func__);
 		goto bailout;
 	}
-	for (i = 0; i  < MAP_TABLE_SZ; i++) {
-		if (msm_mapped_buffer_table[i].in_use &&
-			(msm_mapped_buffer_table[i]
-			.mapped_buffer->vaddr == kernel_vaddr)) {
-			map_buffer = &msm_mapped_buffer_table[i];
-			map_buffer->in_use = 0;
-			break;
-		}
-	}
-	if (!map_buffer) {
-		pr_err("%s() Entry not found", __func__);
-		goto bailout;
-	}
 	if (cctxt->vcd_enable_ion) {
 		VCD_MSG_LOW("vcd_ion_free: phys(0x%x), virt(0x%x)",
 			(u32)phy_addr, (u32)kernel_vaddr);
@@ -164,8 +146,7 @@ static int vcd_pmem_free(u8 *kernel_vaddr, u8 *phy_addr,
 			if (res_trk_get_core_type() != (u32)VCD_CORE_720P)
 				ion_unmap_iommu(cctxt->vcd_ion_client,
 					map_buffer->alloc_handle,
-					VIDEO_DOMAIN,
-					VIDEO_MAIN_POOL);
+					video_main_mapping);
 			ion_free(cctxt->vcd_ion_client,
 			map_buffer->alloc_handle);
 		}

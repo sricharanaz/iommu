@@ -28,6 +28,7 @@
 #include <linux/msm_ion.h>
 #include <asm/cacheflush.h>
 #include <linux/iommu.h>
+#include <asm/dma-iommu.h>
 
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				     __GFP_NORETRY) & ~__GFP_DIRECT_RECLAIM;
@@ -271,12 +272,11 @@ int ion_system_contig_heap_cache_ops(struct ion_heap *heap,
 }
 
 int ion_system_heap_map_iommu(struct ion_buffer *buffer,
-				struct ion_iommu_map *data,
-				unsigned int domain_num,
-				unsigned int partition_num,
-				unsigned long align,
-				unsigned long iova_length,
-				unsigned long flags)
+			      struct ion_iommu_map *data,
+			      struct dma_iommu_mapping *mapping,
+			      unsigned long align,
+			      unsigned long iova_length,
+			      unsigned long flags)
 {
 	int ret = 0;
 	struct iommu_domain *domain;
@@ -299,7 +299,8 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 
 	printk("\n ion_system_heap_map_iommu");
 
-	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
+	data->iova_addr = alloc_iova(mapping, iova_length);
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, table->sgl,
 			      buffer->size, prot);
 
 	if (ret) {

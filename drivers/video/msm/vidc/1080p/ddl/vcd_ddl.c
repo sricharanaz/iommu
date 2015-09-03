@@ -13,6 +13,7 @@
 #include "vcd_ddl.h"
 #include "vcd_ddl_metadata.h"
 #include "vcd_res_tracker_api.h"
+#include <linux/msm_ion.h>
 
 static unsigned int first_time;
 

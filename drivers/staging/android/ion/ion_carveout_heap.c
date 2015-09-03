@@ -210,12 +210,11 @@ int ion_carveout_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 }
 
 int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
-					struct ion_iommu_map *data,
-					unsigned int domain_num,
-					unsigned int partition_num,
-					unsigned long align,
-					unsigned long iova_length,
-					unsigned long flags)
+                              struct ion_iommu_map *data,
+                              struct dma_iommu_mapping *mapping,
+                              unsigned long align,
+                              unsigned long iova_length,
+                              unsigned long flags)
 {
 	struct iommu_domain *domain;
 	int ret = 0;
@@ -239,6 +238,8 @@ int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
 	sglist->length = buffer->size;
 	sglist->offset = 0;
 	sglist->dma_address = buffer->priv_phys;
+
+	data->iova_addr = alloc_iova(mapping, iova_length);
 
 	ret = default_iommu_map_sg(domain, data->iova_addr, sglist,
 			      buffer->size, prot);

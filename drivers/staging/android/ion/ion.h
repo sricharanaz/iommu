@@ -18,6 +18,7 @@
 #define _LINUX_ION_H
 
 #include <linux/types.h>
+#include <asm/dma-iommu.h>
 
 #include "../uapi/ion.h"
 
@@ -30,6 +31,8 @@ struct ion_buffer;
 
 #define VIDEO_DOMAIN	1
 #define VIDEO_MAIN_POOL	1
+#define VIDEO_FIRMWARE_POOL 1
+
 /* This should be removed some day when phys_addr_t's are fully
    plumbed in the kernel, and all instances of ion_phys_addr_t should
    be converted to phys_addr_t.  For the time being many kernel interfaces
@@ -37,13 +40,13 @@ struct ion_buffer;
 #define ion_phys_addr_t unsigned long
 
 int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num, unsigned long align,
+                        struct dma_iommu_mapping *mapping, unsigned long align,
                         unsigned long iova_length, unsigned long *iova,
                         unsigned long *buffer_size,
                         unsigned long flags, unsigned long iommu_flags);
 
 void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
-                        int domain_num, int partition_num);
+		     struct dma_iommu_mapping *mapping);
 
 /**
  * struct ion_platform_heap - defines a heap in the given platform
@@ -66,6 +69,7 @@ struct ion_platform_heap {
 	ion_phys_addr_t base;
 	size_t size;
 	ion_phys_addr_t align;
+	void *extra_data;
 	void *priv;
 };
 

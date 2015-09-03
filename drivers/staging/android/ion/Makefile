@@ -5,7 +5,7 @@ ifdef CONFIG_COMPAT
 obj-$(CONFIG_ION) += compat_ion.o
 endif
 
-
+obj-y += msm/
 obj-y += ion_dummy_driver.o
 obj-$(CONFIG_ION_TEGRA) += tegra/
 

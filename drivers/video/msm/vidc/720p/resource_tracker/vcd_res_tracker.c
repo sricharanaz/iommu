@@ -700,7 +700,7 @@ void res_trk_init(struct device *device, u32 irq)
 	resource_context.core_type = VCD_CORE_720P;
 	resource_context.regulator = regulator_get(NULL, "fs_mfc");
 	resource_context.vidc_platform_data =
-		(struct msm_vidc_platform_data *) device->platform_data;
+		(struct msm_vidc_data *) device->platform_data;
 	if (resource_context.vidc_platform_data) {
 		resource_context.memtype =
 			resource_context.vidc_platform_data->memtype;

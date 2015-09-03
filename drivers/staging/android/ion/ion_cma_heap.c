@@ -163,12 +163,11 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 }
 
 int ion_cma_map_iommu(struct ion_buffer *buffer,
-				struct ion_iommu_map *data,
-				unsigned int domain_num,
-				unsigned int partition_num,
-				unsigned long align,
-				unsigned long iova_length,
-				unsigned long flags)
+                              struct ion_iommu_map *data,
+                              struct dma_iommu_mapping *mapping,
+                              unsigned long align,
+                              unsigned long iova_length,
+                              unsigned long flags)		
 {
 	int ret = 0;
 	struct iommu_domain *domain;
@@ -180,7 +179,7 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 
 	data->mapped_size = iova_length;
 
-
+	data->iova_addr = alloc_iova(mapping, iova_length);
 	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
 				buffer->size, prot);
 

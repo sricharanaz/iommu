@@ -16,6 +16,7 @@
 #include "vcd_ddl_shared_mem.h"
 #include "vcd_core.h"
 #include "vcd_res_tracker_api.h"
+#include <linux/msm_ion.h>
 
 #if defined(PIX_CACHE_DISABLE)
 #define DDL_PIX_CACHE_ENABLE  false

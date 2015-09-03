@@ -337,4 +337,11 @@ struct ion_flag_data {
 #define ION_IOC_GET_FLAGS		_IOWR(ION_IOC_MSM_MAGIC, 3, \
 						struct ion_flag_data)
 
+struct ion_client *msm_ion_client_create(unsigned int heap_mask,
+                                       const char *name);
+
+extern struct dma_iommu_mapping *video_main_mapping;
+extern struct dma_iommu_mapping *video_firmware_mapping;
+dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
+                                      size_t size);
 #endif

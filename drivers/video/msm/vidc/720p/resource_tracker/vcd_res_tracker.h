@@ -33,7 +33,7 @@ struct res_trk_context {
 	unsigned int clock_enabled;
 	unsigned int rail_enabled;
 	struct regulator *regulator;
-	struct msm_vidc_platform_data *vidc_platform_data;
+	struct msm_vidc_data *vidc_platform_data;
 	u32 core_type;
 	int memtype;
 	u32 secure_session;

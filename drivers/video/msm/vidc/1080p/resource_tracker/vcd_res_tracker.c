@@ -74,8 +74,7 @@ static void *res_trk_pmem_map
 		addr->virtual_base_addr = (u8 *) kernel_vaddr;
 		ret = ion_map_iommu(ddl_context->video_ion_client,
 				addr->alloc_handle,
-				VIDEO_DOMAIN,
-				VIDEO_FIRMWARE_POOL,
+				video_firmware_mapping,
 				SZ_4K,
 				0,
 				&iova,
@@ -118,17 +117,12 @@ static void res_trk_pmem_free(struct ddl_buf_addr *addr)
 	}
 
 	ddl_context = ddl_get_context();
-	if (ddl_context->video_ion_client) {
+	if (ddl_context->video_ion_client)
 		if (addr->alloc_handle) {
 			ion_free(ddl_context->video_ion_client,
 			 addr->alloc_handle);
 			addr->alloc_handle = NULL;
 		}
-	} else {
-		if (addr->alloced_phys_addr)
-			free_contiguous_memory_by_paddr(
-			(unsigned long)addr->alloced_phys_addr);
-	}
 	memset(addr, 0 , sizeof(struct ddl_buf_addr));
 }
 static int res_trk_pmem_alloc
@@ -196,8 +190,7 @@ static void res_trk_pmem_unmap(struct ddl_buf_addr *addr)
 			if (!res_trk_check_for_sec_session()) {
 				ion_unmap_iommu(resource_context.res_ion_client,
 				addr->alloc_handle,
-				VIDEO_DOMAIN,
-				VIDEO_FIRMWARE_POOL);
+				video_firmware_mapping);
 			}
 			addr->virtual_base_addr = NULL;
 			addr->physical_base_addr = NULL;
@@ -650,7 +643,7 @@ void res_trk_init(struct device *device, u32 irq)
 		resource_context.device = device;
 		resource_context.irq_num = irq;
 		resource_context.vidc_platform_data =
-			(struct msm_vidc_platform_data *) device->platform_data;
+			(struct msm_vidc_data *) device->platform_data;
 		if (resource_context.vidc_platform_data) {
 			resource_context.memtype =
 			resource_context.vidc_platform_data->memtype;

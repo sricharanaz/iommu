@@ -39,7 +39,7 @@ struct res_trk_context {
 	unsigned int clock_enabled;
 	unsigned int perf_level;
 	struct regulator *footswitch;
-	struct msm_vidc_platform_data *vidc_platform_data;
+	struct msm_vidc_data *vidc_platform_data;
 	int memtype;
 	int fw_mem_type;
 	int cmd_mem_type;
@@ -58,6 +58,22 @@ struct res_trk_context {
 	u32 secure_session;
 	struct mutex secure_lock;
 	u32 sec_clk_heap;
+};
+
+struct msm_vidc_data {
+        int memtype;
+        u32 enable_ion;
+        int disable_dmx;
+        int disable_fullhd;
+        u32 cp_enabled;
+        u32 secure_wb_heap;
+        u32 enable_sec_metadata;
+#ifdef CONFIG_MSM_BUS_SCALING
+        struct msm_bus_scale_pdata *vidc_bus_client_pdata;
+#endif
+        int cont_mode_dpb_count;
+        int disable_turbo;
+        unsigned long fw_addr;
 };
 
 #if DEBUG

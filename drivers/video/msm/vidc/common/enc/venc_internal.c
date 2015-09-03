@@ -39,9 +39,6 @@
 #endif
 
 #define ERR(x...) printk(KERN_ERR x)
-static unsigned int vidc_mmu_subsystem[] = {
-	MSM_SUBSYSTEM_VIDEO};
-
 
 u32 vid_enc_set_get_base_cfg(struct video_client_ctx *client_ctx,
 		struct venc_basecfg *base_config, u32 set_flag)
@@ -1864,8 +1861,7 @@ u32 vid_enc_set_recon_buffers(struct video_client_ctx *client_ctx,
 		} else {
 			rc = ion_map_iommu(client_ctx->user_ion_client,
 					client_ctx->recon_buffer_ion_handle[i],
-					VIDEO_DOMAIN,
-					VIDEO_MAIN_POOL,
+					video_main_mapping,
 					SZ_4K,
 					control->buffer_size * 2,
 					(unsigned long *)&iova,
@@ -1950,8 +1946,7 @@ u32 vid_enc_free_recon_buffers(struct video_client_ctx *client_ctx,
 			   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 				ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->recon_buffer_ion_handle[i],
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 			}
 			ion_free(client_ctx->user_ion_client,
 				client_ctx->recon_buffer_ion_handle[i]);

@@ -96,8 +96,7 @@ void *ddl_pmem_alloc(struct ddl_buf_addr *addr, size_t sz, u32 alignment)
 		} else {
 			ret = ion_map_iommu(ddl_context->video_ion_client,
 					addr->alloc_handle,
-					VIDEO_DOMAIN,
-					VIDEO_MAIN_POOL,
+					video_main_mapping,
 					SZ_4K,
 					0,
 					&iova,
@@ -134,9 +133,6 @@ void *ddl_pmem_alloc(struct ddl_buf_addr *addr, size_t sz, u32 alignment)
 free_map_buffers:
 	addr->mapped_buffer = NULL;
 free_acm_alloc:
-		free_contiguous_memory_by_paddr(
-			(unsigned long)addr->alloced_phys_addr);
-		addr->alloced_phys_addr = (phys_addr_t)NULL;
 		return NULL;
 unmap_ion_alloc:
 	ion_unmap_kernel(ddl_context->video_ion_client,
@@ -166,8 +162,7 @@ void ddl_pmem_free(struct ddl_buf_addr *addr)
 			if (!res_trk_check_for_sec_session()) {
 				ion_unmap_iommu(ddl_context->video_ion_client,
 					addr->alloc_handle,
-					VIDEO_DOMAIN,
-					VIDEO_MAIN_POOL);
+					video_main_mapping);	
 			}
 			ion_free(ddl_context->video_ion_client,
 				addr->alloc_handle);

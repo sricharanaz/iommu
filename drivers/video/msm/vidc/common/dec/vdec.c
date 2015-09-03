@@ -46,8 +46,6 @@ static struct vid_dec_dev *vid_dec_device_p;
 static dev_t vid_dec_dev_num;
 static struct class *vid_dec_class;
 
-static unsigned int vidc_mmu_subsystem[] = {
-	MSM_SUBSYSTEM_VIDEO};
 static s32 vid_dec_get_empty_client_index(void)
 {
 	u32 i, found = false;
@@ -962,7 +960,7 @@ static u32 vid_dec_set_meta_buffers(struct video_client_ctx *client_ctx,
 		} else {
 			rc = ion_map_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_ion_handle,
-				VIDEO_DOMAIN, VIDEO_MAIN_POOL,
+				video_main_mapping,
 				SZ_4K, 0, (unsigned long *)&iova,
 				(unsigned long *)&buffer_size,
 				0, 0);
@@ -1018,7 +1016,7 @@ static u32 vid_dec_set_meta_buffers(struct video_client_ctx *client_ctx,
 		} else {
 			rc = ion_map_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_iommu_ion_handle,
-				VIDEO_DOMAIN, VIDEO_MAIN_POOL,
+				video_main_mapping,
 				SZ_4K, 0, (unsigned long *)&iova_iommu,
 				(unsigned long *)&buffer_size_iommu,
 				0, 0);
@@ -1163,7 +1161,7 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 		} else {
 			rc = ion_map_iommu(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle,
-					VIDEO_DOMAIN, VIDEO_MAIN_POOL,
+					video_main_mapping,
 					SZ_4K, 0, (unsigned long *)&iova,
 					(unsigned long *)&buffer_size,
 					0, 0);
@@ -1271,8 +1269,7 @@ static u32 vid_dec_free_meta_buffers(struct video_client_ctx *client_ctx)
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 					client_ctx->meta_buffer_ion_handle);
@@ -1286,8 +1283,7 @@ static u32 vid_dec_free_meta_buffers(struct video_client_ctx *client_ctx)
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_iommu_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_iommu_ion_handle);
@@ -1323,8 +1319,7 @@ static u32 vid_dec_free_h264_mv_buffers(struct video_client_ctx *client_ctx)
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->h264_mv_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle);

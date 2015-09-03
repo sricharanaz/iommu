@@ -33,6 +33,11 @@
 #include "vidc_init_internal.h"
 #include "vcd_res_tracker_api.h"
 #include <linux/msm_ion.h>
+#include <asm/dma-iommu.h>
+#include <asm-generic/sizes.h>
+
+struct dma_iommu_mapping *video_main_mapping;
+struct dma_iommu_mapping *video_firmware_mapping;
 
 #if DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
@@ -312,6 +317,11 @@ static int __init vidc_init(void)
 				(u32 *) &vidc_msg_register);
 	}
 #endif
+	video_main_mapping = arm_iommu_create_mapping(&platform_bus_type,
+						      SZ_16M, SZ_256M - SZ_16M);
+	video_firmware_mapping = arm_iommu_create_mapping(&platform_bus_type,
+							  SZ_128K,
+							  SZ_16M - SZ_128K);
 	return 0;
 
 error_vidc_create_workqueue:
@@ -430,8 +440,7 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 						client_ctx->user_ion_client,
 						buf_addr_table[i].
 						buff_ion_handle,
-						VIDEO_DOMAIN,
-						VIDEO_MAIN_POOL);
+						video_main_mapping);
 				}
 				ion_free(client_ctx->user_ion_client,
 						buf_addr_table[i].
@@ -448,8 +457,7 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 			    (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 				ion_unmap_iommu(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle,
-					VIDEO_DOMAIN,
-					VIDEO_MAIN_POOL);
+					video_main_mapping);
 			}
 			ion_free(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle);
@@ -464,8 +472,7 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 			client_ctx->meta_buffer_ion_handle);
@@ -479,8 +486,7 @@ void vidc_cleanup_addr_table(struct video_client_ctx *client_ctx,
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				client_ctx->meta_buffer_iommu_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 			client_ctx->meta_buffer_iommu_ion_handle);
@@ -655,8 +661,7 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 			} else {
 				ret = ion_map_iommu(client_ctx->user_ion_client,
 						buff_ion_handle,
-						VIDEO_DOMAIN,
-						VIDEO_MAIN_POOL,
+						video_main_mapping,
 						SZ_8K,
 						length,
 						(unsigned long *) &iova,
@@ -814,8 +819,7 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
 			ion_unmap_iommu(client_ctx->user_ion_client,
 				buf_addr_table[i].buff_ion_handle,
-				VIDEO_DOMAIN,
-				VIDEO_MAIN_POOL);
+				video_main_mapping);
 		}
 		ion_free(client_ctx->user_ion_client,
 				buf_addr_table[i].buff_ion_handle);
