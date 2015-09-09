@@ -32,9 +32,12 @@
 #include <media/msm/vidc_init.h>
 #include "vidc_init_internal.h"
 #include "vcd_res_tracker_api.h"
+#include "vcd_res_tracker.h"
 #include <linux/msm_ion.h>
 #include <asm/dma-iommu.h>
 #include <asm-generic/sizes.h>
+#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 struct dma_iommu_mapping *video_main_mapping;
 struct dma_iommu_mapping *video_firmware_mapping;
@@ -133,49 +136,6 @@ static void vidc_work_handler(struct work_struct *work)
 
 static DECLARE_WORK(vidc_work, vidc_work_handler);
 
-static int __init vidc_720p_probe(struct platform_device *pdev)
-{
-	struct resource *resource;
-	DBG("Enter %s()\n", __func__);
-
-	if (pdev->id) {
-		ERR("Invalid plaform device ID = %d\n", pdev->id);
-		return -EINVAL;
-	}
-	vidc_device_p->irq = platform_get_irq(pdev, 0);
-	if (unlikely(vidc_device_p->irq < 0)) {
-		ERR("%s(): Invalid irq = %d\n", __func__,
-					 vidc_device_p->irq);
-		return -ENXIO;
-	}
-
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!resource)) {
-		ERR("%s(): Invalid resource\n", __func__);
-		return -ENXIO;
-	}
-
-	vidc_device_p->phys_base = resource->start;
-	vidc_device_p->virt_base = ioremap(resource->start,
-	resource->end - resource->start + 1);
-
-	if (!vidc_device_p->virt_base) {
-		ERR("%s() : ioremap failed\n", __func__);
-		return -ENOMEM;
-	}
-	vidc_device_p->device = &pdev->dev;
-	mutex_init(&vidc_device_p->lock);
-
-	vidc_wq = create_singlethread_workqueue("vidc_worker_queue");
-	if (!vidc_wq) {
-		ERR("%s: create workque failed\n", __func__);
-		return -ENOMEM;
-	}
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-	return 0;
-}
-
 static int vidc_720p_remove(struct platform_device *pdev)
 {
 	if (pdev->id) {
@@ -204,12 +164,80 @@ static const struct dev_pm_ops vidc_dev_pm_ops = {
 	.runtime_resume = vidc_runtime_resume,
 };
 
+const struct msm_vidc_data apq8064_vidc_platform_data = {
+#ifdef CONFIG_MSM_BUS_SCALING
+        .vidc_bus_client_pdata = &vidc_bus_client_data,
+#endif
+        .memtype = ION_SYSTEM_HEAP_ID,//ION_CP_MM_HEAP_ID,
+        .enable_ion = 1,
+        .cp_enabled = 1,
+        .disable_dmx = 0,
+        .disable_fullhd = 0,
+        .cont_mode_dpb_count = 18,
+        .fw_addr = 0x9fe00000,
+        .enable_sec_metadata = 1,
+};
+
+static const struct of_device_id vidc_data_match[] = {
+        { .compatible = "msm_vidc", .data = &apq8064_vidc_platform_data },
+        {},
+};
+
+static int __init vidc_720p_probe(struct platform_device *pdev)
+{
+        struct resource *resource;
+        const struct of_device_id *vidc_dev;
+
+        DBG("Enter %s()\n", __func__);
+
+        if (pdev->id) {
+                ERR("Invalid plaform device ID = %d\n", pdev->id);
+                return -EINVAL;
+        }
+        vidc_device_p->irq = platform_get_irq(pdev, 0);
+        if (unlikely(vidc_device_p->irq < 0)) {
+                ERR("%s(): Invalid irq = %d\n", __func__,
+                                         vidc_device_p->irq);
+                return -ENXIO;
+        }
+
+        resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+        if (unlikely(!resource)) {
+                ERR("%s(): Invalid resource\n", __func__);
+                return -ENXIO;
+        }
+
+        vidc_device_p->phys_base = resource->start;
+        vidc_device_p->virt_base = ioremap(resource->start,
+        resource->end - resource->start + 1);
+
+        if (!vidc_device_p->virt_base) {
+                ERR("%s() : ioremap failed\n", __func__);
+                return -ENOMEM;
+        }
+        vidc_device_p->device = &pdev->dev;
+        vidc_dev = of_match_device(vidc_data_match, &pdev->dev);
+        pdev->dev.platform_data = vidc_dev->data;
+
+        mutex_init(&vidc_device_p->lock);
+
+        vidc_wq = create_singlethread_workqueue("vidc_worker_queue");
+        if (!vidc_wq) {
+                ERR("%s: create workque failed\n", __func__);
+                return -ENOMEM;
+        }
+        pm_runtime_set_active(&pdev->dev);
+        pm_runtime_enable(&pdev->dev);
+        return 0;
+}
+
 static struct platform_driver msm_vidc_720p_platform_driver = {
 	.probe = vidc_720p_probe,
 	.remove = vidc_720p_remove,
 	.driver = {
 		.name = "msm_vidc",
 		.pm   = &vidc_dev_pm_ops,
+		.of_match_table = vidc_data_match,
 	},
 };
 
