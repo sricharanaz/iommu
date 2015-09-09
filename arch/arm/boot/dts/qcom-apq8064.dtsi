@@ -1772,6 +1772,13 @@
 			    <GIC_SPI 211 0>;
 			ncb = <3>;
 		};
+
+                msm_vidc: qcom,msm_vidc@4400000 {
+                        compatible = "msm_vidc";
+                        reg = <0x04400000 0x00100000>;
+                        interrupts =
+                            <GIC_SPI 49 0>;
+                };
 	};
 };
 
