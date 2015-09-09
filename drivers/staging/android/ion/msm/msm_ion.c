@@ -26,6 +26,8 @@
 #include "ion_cp_common.h"
 #include <linux/dma-mapping.h>
 #include <asm/dma-iommu.h>
+#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 #define ION_COMPAT_STR	"qcom,msm-ion"
 
@@ -304,67 +306,6 @@ dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
         return iova;
 }
 
-static int msm_ion_probe(struct platform_device *pdev)
-{
-	struct ion_platform_data *pdata;
-	unsigned int pdata_needs_to_be_freed;
-	int err = -1;
-	int i;
-
-		pdata = pdev->dev.platform_data;
-		pdata_needs_to_be_freed = 0;
-
-	num_heaps = pdata->nr;
-
-	heaps = kcalloc(pdata->nr, sizeof(struct ion_heap *), GFP_KERNEL);
-
-	if (!heaps) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	idev = ion_device_create(msm_ion_custom_ioctl);
-	if (IS_ERR_OR_NULL(idev)) {
-		err = PTR_ERR(idev);
-		goto freeheaps;
-	}
-
-	/* create the heaps as specified in the board file */
-	for (i = 0; i < num_heaps; i++) {
-		struct ion_platform_heap *heap_data = &pdata->heaps[i];
-		msm_ion_allocate(heap_data);
-
-		heaps[i] = ion_heap_create(heap_data);
-		if (IS_ERR_OR_NULL(heaps[i])) {
-			heaps[i] = 0;
-			continue;
-		} else {
-			if (heap_data->size)
-				pr_info("ION heap %s created at %lx "
-					"with size %x\n", heap_data->name,
-							  heap_data->base,
-							  heap_data->size);
-			else
-				pr_info("ION heap %s created\n",
-							  heap_data->name);
-		}
-
-		ion_device_add_heap(idev, heaps[i]);
-	}
-	if (pdata_needs_to_be_freed)
-		free_pdata(pdata);
-
-	platform_set_drvdata(pdev, idev);
-	return 0;
-
-freeheaps:
-	kfree(heaps);
-	if (pdata_needs_to_be_freed)
-		free_pdata(pdata);
-out:
-	return err;
-}
-
 static int msm_ion_remove(struct platform_device *pdev)
 {
 	struct ion_device *idev = platform_get_drvdata(pdev);
@@ -378,13 +319,135 @@ static int msm_ion_remove(struct platform_device *pdev)
 	return 0;
 }
 
+struct ion_platform_heap apq8064_heaps[] = {
+                {
+                        .id     = ION_SYSTEM_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_SYSTEM,
+                        .name   = ION_VMALLOC_HEAP_NAME,
+                },
+                {
+                        .id     = ION_CP_MM_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_CP,
+                        .name   = ION_MM_HEAP_NAME,
+                        .size   = SZ_4M,
+                },
+                {
+                        .id     = ION_MM_FIRMWARE_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_CARVEOUT,
+                        .name   = ION_MM_FIRMWARE_HEAP_NAME,
+                        .size   = 1966080,
+                },
+                {
+                        .id     = ION_CP_MFC_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_CP,
+                        .name   = ION_MFC_HEAP_NAME,
+                        .size   = 270336,
+                },
+                {
+                        .id     = ION_IOMMU_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_IOMMU,
+                        .name   = ION_IOMMU_HEAP_NAME,
+                },
+                {
+                        .id     = ION_QSECOM_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_CARVEOUT,
+                        .name   = ION_QSECOM_HEAP_NAME,
+                        .size   = 0x780000,
+                },
+                {
+                        .id     = ION_AUDIO_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_CARVEOUT,
+                        .name   = ION_AUDIO_HEAP_NAME,
+                        .size   = 0x4CF000,
+                },
+                {
+                        .id     = ION_ADSP_HEAP_ID,
+                        .type   = ION_HEAP_TYPE_DMA,
+                        .name   = ION_ADSP_HEAP_NAME,
+                        .size   = SZ_8M,
+                },
+};
+
+static struct ion_platform_data apq8064_ion_pdata = {
+        .nr = 8,
+        .heaps = apq8064_heaps,
+};
+
+static const struct of_device_id ion_data_match[] = {
+	{ .compatible = "ion-msm", .data = &apq8064_ion_pdata },
+	{},
+};
+
+static int msm_ion_probe(struct platform_device *pdev)
+{
+        struct ion_platform_data *pdata;
+        unsigned int pdata_needs_to_be_freed;
+        int err = -1;
+        int i;
+        const struct of_device_id *pd;
+
+        pd = of_match_device(ion_data_match, &pdev->dev);
+        pdata = pd->data;
+        pdata_needs_to_be_freed = 0;
+
+        num_heaps = pdata->nr;
+
+        heaps = kcalloc(pdata->nr, sizeof(struct ion_heap *), GFP_KERNEL);
+
+        if (!heaps) {
+                err = -ENOMEM;
+                goto out;
+        }
+
+        idev = ion_device_create(msm_ion_custom_ioctl);
+        if (IS_ERR_OR_NULL(idev)) {
+                err = PTR_ERR(idev);
+                goto freeheaps;
+        }
+
+        /* create the heaps as specified in the board file */
+        for (i = 0; i < num_heaps; i++) {
+                struct ion_platform_heap *heap_data = &pdata->heaps[i];
+                msm_ion_allocate(heap_data);
+
+                heaps[i] = ion_heap_create(heap_data);
+                if (IS_ERR_OR_NULL(heaps[i])) {
+                        heaps[i] = 0;
+                        continue;
+                } else {
+                        if (heap_data->size)
+                                pr_info("ION heap %s created at %lx "
+                                        "with size %x\n", heap_data->name,
+                                                          heap_data->base,
+                                                          heap_data->size);
+                        else
+                                pr_info("ION heap %s created\n",
+                                                          heap_data->name);
+                }
+
+                ion_device_add_heap(idev, heaps[i]);
+        }
+        if (pdata_needs_to_be_freed)
+                free_pdata(pdata);
+
+        platform_set_drvdata(pdev, idev);
+        return 0;
+
+freeheaps:
+        kfree(heaps);
+        if (pdata_needs_to_be_freed)
+                free_pdata(pdata);
+out:
+        return err;
+}
 
 static struct platform_driver msm_ion_driver = {
-	.probe = msm_ion_probe,
-	.remove = msm_ion_remove,
-	.driver = {
-		.name = "ion-msm",
-	},
+        .probe = msm_ion_probe,
+        .remove = msm_ion_remove,
+        .driver = {
+                .name = "ion-msm",
+                .of_match_table = ion_data_match,
+        },
 };
 
 static int __init msm_ion_init(void)
