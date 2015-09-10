@@ -190,10 +190,7 @@ static int __init vidc_720p_probe(struct platform_device *pdev)
 
         DBG("Enter %s()\n", __func__);
 
-        if (pdev->id) {
-                ERR("Invalid plaform device ID = %d\n", pdev->id);
-                return -EINVAL;
-        }
+	printk("\n vidc_720p_probe");
         vidc_device_p->irq = platform_get_irq(pdev, 0);
         if (unlikely(vidc_device_p->irq < 0)) {
                 ERR("%s(): Invalid irq = %d\n", __func__,
@@ -235,7 +232,7 @@ static struct platform_driver msm_vidc_720p_platform_driver = {
 	.probe = vidc_720p_probe,
 	.remove = vidc_720p_remove,
 	.driver = {
-		.name = "msm_vidc",
+		.name = "msm_vidc_driver",
 		.pm   = &vidc_dev_pm_ops,
 		.of_match_table = vidc_data_match,
 	},
