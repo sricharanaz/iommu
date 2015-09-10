@@ -21,6 +21,10 @@
 
 		smem_region: smem@80000000 {
 			reg = <0x80000000 0x200000>;
+		};
+
+		vidcmem@9fe00000 {
+			reg = <0x9fe00000 0x1e0000>;
 			no-map;
 		};
 	};
@@ -1779,6 +1783,11 @@
                         interrupts =
                             <GIC_SPI 49 0>;
                 };
+
+		msm_ion: qcom,msm_ion@9fe00000 {
+			compatible = "ion-msm";
+			memory-region = <&vidcmem>;
+		};
 	};
 };
 

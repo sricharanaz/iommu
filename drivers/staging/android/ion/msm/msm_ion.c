@@ -28,6 +28,7 @@
 #include <asm/dma-iommu.h>
 #include <linux/of_device.h>
 #include <linux/mod_devicetable.h>
+#include <asm/dma-mapping.h>
 
 #define ION_COMPAT_STR	"qcom,msm-ion"
 
@@ -410,6 +411,9 @@ static int msm_ion_probe(struct platform_device *pdev)
                 struct ion_platform_heap *heap_data = &pdata->heaps[i];
                 msm_ion_allocate(heap_data);
 
+		if (heap_data->type == ION_HEAP_TYPE_CARVEOUT)
+			dma_alloc_coherent(&pdev->dev, heap_data->size, &heap_data->base, GFP_KERNEL);
+
                 heaps[i] = ion_heap_create(heap_data);
                 if (IS_ERR_OR_NULL(heaps[i])) {
                         heaps[i] = 0;
@@ -445,7 +449,7 @@ static struct platform_driver msm_ion_driver = {
         .probe = msm_ion_probe,
         .remove = msm_ion_remove,
         .driver = {
-                .name = "ion-msm",
+                .name = "ion-msm-driver",
                 .of_match_table = ion_data_match,
         },
 };
