@@ -101,27 +101,17 @@ static unsigned long msm_ion_get_base(unsigned long size, unsigned int align)
 static void msm_ion_allocate(struct ion_platform_heap *heap)
 {
 
-	if (!heap->base && heap->extra_data) {
+	if (!heap->base) {
 		unsigned int align = 0;
 		switch ((int) heap->type) {
-		case ION_HEAP_TYPE_CARVEOUT:
-			align =
-			((struct ion_co_heap_pdata *) heap->extra_data)->align;
-			break;
-		case ION_HEAP_TYPE_CP:
-		{
-			align = ((struct ion_cp_heap_pdata *)heap->extra_data)->align;
-			break;
-		}
-		default:
-			break;
-		}
-		if (align && !heap->base) {
-			heap->base = msm_ion_get_base(heap->size,
-						      align);
-			if (!heap->base)
-				pr_err("%s: could not get memory for heap %s "
-				   "(id %x)\n", __func__, heap->name, heap->id);
+			case ION_HEAP_TYPE_CHUNK:
+				heap->base = msm_ion_get_base(heap->size,
+							      align);
+				if (!heap->base)
+					pr_err("%s: could not get memory for heap %s "
+					   "(id %x)\n", __func__, heap->name, heap->id);
+			default:
+				break;
 		}
 	}
 }
@@ -344,33 +334,10 @@ struct ion_platform_heap apq8064_heaps[] = {
                         .name   = ION_MFC_HEAP_NAME,
                         .size   = 270336,
                 },
-                {
-                        .id     = ION_IOMMU_HEAP_ID,
-                        .type   = ION_HEAP_TYPE_IOMMU,
-                        .name   = ION_IOMMU_HEAP_NAME,
-                },
-                {
-                        .id     = ION_QSECOM_HEAP_ID,
-                        .type   = ION_HEAP_TYPE_CARVEOUT,
-                        .name   = ION_QSECOM_HEAP_NAME,
-                        .size   = 0x780000,
-                },
-                {
-                        .id     = ION_AUDIO_HEAP_ID,
-                        .type   = ION_HEAP_TYPE_CARVEOUT,
-                        .name   = ION_AUDIO_HEAP_NAME,
-                        .size   = 0x4CF000,
-                },
-                {
-                        .id     = ION_ADSP_HEAP_ID,
-                        .type   = ION_HEAP_TYPE_DMA,
-                        .name   = ION_ADSP_HEAP_NAME,
-                        .size   = SZ_8M,
-                },
 };
 
 static struct ion_platform_data apq8064_ion_pdata = {
-        .nr = 8,
+        .nr = 4,
         .heaps = apq8064_heaps,
 };
 

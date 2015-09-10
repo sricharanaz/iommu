@@ -23,8 +23,8 @@
 			reg = <0x80000000 0x200000>;
 		};
 
-		vidcmem@9fe00000 {
-			reg = <0x9fe00000 0x1e0000>;
+		vidcmem: fwmem@9fe00000 {
+			reg = <0x9fe00000 0x200000>;
 			no-map;
 		};
 	};
