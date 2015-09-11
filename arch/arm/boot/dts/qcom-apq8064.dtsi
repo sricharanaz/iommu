@@ -1779,12 +1779,13 @@
 
 		vidc_a:	qcom,iommu@7a00000 {
                         compatible = "qcom,iommu-v0";
+			#iommu-cells = <16>;
                         clock-names =
                             "smmu_pclk",
-                            "iommu_clk";
+			    "iommu_clk";
                         clocks =
                             <&mmcc SMMU_AHB_CLK>,
-                            <&mmcc VCODEC_AXI_A_CLK>;
+			    <&mmcc VCODEC_AXI_A_CLK>;
                         reg-names = "physbase";
                         reg = <0x07a00000 0x100000>;
                         interrupt-names =
@@ -1795,19 +1796,17 @@
                             <GIC_SPI 58 0>;
                         ncb = <2>;
                         ttbr-split = <1>;
-                        mmu-masters =
-                            <&msm_vidc 2 5>,
-                            <&msm_vidc 0 1 6 7 8 9 10 11 12 13 14 15>;
 		};
 
                 vidc_b: qcom,iommu@7b00000 {
                         compatible = "qcom,iommu-v0";
+			#iommu-cells = <16>;
                         clock-names =
                             "smmu_pclk",
-                            "iommu_clk";
+			    "iommu_clk";
                         clocks =
                             <&mmcc SMMU_AHB_CLK>,
-                            <&mmcc VCODEC_AXI_B_CLK>;
+			    <&mmcc VCODEC_AXI_B_CLK>;
                         reg-names = "physbase";
                         reg = <0x07b00000 0x100000>;
                         interrupt-names =
@@ -1818,8 +1817,6 @@
                             <GIC_SPI 56 0>;
                         ncb = <2>;
                         ttbr-split = <1>;
-                        mmu-masters =
-                            <&msm_vidc 0 1 6 7 8 9 10 11 11 12 13 14 15>;
                 };
 
                 msm_vidc: qcom,msm_vidc@4400000 {
@@ -1828,11 +1825,21 @@
                         interrupts =
                             <GIC_SPI 49 0>;
 			clock-names = 
+				"iface_clk",
 				"core_clk",
-				"iface_clk";
+				"axi_clk",
+				"axi_a_clk",
+				"axi_b_clk";
 			clocks = 
-			 <&mmcc	VCODEC_CLK>,
-			 <&mmcc	VCODEC_SRC>;
+			 <&mmcc	VCODEC_AHB_CLK>,
+			 <&mmcc VCODEC_CLK>,
+			 <&mmcc	VCODEC_AXI_CLK>,
+			<&mmcc VCODEC_AXI_A_CLK>,
+			<&mmcc VCODEC_AXI_B_CLK>;
+
+			iommus = <&vidc_a 2 5>,
+				 <&vidc_a 0 1 6 7 8 9 10 11 12 13 14 15>,
+				 <&vidc_b 0 1 6 7 8 9 10 11 11 12 13 14 15>;
                 };
 
 		msm_ion: qcom,msm_ion@9fe00000 {

@@ -1786,16 +1786,19 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
                                                 align,
                                                 iova_length,
                                                 flags);
-        if (ret)
+        if (ret != buffer->size)
                 goto out;
 
         kref_init(&data->ref);
+	printk("\n done mi");
         *iova = data->iova_addr;
 
+	printk("\n done_iommu_map_1");
         ion_iommu_add(buffer, data);
 
-        return data;
+	printk("\n done_iommu_map_2");
 
+        return data;
 out:
         kfree(data);
         return ERR_PTR(ret);
@@ -1867,12 +1870,8 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
         if (!iommu_map) {
                 iommu_map = __ion_iommu_map(buffer, mapping,
                                             align, iova_length, flags, iova);
-                if (!IS_ERR_OR_NULL(iommu_map)) {
+                if (!IS_ERR_OR_NULL(iommu_map))
                         iommu_map->flags = iommu_flags;
-
-                        if (iommu_map->flags & ION_IOMMU_UNMAP_DELAYED)
-                                kref_get(&iommu_map->ref);
-                }
         } else {
                 if (iommu_map->flags != iommu_flags) {
                         pr_err("%s: handle %p is already mapped with iommu flags %lx, trying to map with flags %lx\n",

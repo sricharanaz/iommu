@@ -35,6 +35,9 @@ struct res_trk_context {
 	struct mutex lock;
 	struct clk *vcodec_clk;
 	struct clk *vcodec_pclk;
+	struct clk *vcodec_axi_clk;
+	struct clk *vcodec_axi_b_clk;
+	struct clk *vcodec_axi_a_clk;
 	unsigned long vcodec_clk_rate;
 	unsigned int clock_enabled;
 	unsigned int perf_level;
@@ -58,6 +61,7 @@ struct res_trk_context {
 	u32 secure_session;
 	struct mutex secure_lock;
 	u32 sec_clk_heap;
+	
 };
 
 struct msm_vidc_data {

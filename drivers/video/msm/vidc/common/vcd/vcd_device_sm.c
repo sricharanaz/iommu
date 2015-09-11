@@ -54,7 +54,6 @@ void vcd_do_device_state_transition(struct vcd_drv_ctxt *drv_ctxt,
 	if (state_ctxt->state_table->exit)
 		state_ctxt->state_table->exit(drv_ctxt, ev_code);
 
-
 	state_ctxt->state = to_state;
 	state_ctxt->state_table = vcd_dev_state_table[to_state];
 
@@ -555,7 +554,6 @@ static u32 vcd_init_cmn
 			 driver_id, dev_ctxt->refs);
 
 	return VCD_S_SUCCESS;
-
 }
 
 static u32 vcd_init_in_null

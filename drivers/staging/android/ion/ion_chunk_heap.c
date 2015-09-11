@@ -135,7 +135,6 @@ int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 			void *vaddr, unsigned int offset, unsigned int length,
 			unsigned int cmd)
 {
-	void (*outer_cache_op)(phys_addr_t, phys_addr_t) = NULL;
 	struct ion_chunk_heap *cp_heap =
 		container_of(heap, struct  ion_chunk_heap, heap);
 	unsigned int size_to_vmap, total_size;
@@ -187,13 +186,13 @@ int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 	} else {
 		switch (cmd) {
 		case ION_IOC_CLEAN_CACHES:
-			dmac_map_area(ptr, size_to_vmap, DMA_TO_DEVICE);
+			dmac_map_area(vaddr, buffer->size, DMA_TO_DEVICE);
 			break;
 		case ION_IOC_INV_CACHES:
-			dmac_unmap_area(ptr, size_to_vmap, DMA_FROM_DEVICE);
+			dmac_unmap_area(vaddr, buffer->size, DMA_FROM_DEVICE);
 			break;
 		case ION_IOC_CLEAN_INV_CACHES:
-			dmac_flush_range(ptr, ptr + size_to_vmap);
+			dmac_flush_range(vaddr, vaddr + buffer->size);
 			break;
 		default:
 			return -EINVAL;
@@ -210,43 +209,35 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 				unsigned long iova_length,
 				unsigned long flags)
 {
-	struct iommu_domain *domain;
 	int ret = 0;
 	unsigned long extra;
-	struct ion_chunk_heap *cp_heap =
-		container_of(buffer->heap, struct ion_chunk_heap, heap);
 	int prot = IOMMU_WRITE | IOMMU_READ;
 	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
 
 	data->mapped_size = iova_length;
-
-	extra = iova_length - buffer->size;
-
         data->iova_addr = alloc_iova(mapping, iova_length);
-	ret = default_iommu_map_sg(domain, data->iova_addr, buffer->sg_table->sgl,
-			      buffer->size, prot);
-	if (ret) {
+
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, buffer->sg_table->sgl,
+			      buffer->sg_table->nents, prot);
+	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
-			__func__, data->iova_addr, domain);
+			__func__, data->iova_addr, mapping->domain);
 		goto out1;
 	}
 
 	return ret;
 
 out1:
-	iommu_unmap(domain, data->iova_addr, buffer->size);
+	iommu_unmap(mapping->domain, data->iova_addr, buffer->size);
 	return ret;
 }
 
 static void ion_cp_heap_unmap_iommu(struct ion_iommu_map *data)
 {
-	unsigned int domain_num;
-	unsigned int partition_num;
-	struct iommu_domain *domain;
 	struct ion_chunk_heap *cp_heap =
 		container_of(data->buffer->heap, struct ion_chunk_heap, heap);
 
-	iommu_unmap(domain, data->iova_addr, data->mapped_size);
+	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
 
 	return;
 }

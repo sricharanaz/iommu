@@ -460,25 +460,12 @@ static int __dma_update_pte(pte_t *pte, pgtable_t token, unsigned long addr,
 	return 0;
 }
 
-static int __dma_clear_pte(pte_t *pte, pgtable_t token, unsigned long addr,
-                            void *data)
-{
-        pte_clear(&init_mm, addr, pte);
-        return 0;
-}
-
-static void __dma_remap(struct page *page, size_t size, pgprot_t prot,
-			bool no_kernel_map)
+static void __dma_remap(struct page *page, size_t size, pgprot_t prot)
 {
 	unsigned long start = (unsigned long) page_address(page);
 	unsigned end = start + size;
         int (*func)(pte_t *pte, pgtable_t token, unsigned long addr,
                             void *data);
-
-        if (no_kernel_map)
-                func = __dma_clear_pte;
-        else
-                func = __dma_update_pte;
 
 	apply_to_page_range(&init_mm, start, size, __dma_update_pte, &prot);
 	flush_tlb_kernel_range(start, end);

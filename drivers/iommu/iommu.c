@@ -1445,6 +1445,7 @@ size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 		if (ret)
 			goto out_err;
 
+		pr_err("\n 5abc");
 		mapped += s->length;
 	}
 
@@ -1454,8 +1455,8 @@ out_err:
 	/* undo mappings already done */
 	iommu_unmap(domain, iova, mapped);
 
+	pr_err("\n 6abc");
 	return 0;
-
 }
 EXPORT_SYMBOL_GPL(default_iommu_map_sg);
 

@@ -485,7 +485,6 @@ static void vid_dec_lean_event(struct video_client_ctx *client_ctx,
 	wake_up(&client_ctx->msg_wait);
 }
 
-
 void vid_dec_vcd_cb(u32 event, u32 status,
 		   void *info, size_t sz, void *handle, void *const client_data)
 {
@@ -1490,7 +1489,6 @@ static u32 vid_dec_start_stop(struct video_client_ctx *client_ctx, u32 start)
 			mutex_lock(&client_ctx->msg_queue_lock);
 			list_add_tail(&vdec_msg->list, &client_ctx->msg_queue);
 			mutex_unlock(&client_ctx->msg_queue_lock);
-
 			wake_up(&client_ctx->msg_wait);
 
 			DBG("Send START_DONE message to client = %p\n",
@@ -2071,6 +2069,7 @@ static long vid_dec_ioctl(struct file *file,
 		struct vdec_seqheader seq_header;
 		struct vcd_sequence_hdr vcd_seq_hdr;
 		unsigned long ionflag;
+
 		DBG("VDEC_IOCTL_SET_SEQUENCE_HEADER\n");
 		if (copy_from_user(&vdec_msg, arg, sizeof(vdec_msg))) {
 			ERR("Copy from user vdec_msg failed\n");

@@ -25,6 +25,8 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 	void *ptr = NULL;
 	DDL_MSG_HIGH("ddl_device_init");
 
+	pr_err("VIDC: ddl_device_init");
+
 	if ((!ddl_init_config) || (!ddl_init_config->ddl_callback) ||
 		(!ddl_init_config->core_virtual_base_addr)) {
 		DDL_MSG_ERROR("ddl_dev_init:Bad_argument");
@@ -109,6 +111,7 @@ u32 ddl_device_init(struct ddl_init_config *ddl_init_config,
 	}
 	if (!status) {
 		ddl_context->cmd_state = DDL_CMD_DMA_INIT;
+		pr_err("VIDC: ddl_vidc_core_init enter");
 		ddl_vidc_core_init(ddl_context);
 	} else {
 		ddl_release_context_buffers(ddl_context);

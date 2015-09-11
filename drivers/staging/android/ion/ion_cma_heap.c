@@ -181,9 +181,9 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 
 	data->iova_addr = alloc_iova(mapping, iova_length);
 	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
-				buffer->size, prot);
+				table->nents, prot);
 
-	if (ret) {
+	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, domain);
 		goto out1;

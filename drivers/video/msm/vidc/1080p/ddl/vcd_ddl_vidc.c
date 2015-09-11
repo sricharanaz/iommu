@@ -29,6 +29,8 @@ void ddl_vidc_core_init(struct ddl_context *ddl_context)
 {
 	struct vidc_1080P_pix_cache_config pixel_cache_config;
 
+	pr_err("VIDC: ddl_vidc_core_init");
+
 	vidc_1080p_do_sw_reset(VIDC_1080P_RESET_IN_SEQ_FIRST_STAGE);
 	msleep(DDL_SW_RESET_SLEEP);
 	vidc_1080p_do_sw_reset(VIDC_1080P_RESET_IN_SEQ_SECOND_STAGE);
@@ -64,7 +66,10 @@ void ddl_vidc_core_init(struct ddl_context *ddl_context)
 		vidc_1080p_encode_slice_batch_start_ch0;
 	ddl_context->vidc_encode_slice_batch_start[1] =
 		vidc_1080p_encode_slice_batch_start_ch1;
+
+	pr_err("VIDC: vidc_1080p_release_sw_reset enter");
 	vidc_1080p_release_sw_reset();
+	pr_err("VIDC: vidc_1080p_release_sw_reset exit");
 	ddl_context->pix_cache_enable = DDL_PIX_CACHE_ENABLE;
 	if (ddl_context->pix_cache_enable) {
 		vidc_pix_cache_sw_reset();

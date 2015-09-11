@@ -130,6 +130,7 @@ void vidc_1080p_release_sw_reset(void)
 		nAxiStatus = VIDC_GETFIELD(nAxiStatus,
 					 HWIO_REG_437878_AXI_HALT_ACK_BMSK,
 					 HWIO_REG_437878_AXI_HALT_ACK_SHFT);
+		pr_err("nAxiStatus %x", nAxiStatus);
 	} while (0x3 != nAxiStatus);
 
 	nAxiCtl  =  VIDC_SETFIELD(1,

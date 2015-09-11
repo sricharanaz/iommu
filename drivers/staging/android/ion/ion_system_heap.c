@@ -279,15 +279,11 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 			      unsigned long flags)
 {
 	int ret = 0;
-	struct iommu_domain *domain;
-	unsigned long extra;
-	unsigned long extra_iova_addr;
 	struct sg_table *table = buffer->priv_virt;
 	int prot = IOMMU_WRITE | IOMMU_READ;
 	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
 
 	data->mapped_size = iova_length;
-	extra = iova_length - buffer->size;
 
 	/* Use the biggest alignment to allow bigger IOMMU mappings.
 	 * Use the first entry since the first entry will always be the
@@ -301,35 +297,23 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 
 	data->iova_addr = alloc_iova(mapping, iova_length);
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, table->sgl,
-			      buffer->size, prot);
+			      table->nents, prot);
 
-	if (ret) {
+	if (ret != buffer->size)
 		pr_err("%s: could not map %lx in domain %p\n",
-			__func__, data->iova_addr, domain);
-		goto out1;
-	}
+			__func__, data->iova_addr, mapping->domain);
 
-	return ret;
-
-out2:
-	iommu_unmap(domain, data->iova_addr, buffer->size);
-out1:
-out:
 	return ret;
 }
 
 void ion_system_heap_unmap_iommu(struct ion_iommu_map *data)
 {
-	unsigned int domain_num;
-	unsigned int partition_num;
-	struct iommu_domain *domain;
-
-	if (!domain) {
-		WARN(1, "Could not get domain %d. Corruption?\n", domain_num);
+	if (!data->mapping->domain) {
+		WARN(1, "Could not get domain %d. Corruption?\n", data->mapping->domain);
 		return;
 	}
 
-	iommu_unmap(domain, data->iova_addr, data->mapped_size);
+	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
 	return;
 }
 

@@ -1026,6 +1026,7 @@ u32 ddl_check_reconfig(struct ddl_client_context *ddl)
 {
 	u32 need_reconfig = true;
 	struct ddl_decoder_data *decoder = &ddl->codec_data.decoder;
+
 	if (decoder->cont_mode) {
 		if ((decoder->actual_output_buf_req.sz <=
 			 decoder->client_output_buf_req.sz) &&

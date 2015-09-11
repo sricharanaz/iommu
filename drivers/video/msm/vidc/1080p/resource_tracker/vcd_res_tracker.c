@@ -220,13 +220,48 @@ static u32 res_trk_get_clk()
 						__func__);
 		goto release_vcodec_clk;
 	}
+
+        resource_context.vcodec_axi_b_clk = clk_get(resource_context.device, "axi_b_clk");
+        if (IS_ERR(resource_context.vcodec_axi_b_clk)) {
+                VCDRES_MSG_ERROR("%s(): axi_b_clk get failed\n",
+                                                __func__);
+                goto release_vcodec_pclk;
+        } else {
+                pr_err("axi_b_clk get succeded");
+        }
+
+        resource_context.vcodec_axi_a_clk = clk_get(resource_context.device, "axi_a_clk");
+        if (IS_ERR(resource_context.vcodec_axi_a_clk)) {
+                VCDRES_MSG_ERROR("%s(): axi_a_clk get failed\n",
+                                                __func__);
+                goto release_vcodec_axi_b_clk;
+        } else {
+                pr_err("axi_a_clk get succeded");
+        }
+
+	resource_context.vcodec_axi_clk = clk_get(resource_context.device, "axi_clk");
+        if (IS_ERR(resource_context.vcodec_axi_clk)) {
+                VCDRES_MSG_ERROR("%s(): axi_clk get failed\n",
+                                                __func__);
+                goto release_vcodec_axi_a_clk;
+        } else {
+		pr_err("axi_clk get succeded");
+	}
+
 	if (clk_set_rate(resource_context.vcodec_clk,
 		vidc_clk_table[0])) {
 		VCDRES_MSG_ERROR("%s(): set rate failed in power up\n",
 						__func__);
-		goto release_vcodec_pclk;
+		goto release_vcodec_axi_a_clk;
 	}
 	return true;
+
+release_vcodec_axi_a_clk:
+	clk_put(resource_context.vcodec_axi_a_clk);
+	resource_context.vcodec_axi_a_clk = NULL;
+release_vcodec_axi_b_clk:
+        clk_put(resource_context.vcodec_axi_b_clk);
+        resource_context.vcodec_axi_b_clk = NULL;
 release_vcodec_pclk:
 	clk_put(resource_context.vcodec_pclk);
 	resource_context.vcodec_pclk = NULL;
@@ -283,9 +318,22 @@ u32 res_trk_enable_clocks(void)
 				VCDRES_MSG_ERROR("vidc pclk Enable fail\n");
 				goto bail_out;
 			}
-			if (clk_prepare_enable(resource_context.vcodec_clk)) {
+                        if (clk_prepare_enable(resource_context.vcodec_axi_b_clk)) {
+                                VCDRES_MSG_ERROR("vidc core axi clk Enable fail\n");
+                                goto vidc_disable_pclk;
+                        }
+                         if (clk_prepare_enable(resource_context.vcodec_axi_a_clk)) {
+                                VCDRES_MSG_ERROR("vidc core axi clk Enable fail\n");
+                                goto vidc_disable_axi_b_clk;
+                        }
+ 
+                        if (clk_prepare_enable(resource_context.vcodec_axi_clk)) {
+                                VCDRES_MSG_ERROR("vidc core axi clk Enable fail\n");
+                                goto vidc_disable_axi_a_clk;
+                        }
+			if(clk_prepare_enable(resource_context.vcodec_clk)) {
 				VCDRES_MSG_ERROR("vidc core clk Enable fail\n");
-				goto vidc_disable_pclk;
+				goto vidc_disable_axiclk;
 			}
 
 			VCDRES_MSG_LOW("%s(): Clocks enabled!\n", __func__);
@@ -298,6 +346,13 @@ u32 res_trk_enable_clocks(void)
 	resource_context.clock_enabled = 1;
 	mutex_unlock(&resource_context.lock);
 	return true;
+
+vidc_disable_axiclk:
+	clk_disable_unprepare(resource_context.vcodec_axi_clk);
+vidc_disable_axi_a_clk:
+	clk_disable_unprepare(resource_context.vcodec_axi_a_clk);
+vidc_disable_axi_b_clk:
+	clk_disable_unprepare(resource_context.vcodec_axi_b_clk);
 vidc_disable_pclk:
 	clk_disable_unprepare(resource_context.vcodec_pclk);
 bail_out:
@@ -360,8 +415,10 @@ static u32 res_trk_vidc_pwr_up(void)
 {
 	mutex_lock(&resource_context.lock);
 
+	pr_err("res_trk_vidc_pwr_up\n");
 	if (pm_runtime_get(resource_context.device) < 0) {
 		VCDRES_MSG_ERROR("Error : pm_runtime_get failed\n");
+		pr_err("Error : pm_runtime_get failed\n");
 		goto bail_out;
 	}
 	if (!resource_context.footswitch)
@@ -369,6 +426,7 @@ static u32 res_trk_vidc_pwr_up(void)
 			regulator_get(resource_context.device, "vdd");
 	if (IS_ERR(resource_context.footswitch)) {
 		VCDRES_MSG_ERROR("foot switch get failed\n");
+		pr_err("foot switch get failed\n");
 		resource_context.footswitch = NULL;
 	} else
 		regulator_enable(resource_context.footswitch);
