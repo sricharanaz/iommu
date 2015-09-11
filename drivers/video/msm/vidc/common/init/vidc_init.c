@@ -38,6 +38,7 @@
 #include <asm-generic/sizes.h>
 #include <linux/of_device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/iommu.h>
 
 struct dma_iommu_mapping *video_main_mapping;
 struct dma_iommu_mapping *video_firmware_mapping;
@@ -347,6 +348,10 @@ static int __init vidc_init(void)
 	video_firmware_mapping = arm_iommu_create_mapping(&platform_bus_type,
 							  SZ_128K,
 							  SZ_16M - SZ_128K);
+
+	video_firmware_mapping->domain = video_main_mapping->domain;
+	iommu_attach_device(video_main_mapping->domain, vidc_device_p->device);
+
 	return 0;
 
 error_vidc_create_workqueue:
