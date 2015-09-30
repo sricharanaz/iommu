@@ -45,6 +45,8 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
 
+	pr_err("\n ion_carveout_allocate %x", offset);
+
 	return offset;
 }
 
@@ -162,24 +164,8 @@ int ion_carveout_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
                         for (j = 0; j < 10 && size_to_vmap; ++j) {
                                 ptr = ioremap(buff_phys, size_to_vmap);
                                 if (ptr) {
-                                        switch (cmd) {
-                                        case ION_IOC_CLEAN_CACHES:
-                                                dmac_map_area(ptr,
-                                                        size_to_vmap, DMA_TO_DEVICE);
-                                                break;
-                                        case ION_IOC_INV_CACHES:
-                                                dmac_unmap_area(ptr,
-                                                        size_to_vmap, DMA_FROM_DEVICE);
-                                                break;
-                                        case ION_IOC_CLEAN_INV_CACHES:
-                                                dmac_flush_range(ptr,
-                                                        ptr + size_to_vmap);
-                                                break;
-                                        default:
-                                                return -EINVAL;
-                                        }
+					dmac_flush_range(ptr, ptr + size_to_vmap);
                                         buff_phys += size_to_vmap;
-                                        break;
                                 } else {
                                         size_to_vmap >>= 1;
                                 }
@@ -191,19 +177,7 @@ int ion_carveout_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
                         iounmap(ptr);
                 }
         } else {
-                switch (cmd) {
-                case ION_IOC_CLEAN_CACHES:
-                        dmac_map_area(ptr, size_to_vmap, DMA_TO_DEVICE);
-                        break;
-                case ION_IOC_INV_CACHES:
-			dmac_unmap_area(ptr, size_to_vmap, DMA_FROM_DEVICE);
-                        break;
-                case ION_IOC_CLEAN_INV_CACHES:
-			dmac_flush_range(ptr, ptr + size_to_vmap);
-                        break;
-                default:
-                        return -EINVAL;
-                }
+		dmac_flush_range(ptr, ptr + size_to_vmap);
         }
 
         return 0;
@@ -305,6 +279,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		return ERR_PTR(-ENOMEM);
 	}
 	carveout_heap->base = heap_data->base;
+
+	pr_err("carveout_heap->base %x", carveout_heap->base);
 	gen_pool_add(carveout_heap->pool, carveout_heap->base, heap_data->size,
 		     -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;

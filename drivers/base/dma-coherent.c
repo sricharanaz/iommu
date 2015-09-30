@@ -162,12 +162,17 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 
 	if (!dev)
 		return 0;
+
+	pr_err("dma_alloc_from_coherent dma_mem %x", dev->dma_mem);
+
 	mem = dev->dma_mem;
 	if (!mem)
 		return 0;
 
 	*ret = NULL;
 	spin_lock_irqsave(&mem->spinlock, flags);
+
+	pr_err("dma_alloc_from_coherent size %x mem->size %x", size, mem->size);
 
 	if (unlikely(size > (mem->size << PAGE_SHIFT)))
 		goto err;

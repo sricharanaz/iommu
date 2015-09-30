@@ -29,6 +29,8 @@
 #include <linux/of_device.h>
 #include <linux/mod_devicetable.h>
 #include <asm/dma-mapping.h>
+#include <linux/module.h>
+#include <linux/of_reserved_mem.h>
 
 #define ION_COMPAT_STR	"qcom,msm-ion"
 
@@ -378,8 +380,13 @@ static int msm_ion_probe(struct platform_device *pdev)
                 struct ion_platform_heap *heap_data = &pdata->heaps[i];
                 msm_ion_allocate(heap_data);
 
-		if (heap_data->type == ION_HEAP_TYPE_CARVEOUT)
+		if (heap_data->type == ION_HEAP_TYPE_CARVEOUT) {
+			of_reserved_mem_device_init(&pdev->dev);
 			dma_alloc_coherent(&pdev->dev, heap_data->size, &heap_data->base, GFP_KERNEL);
+			pr_err("heap->data_base %x", heap_data->base);
+		}
+
+		pr_err("msm_ion %x", &pdev->dev);
 
                 heaps[i] = ion_heap_create(heap_data);
                 if (IS_ERR_OR_NULL(heaps[i])) {

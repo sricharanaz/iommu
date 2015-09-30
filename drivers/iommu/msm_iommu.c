@@ -791,18 +791,19 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	iommu->dev = &pdev->dev;
 	INIT_LIST_HEAD(&iommu->ctx_list);
 
-	iommu->pclk = devm_clk_get(iommu->dev, "smmu_pclk");
+	iommu->pclk = devm_clk_get(iommu->dev, "iommu_clk");
 	if (IS_ERR(iommu->pclk)) {
 		dev_err(iommu->dev, "could not get smmu_pclk\n");
 		return PTR_ERR(iommu->pclk);
-	}
+	} else
+		pr_err("iommu_clk get success");
 	ret = clk_prepare(iommu->pclk);
 	if (ret) {
 		dev_err(iommu->dev, "could not prepare smmu_pclk\n");
 		return ret;
 	}
 
-	iommu->clk = devm_clk_get(iommu->dev, "iommu_clk");
+	iommu->clk = devm_clk_get(iommu->dev, "smmu_pclk");
 	if (IS_ERR(iommu->clk)) {
 		dev_err(iommu->dev, "could not get iommu_clk\n");
 		clk_unprepare(iommu->pclk);

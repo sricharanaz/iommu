@@ -251,22 +251,7 @@ int ion_system_contig_heap_cache_ops(struct ion_heap *heap,
 {
         void (*outer_cache_op)(phys_addr_t, phys_addr_t);
 
-       switch (cmd) {
-       case ION_IOC_CLEAN_CACHES:
-              dmac_map_area(vaddr,
-              	length, DMA_TO_DEVICE);
-              break;
-        case ION_IOC_INV_CACHES:
-              dmac_unmap_area(vaddr,
-              	length, DMA_FROM_DEVICE);
-              break;
-        case ION_IOC_CLEAN_INV_CACHES:
-              dmac_flush_range(vaddr,
-              	vaddr + length);
-              break;
-        default:
-                return -EINVAL;
-        }
+	dmac_flush_range(vaddr, vaddr + length);
 
         return 0;
 }

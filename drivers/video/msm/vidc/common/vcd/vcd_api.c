@@ -951,15 +951,24 @@ u8 vcd_get_num_of_clients(void)
 	u8 count = 0;
 
 	VCD_MSG_LOW("vcd_get_num_of_clients:");
+
+	pr_err("1");
 	drv_ctxt = vcd_get_drv_context();
 
+	pr_err("2");
 	mutex_lock(&drv_ctxt->dev_mutex);
+
+	pr_err("3");
 	cctxt = drv_ctxt->dev_ctxt.cctxt_list_head;
+	pr_err("4");
 	while (cctxt) {
 		count++;
 		cctxt = cctxt->next;
 	}
+	pr_err("5");
 	mutex_unlock(&drv_ctxt->dev_mutex);
+	pr_err("6");
+
 	return count;
 }
 EXPORT_SYMBOL(vcd_get_num_of_clients);

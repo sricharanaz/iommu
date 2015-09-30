@@ -154,23 +154,7 @@ int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 			for (j = 0; j < 10 && size_to_vmap; ++j) {
 				ptr = ioremap(buff_phys, size_to_vmap);
 				if (ptr) {
-					switch (cmd) {
-                                        case ION_IOC_CLEAN_CACHES:
-                                                dmac_map_area(ptr,
-                                                        size_to_vmap, DMA_TO_DEVICE);
-                                                break;
-                                        case ION_IOC_INV_CACHES:
-                                                dmac_unmap_area(ptr,
-                                                        size_to_vmap, DMA_FROM_DEVICE);
-                                                break;
-                                        case ION_IOC_CLEAN_INV_CACHES:
-                                                dmac_flush_range(ptr,
-                                                        ptr + size_to_vmap);
-                                                break;
-
-					default:
-						return -EINVAL;
-					}
+					dmac_flush_range(ptr, ptr + size_to_vmap);
 					buff_phys += size_to_vmap;
 					break;
 				} else {
@@ -184,19 +168,7 @@ int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
 			iounmap(ptr);
 		}
 	} else {
-		switch (cmd) {
-		case ION_IOC_CLEAN_CACHES:
-			dmac_map_area(vaddr, buffer->size, DMA_TO_DEVICE);
-			break;
-		case ION_IOC_INV_CACHES:
-			dmac_unmap_area(vaddr, buffer->size, DMA_FROM_DEVICE);
-			break;
-		case ION_IOC_CLEAN_INV_CACHES:
-			dmac_flush_range(vaddr, vaddr + buffer->size);
-			break;
-		default:
-			return -EINVAL;
-		}
+		dmac_flush_range(vaddr, vaddr + buffer->size);
 	}
 
 	return 0;

@@ -188,6 +188,10 @@ static int __init vidc_720p_probe(struct platform_device *pdev)
 {
         struct resource *resource;
         const struct of_device_id *vidc_dev;
+	int rc = 0;
+#ifdef VIDC_ENABLE_DBGFS
+        struct dentry *root = NULL;
+#endif
 
         DBG("Enter %s()\n", __func__);
 
@@ -226,7 +230,59 @@ static int __init vidc_720p_probe(struct platform_device *pdev)
         }
         pm_runtime_set_active(&pdev->dev);
         pm_runtime_enable(&pdev->dev);
+
+        rc = request_irq(vidc_device_p->irq, vidc_isr, IRQF_TRIGGER_HIGH,
+                         "vidc", vidc_device_p->device);
+
+        if (unlikely(rc)) {
+                ERR("%s() :request_irq failed\n", __func__);
+                return rc;
+        }
+        res_trk_init(vidc_device_p->device, vidc_device_p->irq);
+        vidc_timer_wq = create_singlethread_workqueue("vidc_timer_wq");
+        if (!vidc_timer_wq) {
+                ERR("%s: create workque failed\n", __func__);
+                rc = -ENOMEM;
+                goto error_vidc_create_workqueue;
+        }
+        DBG("Disabling IRQ in %s()\n", __func__);
+        disable_irq_nosync(vidc_device_p->irq);
+        INIT_WORK(&vidc_device_p->vidc_timer_worker,
+                          vidc_timer_handler);
+        spin_lock_init(&vidc_spin_lock);
+        INIT_LIST_HEAD(&vidc_device_p->vidc_timer_queue);
+
+        vidc_device_p->ref_count = 0;
+        vidc_device_p->firmware_refcount = 0;
+        vidc_device_p->get_firmware = 0;
+#ifdef VIDC_ENABLE_DBGFS
+        root = vidc_get_debugfs_root();
+        if (root) {
+                vidc_debugfs_file_create(root, "vidc_msg_timing",
+                                (u32 *) &vidc_msg_timing);
+                vidc_debugfs_file_create(root, "vidc_msg_pmem",
+                                (u32 *) &vidc_msg_pmem);
+                vidc_debugfs_file_create(root, "vidc_msg_register",
+                                (u32 *) &vidc_msg_register);
+        }
+#endif
+        video_main_mapping = arm_iommu_create_mapping(&platform_bus_type,
+                                                      SZ_16M, SZ_256M - SZ_16M);
+        video_firmware_mapping = arm_iommu_create_mapping(&platform_bus_type,
+                                                          SZ_128K,
+                                                          SZ_16M - SZ_128K);
+
+        video_firmware_mapping->domain = video_main_mapping->domain;
+        iommu_attach_device(video_main_mapping->domain, vidc_device_p->device);
+
+	vid_dec_init();
+	vid_enc_init();
         return 0;
+
+error_vidc_create_workqueue:
+        free_irq(vidc_device_p->irq, vidc_device_p->device);
+
+        return rc;
 }
 
 static struct platform_driver msm_vidc_720p_platform_driver = {
@@ -256,9 +312,6 @@ static int __init vidc_init(void)
 {
 	int rc = 0;
 	struct device *class_devp;
-#ifdef VIDC_ENABLE_DBGFS
-	struct dentry *root = NULL;
-#endif
 
 	vidc_device_p = kzalloc(sizeof(struct vidc_dev), GFP_KERNEL);
 	if (!vidc_device_p) {
@@ -308,56 +361,8 @@ static int __init vidc_init(void)
 		goto error_vidc_platfom_register;
 	}
 
-	rc = request_irq(vidc_device_p->irq, vidc_isr, IRQF_TRIGGER_HIGH,
-			 "vidc", vidc_device_p->device);
-
-	if (unlikely(rc)) {
-		ERR("%s() :request_irq failed\n", __func__);
-		goto error_vidc_request_irq;
-	}
-	res_trk_init(vidc_device_p->device, vidc_device_p->irq);
-	vidc_timer_wq = create_singlethread_workqueue("vidc_timer_wq");
-	if (!vidc_timer_wq) {
-		ERR("%s: create workque failed\n", __func__);
-		rc = -ENOMEM;
-		goto error_vidc_create_workqueue;
-	}
-	DBG("Disabling IRQ in %s()\n", __func__);
-	disable_irq_nosync(vidc_device_p->irq);
-	INIT_WORK(&vidc_device_p->vidc_timer_worker,
-			  vidc_timer_handler);
-	spin_lock_init(&vidc_spin_lock);
-	INIT_LIST_HEAD(&vidc_device_p->vidc_timer_queue);
-
-	vidc_device_p->ref_count = 0;
-	vidc_device_p->firmware_refcount = 0;
-	vidc_device_p->get_firmware = 0;
-#ifdef VIDC_ENABLE_DBGFS
-	root = vidc_get_debugfs_root();
-	if (root) {
-		vidc_debugfs_file_create(root, "vidc_msg_timing",
-				(u32 *) &vidc_msg_timing);
-		vidc_debugfs_file_create(root, "vidc_msg_pmem",
-				(u32 *) &vidc_msg_pmem);
-		vidc_debugfs_file_create(root, "vidc_msg_register",
-				(u32 *) &vidc_msg_register);
-	}
-#endif
-	video_main_mapping = arm_iommu_create_mapping(&platform_bus_type,
-						      SZ_16M, SZ_256M - SZ_16M);
-	video_firmware_mapping = arm_iommu_create_mapping(&platform_bus_type,
-							  SZ_128K,
-							  SZ_16M - SZ_128K);
-
-	video_firmware_mapping->domain = video_main_mapping->domain;
-	iommu_attach_device(video_main_mapping->domain, vidc_device_p->device);
-
 	return 0;
 
-error_vidc_create_workqueue:
-	free_irq(vidc_device_p->irq, vidc_device_p->device);
-error_vidc_request_irq:
-	platform_driver_unregister(&msm_vidc_720p_platform_driver);
 error_vidc_platfom_register:
 	cdev_del(&(vidc_device_p->cdev));
 error_vidc_cdev_add:

@@ -107,5 +107,6 @@ void  vidc_timer_release(void *timer_handle);
 void  vidc_timer_start(void *timer_handle, u32 time_out);
 void  vidc_timer_stop(void *timer_handle);
 
-
+int vid_enc_init(void);
+int vid_dec_init(void);
 #endif

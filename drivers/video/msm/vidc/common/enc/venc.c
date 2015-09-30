@@ -749,7 +749,7 @@ static int vid_enc_vcd_init(void)
 	return 0;
 }
 
-static int __init vid_enc_init(void)
+int __init vid_enc_init(void)
 {
 	int rc = 0, i = 0, j = 0;
 	struct device *class_devp;
@@ -1759,5 +1759,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Video encoder driver");
 MODULE_VERSION("1.0");
 
-module_init(vid_enc_init);
 module_exit(vid_enc_exit);

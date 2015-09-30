@@ -24,6 +24,7 @@
 		};
 
 		vidcmem: fwmem@9fe00000 {
+			compatible = "shared-dma-pool";
 			reg = <0x9fe00000 0x200000>;
 			no-map;
 		};
@@ -1837,9 +1838,9 @@
 			<&mmcc VCODEC_AXI_A_CLK>,
 			<&mmcc VCODEC_AXI_B_CLK>;
 
-			iommus = <&vidc_a 2 5>,
-				 <&vidc_a 0 1 6 7 8 9 10 11 12 13 14 15>,
-				 <&vidc_b 0 1 6 7 8 9 10 11 11 12 13 14 15>;
+			iommus = <&vidc_a 2 5
+				 &vidc_a 0 1 6 7 8 9 10 11 12 13 14 15
+				 &vidc_b 0 1 6 7 8 9 10 11 11 12 13 14 15>;
                 };
 
 		msm_ion: qcom,msm_ion@9fe00000 {

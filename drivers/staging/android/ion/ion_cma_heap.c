@@ -221,14 +221,14 @@ int ion_cma_cache_ops(struct ion_heap *heap,
 			dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
 				buffer->sg_table->nents, DMA_TO_DEVICE);
 		else
-			dmac_map_area(vaddr, length, DMA_TO_DEVICE);
+			dmac_flush_range(vaddr, vaddr + length);
 		break;
 	case ION_IOC_INV_CACHES:
 		if (!vaddr)
 			dma_sync_sg_for_cpu(NULL, buffer->sg_table->sgl,
 				buffer->sg_table->nents, DMA_FROM_DEVICE);
 		else
-			dmac_unmap_area(vaddr, length, DMA_FROM_DEVICE);
+			dmac_flush_range(vaddr, vaddr + length);
 		break;
 	case ION_IOC_CLEAN_INV_CACHES:
 		if (!vaddr) {
