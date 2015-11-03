@@ -51,6 +51,7 @@ static int dma_init_coherent_memory(phys_addr_t phys_addr, dma_addr_t device_add
 
 	*mem = dma_mem;
 
+	pr_err("dma_init_coherent_memory phys_addr %x mem_base %x", phys_addr, mem_base);
 	if (flags & DMA_MEMORY_MAP)
 		return DMA_MEMORY_MAP;
 
@@ -164,12 +165,13 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 		return 0;
 
 	pr_err("dma_alloc_from_coherent dma_mem %x", dev->dma_mem);
-
+	
 	mem = dev->dma_mem;
 	if (!mem)
 		return 0;
 
 	*ret = NULL;
+
 	spin_lock_irqsave(&mem->spinlock, flags);
 
 	pr_err("dma_alloc_from_coherent size %x mem->size %x", size, mem->size);
@@ -186,7 +188,9 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	 */
 	*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
 	*ret = mem->virt_base + (pageno << PAGE_SHIFT);
-	memset(*ret, 0, size);
+
+	pr_err("dma_alloc_from_coherent dma_handle %x virt %x", *dma_handle, *ret);
+	//memset(*ret, 0, size);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
 
 	return 1;
@@ -284,6 +288,7 @@ EXPORT_SYMBOL(dma_mmap_from_coherent);
 static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 {
 	struct dma_coherent_mem *mem = rmem->priv;
+	struct dma_coherent_mem **amem = &mem;
 
 	if (!mem &&
 	    dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
@@ -293,6 +298,8 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 			&rmem->base, (unsigned long)rmem->size / SZ_1M);
 		return -ENODEV;
 	}
+
+	pr_err("mem  %x  amem %x *amem %x", mem, amem, *amem);
 	rmem->priv = mem;
 	dma_assign_coherent_memory(dev, mem);
 	return 0;

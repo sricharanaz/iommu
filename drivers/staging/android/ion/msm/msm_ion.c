@@ -356,6 +356,7 @@ static int msm_ion_probe(struct platform_device *pdev)
         int i;
         const struct of_device_id *pd;
 
+
         pd = of_match_device(ion_data_match, &pdev->dev);
         pdata = pd->data;
         pdata_needs_to_be_freed = 0;
@@ -383,10 +384,10 @@ static int msm_ion_probe(struct platform_device *pdev)
 		if (heap_data->type == ION_HEAP_TYPE_CARVEOUT) {
 			of_reserved_mem_device_init(&pdev->dev);
 			dma_alloc_coherent(&pdev->dev, heap_data->size, &heap_data->base, GFP_KERNEL);
-			pr_err("heap->data_base %x", heap_data->base);
+			pr_err("heap->data_base %x\n", heap_data->base);
 		}
 
-		pr_err("msm_ion %x", &pdev->dev);
+		pr_err("msm_ion %x\n", &pdev->dev);
 
                 heaps[i] = ion_heap_create(heap_data);
                 if (IS_ERR_OR_NULL(heaps[i])) {

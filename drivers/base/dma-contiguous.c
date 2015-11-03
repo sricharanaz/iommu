@@ -251,12 +251,12 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
 	    of_get_flat_dt_prop(node, "no-map", NULL))
 		return -EINVAL;
-
+#if 0
 	if ((rmem->base & mask) || (rmem->size & mask)) {
-		pr_err("Reserved memory: incorrect alignment of CMA region\n");
+		pr_err("Reserved memory: incorrect alignment of CMA region mask %x \n", mask);
 		return -EINVAL;
 	}
-
+#endif
 	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, &cma);
 	if (err) {
 		pr_err("Reserved memory: unable to setup CMA region\n");

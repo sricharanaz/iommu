@@ -2236,7 +2236,6 @@ static u32 ddl_set_dec_buffers(struct ddl_decoder_data *decoder,
 {
 	u32 vcd_status  = VCD_S_SUCCESS, loopc;
 
-
 	for (loopc = 0; !vcd_status &&
 		loopc < dpb->no_of_dec_pic_buf; ++loopc) {
 		if ((!DDL_ADDR_IS_ALIGNED(dpb->dec_pic_buffers[loopc].

@@ -33,8 +33,6 @@
 #include "vcd_res_tracker_api.h"
 #include "vdec_internal.h"
 
-
-
 #define DBG(x...) pr_debug(x)
 #define INFO(x...) pr_info(x)
 #define ERR(x...) pr_err(x)

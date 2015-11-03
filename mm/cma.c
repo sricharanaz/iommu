@@ -184,14 +184,14 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 
 	/* ensure minimal alignment required by mm core */
 	alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
-
+#if 0
 	/* alignment should be aligned with order_per_bit */
 	if (!IS_ALIGNED(alignment >> PAGE_SHIFT, 1 << order_per_bit))
 		return -EINVAL;
 
 	if (ALIGN(base, alignment) != base || ALIGN(size, alignment) != size)
 		return -EINVAL;
-
+#endif
 	/*
 	 * Each reserved area must be initialised later, when more kernel
 	 * subsystems (like slab allocator) are available.

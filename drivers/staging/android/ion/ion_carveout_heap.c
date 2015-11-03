@@ -211,6 +211,8 @@ int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
 
 	data->iova_addr = alloc_iova(mapping, iova_length);
 
+	printk("\n data->iova_addr %x", data->iova_addr);
+
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, sglist,
 			      1, prot);
 

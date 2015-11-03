@@ -564,7 +564,6 @@ static u32 vcd_init_in_null
 	u32 done_create_timer = false;
 	VCD_MSG_LOW("vcd_init_in_dev_null:");
 
-
 	dev_ctxt->config = *config;
 
 	dev_ctxt->device_base_addr =
@@ -591,7 +590,6 @@ static u32 vcd_init_in_null
 			return VCD_ERR_FAIL;
 		}
 	}
-
 
 	rc = vcd_init_cmn(drv_ctxt, config, driver_handle);
 
@@ -760,7 +758,6 @@ static u32 vcd_open_cmn
 	*clnt_cctxt = cctxt;
 
 	return VCD_S_SUCCESS;
-
 }
 
 static u32 vcd_open_in_not_init

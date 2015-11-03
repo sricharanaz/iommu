@@ -480,12 +480,12 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 
 	prop = of_get_flat_dt_prop(node, "reg", &len);
 	if (!prop)
-		return 0; //return -ENOENT;
+		return -ENOENT;
 
 	if (len && len % t_len != 0) {
 		pr_err("Reserved memory: invalid reg property in '%s', skipping node.\n",
 		       uname);
-		return 0; //return -EINVAL;
+		return -EINVAL;
 	}
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;

@@ -25,8 +25,8 @@
 
 		vidcmem: fwmem@9fe00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x9fe00000 0x200000>;
-			no-map;
+			reg = <0x9fe00000 0x800000>;
+			reusable;
 		};
 	};
 
