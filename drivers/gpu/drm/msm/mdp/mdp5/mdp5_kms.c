@@ -179,6 +179,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->core_clk);
 	if (mdp5_kms->lut_clk)
 		clk_disable_unprepare(mdp5_kms->lut_clk);
+	if (mdp5_kms->mmagic_ahb_clk)
+		clk_disable_unprepare(mdp5_kms->mmagic_ahb_clk);
 
 	return 0;
 }
@@ -187,6 +189,8 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
 
+	if (mdp5_kms->mmagic_ahb_clk)
+		clk_prepare_enable(mdp5_kms->mmagic_ahb_clk);
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
@@ -660,6 +664,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
 	get_clk(pdev, &mdp5_kms->mmagic_clk, "mmagic_clk", false);
 	get_clk(pdev, &mdp5_kms->iommu_clk, "iommu_clk", false);
+	get_clk(pdev, &mdp5_kms->mmagic_ahb_clk, "mmagic_iface_clk", false);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
