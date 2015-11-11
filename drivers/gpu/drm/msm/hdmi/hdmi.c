@@ -40,6 +40,8 @@ void hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 		ctrl = HDMI_CTRL_HDMI;
 	}
 
+	ctrl |= BIT(31);
+
 	hdmi_write(hdmi, REG_HDMI_CTRL, ctrl);
 	spin_unlock_irqrestore(&hdmi->reg_lock, flags);
 	DBG("HDMI Core: %s, HDMI_CTRL=0x%08x",

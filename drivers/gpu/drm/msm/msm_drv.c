@@ -316,6 +316,26 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
+static void enable_gdscs(void)
+{
+	void __iomem *base = ioremap(0x8c0000, SZ_32K);
+	u32 val;
+
+	/* 1. MMAGIC BIMC GDSCR */
+	val = ioread32(base + 0x529c);
+	printk(KERN_ERR "gdsc mmagic bimc before %x, hw %x\n", val, ioread32(base + 0x529c));
+	val = val & ~0x1;
+	iowrite32(val, base + 0x529c);
+
+	wmb();
+
+	mdelay(10);
+
+	printk(KERN_ERR "gdsc mmagic after %x\n", ioread32(base + 0x529c));
+
+	iounmap(base);
+}
+
 static int msm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -353,6 +373,8 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	ret = msm_init_vram(dev);
 	if (ret)
 		goto fail;
+
+	enable_gdscs();
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:

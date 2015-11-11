@@ -447,7 +447,7 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 
 	mdp5_enable(mdp5_kms);
 	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
-	mdp5_disable(mdp5_kms);
+	//mdp5_disable(mdp5_kms);
 
 	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
@@ -721,7 +721,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
 	}
-	mdp5_disable(mdp5_kms);
+	//mdp5_disable(mdp5_kms);
 	mdelay(16);
 
 	if (config->platform.iommu) {

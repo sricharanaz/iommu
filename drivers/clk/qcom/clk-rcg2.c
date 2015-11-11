@@ -541,7 +541,8 @@ static int clk_byte_set_rate(struct clk_hw *hw, unsigned long rate,
 	div = DIV_ROUND_UP((2 * parent_rate), rate) - 1;
 	div = min_t(u32, div, mask);
 
-	f.pre_div = div;
+	//f.pre_div = div;
+	f.pre_div = 0;
 
 	return clk_rcg2_configure(rcg, &f);
 }
