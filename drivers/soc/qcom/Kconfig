@@ -48,4 +48,13 @@ config QCOM_SMD_RPM
 	  frequencies controlled by the RPM on these devices.
 
 	  Say M here if you want to include support for the Qualcomm RPM as a
+
+config MSM_GLINK
+	bool "Generic Link (G-Link)"
+	help
+	  G-Link is a generic link transport that replaces SMD.  It is used
+	  within a System-on-Chip (SoC) for communication between both internal
+	  processors and external peripherals.  The actual physical transport
+	  is handled by transport plug-ins that can be individually enabled and
+	  configured separately.
 	  module. This will build a module called "qcom-smd-rpm".
