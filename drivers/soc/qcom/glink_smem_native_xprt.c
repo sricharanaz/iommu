@@ -33,7 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
 #include <linux/wait.h>
-#include <soc/qcom/smem.h>
+#include <linux/soc/qcom/smem.h>
 #include <soc/qcom/tracer_pkt.h>
 #include "glink_core_if.h"
 #include "glink_private.h"
@@ -111,26 +111,6 @@ struct channel_desc {
 };
 
 /**
- * struct mailbox_config_info - description of a mailbox tranposrt channel
- * @tx_read_index:	Offset into the tx fifo where data should be read from.
- * @tx_write_index:	Offset into the tx fifo where new data will be placed.
- * @tx_size:		Size of the transmit fifo in bytes.
- * @rx_read_index:	Offset into the rx fifo where data should be read from.
- * @rx_write_index:	Offset into the rx fifo where new data will be placed.
- * @rx_size:		Size of the receive fifo in bytes.
- * @fifo:		The fifos for the channel.
- */
-struct mailbox_config_info {
-	uint32_t tx_read_index;
-	uint32_t tx_write_index;
-	uint32_t tx_size;
-	uint32_t rx_read_index;
-	uint32_t rx_write_index;
-	uint32_t rx_size;
-	char fifo[]; /* tx fifo, then rx fifo */
-};
-
-/**
  * struct edge_info - local information for managing a single complete edge
  * @xprt_if:			The transport interface registered with the
  *				glink core associated with this edge.
@@ -181,7 +161,6 @@ struct mailbox_config_info {
  * @num_pw_states:		Size of @ramp_time_us.
  * @ramp_time_us:		Array of ramp times in microseconds where array
  *				index position represents a power state.
- * @mailbox:			Mailbox transport channel description reference.
  */
 struct edge_info {
 	struct glink_transport_if xprt_if;
@@ -216,7 +195,6 @@ struct edge_info {
 	struct list_head deferred_cmds;
 	uint32_t num_pw_states;
 	unsigned long *ramp_time_us;
-	struct mailbox_config_info *mailbox;
 };
 
 /**
@@ -243,7 +221,7 @@ static uint32_t negotiate_features_v1(struct glink_transport_if *if_ptr,
 				      uint32_t features);
 static void register_debugfs_info(struct edge_info *einfo);
 
-static struct edge_info *edge_infos[NUM_SMEM_SUBSYSTEMS];
+static struct edge_info *edge_infos;
 static DEFINE_MUTEX(probe_lock);
 static struct glink_core_version versions[] = {
 	{1, TRACER_PKT_FEATURE, negotiate_features_v1},
@@ -262,34 +240,6 @@ static void send_irq(struct edge_info *einfo)
 	wmb();
 	writel_relaxed(einfo->out_irq_mask, einfo->out_irq_reg);
 	einfo->tx_irq_count++;
-}
-
-/**
- * read_from_fifo() - memcpy from fifo memory
- * @dest:	Destination address.
- * @src:	Source address.
- * @num_bytes:	Number of bytes to copy.
- *
- * Return: Destination address.
- */
-static void *read_from_fifo(void *dest, const void *src, size_t num_bytes)
-{
-	memcpy_fromio(dest, src, num_bytes);
-	return dest;
-}
-
-/**
- * write_to_fifo() - memcpy to fifo memory
- * @dest:	Destination address.
- * @src:	Source address.
- * @num_bytes:	Number of bytes to copy.
- *
- * Return: Destination address.
- */
-static void *write_to_fifo(void *dest, const void *src, size_t num_bytes)
-{
-	memcpy_toio(dest, src, num_bytes);
-	return dest;
 }
 
 /**
@@ -313,7 +263,7 @@ static void *memcpy32_toio(void *dest, const void *src, size_t num_bytes)
 	num_bytes /= sizeof(uint32_t);
 
 	while (num_bytes--)
-		__raw_writel_no_log(*src_local++, dest_local++);
+		__raw_writel(*src_local++, dest_local++);
 
 	return dest;
 }
@@ -339,7 +289,7 @@ static void *memcpy32_fromio(void *dest, const void *src, size_t num_bytes)
 	num_bytes /= sizeof(uint32_t);
 
 	while (num_bytes--)
-		*dest_local++ = __raw_readl_no_log(src_local++);
+		*dest_local++ = __raw_readl(src_local++);
 
 	return dest;
 }
@@ -776,17 +726,8 @@ static bool queue_cmd(struct edge_info *einfo, void *cmd, void *data)
  */
 static bool get_rx_fifo(struct edge_info *einfo)
 {
-	if (einfo->mailbox) {
-		einfo->rx_fifo = &einfo->mailbox->fifo[einfo->mailbox->tx_size];
-		einfo->rx_fifo_size = einfo->mailbox->rx_size;
-	} else {
-		einfo->rx_fifo = smem_get_entry(SMEM_GLINK_NATIVE_XPRT_FIFO_1,
-							&einfo->rx_fifo_size,
-							einfo->remote_proc_id,
-							SMEM_ITEM_CACHED_FLAG);
-		if (!einfo->rx_fifo)
-			return false;
-	}
+	if (!einfo->rx_fifo)
+		return false;
 
 	return true;
 }
@@ -1432,45 +1373,6 @@ static void tx_cmd_ch_remote_close_ack(struct glink_transport_if *if_ptr,
 }
 
 /**
- * ssr() - process a subsystem restart notification of a transport
- * @if_ptr:	The transport to restart
- *
- * Return: 0 on success or standard Linux error code.
- */
-static int ssr(struct glink_transport_if *if_ptr)
-{
-	struct edge_info *einfo;
-	struct deferred_cmd *cmd;
-
-	einfo = container_of(if_ptr, struct edge_info, xprt_if);
-
-	BUG_ON(einfo->remote_proc_id == SMEM_RPM);
-
-	einfo->in_ssr = true;
-	wake_up_all(&einfo->tx_blocked_queue);
-
-	synchronize_srcu(&einfo->use_ref);
-
-	while (!list_empty(&einfo->deferred_cmds)) {
-		cmd = list_first_entry(&einfo->deferred_cmds,
-						struct deferred_cmd, list_node);
-		list_del(&cmd->list_node);
-		kfree(cmd->data);
-		kfree(cmd);
-	}
-
-	einfo->tx_resume_needed = false;
-	einfo->tx_blocked_signal_sent = false;
-	einfo->rx_fifo = NULL;
-	einfo->rx_fifo_size = 0;
-	einfo->tx_ch_desc->write_index = 0;
-	einfo->rx_ch_desc->read_index = 0;
-	einfo->xprt_if.glink_core_if_ptr->link_down(&einfo->xprt_if);
-
-	return 0;
-}
-
-/**
  * int wait_link_down() - Check status of read/write indices
  * @if_ptr:	The transport to check
  *
@@ -2063,7 +1965,6 @@ static void init_xprt_if(struct edge_info *einfo)
 	einfo->xprt_if.tx_cmd_ch_close = tx_cmd_ch_close;
 	einfo->xprt_if.tx_cmd_ch_remote_open_ack = tx_cmd_ch_remote_open_ack;
 	einfo->xprt_if.tx_cmd_ch_remote_close_ack = tx_cmd_ch_remote_close_ack;
-	einfo->xprt_if.ssr = ssr;
 	einfo->xprt_if.allocate_rx_intent = allocate_rx_intent;
 	einfo->xprt_if.deallocate_rx_intent = deallocate_rx_intent;
 	einfo->xprt_if.tx_cmd_local_rx_intent = tx_cmd_local_rx_intent;
@@ -2095,266 +1996,6 @@ static void init_xprt_cfg(struct edge_info *einfo, const char *name)
 	einfo->xprt_cfg.versions_entries = ARRAY_SIZE(versions);
 	einfo->xprt_cfg.max_cid = SZ_64K;
 	einfo->xprt_cfg.max_iid = SZ_2G;
-}
-
-/**
- * parse_qos_dt_params() - Parse the power states from DT
- * @dev:	Reference to the platform device for a specific edge.
- * @einfo:	Edge information for the edge probe function is called.
- *
- * Return: 0 on success, standard error code otherwise.
- */
-static int parse_qos_dt_params(struct device_node *node,
-				struct edge_info *einfo)
-{
-	int rc;
-	int i;
-	char *key;
-	uint32_t *arr32;
-	uint32_t num_states;
-
-	key = "qcom,ramp-time";
-	if (!of_find_property(node, key, &num_states))
-		return -ENODEV;
-
-	num_states /= sizeof(uint32_t);
-
-	einfo->num_pw_states = num_states;
-
-	arr32 = kmalloc_array(num_states, sizeof(uint32_t), GFP_KERNEL);
-	if (!arr32)
-		return -ENOMEM;
-
-	einfo->ramp_time_us = kmalloc_array(num_states, sizeof(unsigned long),
-					GFP_KERNEL);
-	if (!einfo->ramp_time_us) {
-		rc = -ENOMEM;
-		goto mem_alloc_fail;
-	}
-
-	rc = of_property_read_u32_array(node, key, arr32, num_states);
-	if (rc) {
-		rc = -ENODEV;
-		goto invalid_key;
-	}
-	for (i = 0; i < num_states; i++)
-		einfo->ramp_time_us[i] = arr32[i];
-
-	rc = 0;
-	return rc;
-
-invalid_key:
-	kfree(einfo->ramp_time_us);
-mem_alloc_fail:
-	kfree(arr32);
-	return rc;
-}
-
-/**
- * subsys_name_to_id() - translate a subsystem name to a processor id
- * @name:	The subsystem name to look up.
- *
- * Return: The processor id corresponding to @name or standard Linux error code.
- */
-static int subsys_name_to_id(const char *name)
-{
-	if (!name)
-		return -ENODEV;
-
-	if (!strcmp(name, "apss"))
-		return SMEM_APPS;
-	if (!strcmp(name, "dsps"))
-		return SMEM_DSPS;
-	if (!strcmp(name, "lpass"))
-		return SMEM_Q6;
-	if (!strcmp(name, "mpss"))
-		return SMEM_MODEM;
-	if (!strcmp(name, "rpm"))
-		return SMEM_RPM;
-	if (!strcmp(name, "wcnss"))
-		return SMEM_WCNSS;
-	if (!strcmp(name, "spss"))
-		return SMEM_SPSS;
-	return -ENODEV;
-}
-
-static int glink_smem_native_probe(struct platform_device *pdev)
-{
-	struct device_node *node;
-	struct device_node *phandle_node;
-	struct edge_info *einfo;
-	int rc;
-	char *key;
-	const char *subsys_name;
-	uint32_t irq_line;
-	uint32_t irq_mask;
-	struct resource *r;
-
-	node = pdev->dev.of_node;
-
-	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
-	if (!einfo) {
-		pr_err("%s: edge_info allocation failed\n", __func__);
-		rc = -ENOMEM;
-		goto edge_info_alloc_fail;
-	}
-
-	key = "label";
-	subsys_name = of_get_property(node, key, NULL);
-	if (!subsys_name) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "interrupts";
-	irq_line = irq_of_parse_and_map(node, 0);
-	if (!irq_line) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,irq-mask";
-	rc = of_property_read_u32(node, key, &irq_mask);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "irq-reg-base";
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
-		rc = -ENODEV;
-		goto invalid_key;
-	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
-
-	init_xprt_cfg(einfo, subsys_name);
-	init_xprt_if(einfo);
-	spin_lock_init(&einfo->write_lock);
-	init_waitqueue_head(&einfo->tx_blocked_queue);
-	init_kthread_work(&einfo->kwork, rx_worker);
-	init_kthread_worker(&einfo->kworker);
-	einfo->read_from_fifo = read_from_fifo;
-	einfo->write_to_fifo = write_to_fifo;
-	init_srcu_struct(&einfo->use_ref);
-	spin_lock_init(&einfo->rx_lock);
-	INIT_LIST_HEAD(&einfo->deferred_cmds);
-
-	mutex_lock(&probe_lock);
-	if (edge_infos[einfo->remote_proc_id]) {
-		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
-								subsys_name);
-		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
-		goto invalid_key;
-	}
-	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
-
-	einfo->out_irq_mask = irq_mask;
-	einfo->out_irq_reg = ioremap_nocache(r->start, resource_size(r));
-	if (!einfo->out_irq_reg) {
-		pr_err("%s: unable to map irq reg\n", __func__);
-		rc = -ENOMEM;
-		goto ioremap_fail;
-	}
-
-	einfo->task = kthread_run(kthread_worker_fn, &einfo->kworker,
-						"smem_native_%s", subsys_name);
-	if (IS_ERR(einfo->task)) {
-		rc = PTR_ERR(einfo->task);
-		pr_err("%s: kthread_run failed %d\n", __func__, rc);
-		goto kthread_fail;
-	}
-
-	einfo->tx_ch_desc = smem_alloc(SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR,
-							SMEM_CH_DESC_SIZE,
-							einfo->remote_proc_id,
-							0);
-	if (PTR_ERR(einfo->tx_ch_desc) == -EPROBE_DEFER) {
-		rc = -EPROBE_DEFER;
-		goto smem_alloc_fail;
-	}
-	if (!einfo->tx_ch_desc) {
-		pr_err("%s: smem alloc of ch descriptor failed\n", __func__);
-		rc = -ENOMEM;
-		goto smem_alloc_fail;
-	}
-	einfo->rx_ch_desc = einfo->tx_ch_desc + 1;
-
-	einfo->tx_fifo_size = SZ_16K;
-	einfo->tx_fifo = smem_alloc(SMEM_GLINK_NATIVE_XPRT_FIFO_0,
-							einfo->tx_fifo_size,
-							einfo->remote_proc_id,
-							SMEM_ITEM_CACHED_FLAG);
-	if (!einfo->tx_fifo) {
-		pr_err("%s: smem alloc of tx fifo failed\n", __func__);
-		rc = -ENOMEM;
-		goto smem_alloc_fail;
-	}
-
-	key = "qcom,qos-config";
-	phandle_node = of_parse_phandle(node, key, 0);
-	if (phandle_node && !(of_get_glink_core_qos_cfg(phandle_node,
-							&einfo->xprt_cfg)))
-		parse_qos_dt_params(node, einfo);
-
-	rc = glink_core_register_transport(&einfo->xprt_if, &einfo->xprt_cfg);
-	if (rc == -EPROBE_DEFER)
-		goto reg_xprt_fail;
-	if (rc) {
-		pr_err("%s: glink core register transport failed: %d\n",
-								__func__, rc);
-		goto reg_xprt_fail;
-	}
-
-	einfo->irq_line = irq_line;
-	rc = request_irq(irq_line, irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_NO_SUSPEND | IRQF_SHARED,
-			node->name, einfo);
-	if (rc < 0) {
-		pr_err("%s: request_irq on %d failed: %d\n", __func__, irq_line,
-									rc);
-		goto request_irq_fail;
-	}
-	rc = enable_irq_wake(irq_line);
-	if (rc < 0)
-		pr_err("%s: enable_irq_wake() failed on %d\n", __func__,
-								irq_line);
-
-	register_debugfs_info(einfo);
-	/* fake an interrupt on this edge to see if the remote side is up */
-	irq_handler(0, einfo);
-	return 0;
-
-request_irq_fail:
-	glink_core_unregister_transport(&einfo->xprt_if);
-reg_xprt_fail:
-smem_alloc_fail:
-	flush_kthread_worker(&einfo->kworker);
-	kthread_stop(einfo->task);
-	einfo->task = NULL;
-kthread_fail:
-	iounmap(einfo->out_irq_reg);
-ioremap_fail:
-	mutex_lock(&probe_lock);
-	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
-invalid_key:
-missing_key:
-	kfree(einfo);
-edge_info_alloc_fail:
-	return rc;
 }
 
 static int glink_rpm_native_probe(struct platform_device *pdev)
@@ -2416,12 +2057,7 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		goto missing_key;
 	}
 
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
-		rc = -ENODEV;
-		goto invalid_key;
-	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
+	einfo->remote_proc_id = QCOM_SMEM_HOST_ANY;
 
 	init_xprt_cfg(einfo, subsys_name);
 	init_xprt_if(einfo);
@@ -2437,14 +2073,14 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
 	mutex_lock(&probe_lock);
-	if (edge_infos[einfo->remote_proc_id]) {
+	if (edge_infos) {
 		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
 								subsys_name);
 		rc = -ENODEV;
 		mutex_unlock(&probe_lock);
 		goto invalid_key;
 	}
-	edge_infos[einfo->remote_proc_id] = einfo;
+	edge_infos = einfo;
 	mutex_unlock(&probe_lock);
 
 	einfo->out_irq_mask = irq_mask;
@@ -2596,260 +2232,7 @@ msgram_ioremap_fail:
 	iounmap(einfo->out_irq_reg);
 irq_ioremap_fail:
 	mutex_lock(&probe_lock);
-	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
-invalid_key:
-missing_key:
-	kfree(einfo);
-edge_info_alloc_fail:
-	return rc;
-}
-
-static int glink_mailbox_probe(struct platform_device *pdev)
-{
-	struct device_node *node;
-	struct edge_info *einfo;
-	int rc;
-	char *key;
-	const char *subsys_name;
-	uint32_t irq_line;
-	uint32_t irq_mask;
-	struct resource *irq_r;
-	struct resource *mbox_loc_r;
-	struct resource *mbox_size_r;
-	struct resource *rx_reset_r;
-	void *mbox_loc;
-	void *mbox_size;
-	struct mailbox_config_info *mbox_cfg;
-	uint32_t mbox_cfg_size;
-	phys_addr_t cfg_p_addr;
-
-	node = pdev->dev.of_node;
-
-	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
-	if (!einfo) {
-		rc = -ENOMEM;
-		goto edge_info_alloc_fail;
-	}
-
-	key = "label";
-	subsys_name = of_get_property(node, key, NULL);
-	if (!subsys_name) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "interrupts";
-	irq_line = irq_of_parse_and_map(node, 0);
-	if (!irq_line) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,irq-mask";
-	rc = of_property_read_u32(node, key, &irq_mask);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "irq-reg-base";
-	irq_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!irq_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "mbox-loc-addr";
-	mbox_loc_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!mbox_loc_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "mbox-loc-size";
-	mbox_size_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!mbox_size_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "irq-rx-reset";
-	rx_reset_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!irq_r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,tx-ring-size";
-	rc = of_property_read_u32(node, key, &einfo->tx_fifo_size);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,rx-ring-size";
-	rc = of_property_read_u32(node, key, &einfo->rx_fifo_size);
-	if (rc) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	if (subsys_name_to_id(subsys_name) == -ENODEV) {
-		pr_err("%s: unknown subsystem: %s\n", __func__, subsys_name);
-		rc = -ENODEV;
-		goto invalid_key;
-	}
-	einfo->remote_proc_id = subsys_name_to_id(subsys_name);
-
-	init_xprt_cfg(einfo, subsys_name);
-	einfo->xprt_cfg.name = "mailbox";
-	init_xprt_if(einfo);
-	spin_lock_init(&einfo->write_lock);
-	init_waitqueue_head(&einfo->tx_blocked_queue);
-	init_kthread_work(&einfo->kwork, rx_worker);
-	init_kthread_worker(&einfo->kworker);
-	einfo->read_from_fifo = read_from_fifo;
-	einfo->write_to_fifo = write_to_fifo;
-	init_srcu_struct(&einfo->use_ref);
-	spin_lock_init(&einfo->rx_lock);
-	INIT_LIST_HEAD(&einfo->deferred_cmds);
-
-	mutex_lock(&probe_lock);
-	if (edge_infos[einfo->remote_proc_id]) {
-		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
-								subsys_name);
-		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
-		goto invalid_key;
-	}
-	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
-
-	einfo->out_irq_mask = irq_mask;
-	einfo->out_irq_reg = ioremap_nocache(irq_r->start,
-							resource_size(irq_r));
-	if (!einfo->out_irq_reg) {
-		pr_err("%s: unable to map irq reg\n", __func__);
-		rc = -ENOMEM;
-		goto irq_ioremap_fail;
-	}
-
-	mbox_loc = ioremap_nocache(mbox_loc_r->start,
-						resource_size(mbox_loc_r));
-	if (!mbox_loc) {
-		pr_err("%s: unable to map mailbox location reg\n", __func__);
-		rc = -ENOMEM;
-		goto mbox_loc_ioremap_fail;
-	}
-
-	mbox_size = ioremap_nocache(mbox_size_r->start,
-						resource_size(mbox_size_r));
-	if (!mbox_size) {
-		pr_err("%s: unable to map mailbox size reg\n", __func__);
-		rc = -ENOMEM;
-		goto mbox_size_ioremap_fail;
-	}
-
-	einfo->rx_reset_reg = ioremap_nocache(rx_reset_r->start,
-						resource_size(rx_reset_r));
-	if (!einfo->rx_reset_reg) {
-		pr_err("%s: unable to map rx reset reg\n", __func__);
-		rc = -ENOMEM;
-		goto rx_reset_ioremap_fail;
-	}
-
-	einfo->task = kthread_run(kthread_worker_fn, &einfo->kworker,
-						"smem_native_%s", subsys_name);
-	if (IS_ERR(einfo->task)) {
-		rc = PTR_ERR(einfo->task);
-		pr_err("%s: kthread_run failed %d\n", __func__, rc);
-		goto kthread_fail;
-	}
-
-	mbox_cfg_size = sizeof(*mbox_cfg) + einfo->tx_fifo_size +
-							einfo->rx_fifo_size;
-	mbox_cfg = smem_alloc(SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR,
-							mbox_cfg_size,
-							einfo->remote_proc_id,
-							0);
-	if (PTR_ERR(mbox_cfg) == -EPROBE_DEFER) {
-		rc = -EPROBE_DEFER;
-		goto smem_alloc_fail;
-	}
-	if (!mbox_cfg) {
-		pr_err("%s: smem alloc of mailbox struct failed\n", __func__);
-		rc = -ENOMEM;
-		goto smem_alloc_fail;
-	}
-	einfo->mailbox = mbox_cfg;
-	einfo->tx_ch_desc = (struct channel_desc *)(&mbox_cfg->tx_read_index);
-	einfo->rx_ch_desc = (struct channel_desc *)(&mbox_cfg->rx_read_index);
-	mbox_cfg->tx_size = einfo->tx_fifo_size;
-	mbox_cfg->rx_size = einfo->rx_fifo_size;
-	einfo->tx_fifo = &mbox_cfg->fifo[0];
-
-	rc = glink_core_register_transport(&einfo->xprt_if, &einfo->xprt_cfg);
-	if (rc == -EPROBE_DEFER)
-		goto reg_xprt_fail;
-	if (rc) {
-		pr_err("%s: glink core register transport failed: %d\n",
-								__func__, rc);
-		goto reg_xprt_fail;
-	}
-
-	einfo->irq_line = irq_line;
-	rc = request_irq(irq_line, irq_handler,
-			IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND | IRQF_SHARED,
-			node->name, einfo);
-	if (rc < 0) {
-		pr_err("%s: request_irq on %d failed: %d\n", __func__, irq_line,
-									rc);
-		goto request_irq_fail;
-	}
-	rc = enable_irq_wake(irq_line);
-	if (rc < 0)
-		pr_err("%s: enable_irq_wake() failed on %d\n", __func__,
-								irq_line);
-
-	register_debugfs_info(einfo);
-
-	writel_relaxed(mbox_cfg_size, mbox_size);
-	cfg_p_addr = smem_virt_to_phys(mbox_cfg);
-	writel_relaxed(lower_32_bits(cfg_p_addr), mbox_loc);
-	writel_relaxed(upper_32_bits(cfg_p_addr), mbox_loc + 4);
-	send_irq(einfo);
-	iounmap(mbox_size);
-	iounmap(mbox_loc);
-	return 0;
-
-request_irq_fail:
-	glink_core_unregister_transport(&einfo->xprt_if);
-reg_xprt_fail:
-smem_alloc_fail:
-	flush_kthread_worker(&einfo->kworker);
-	kthread_stop(einfo->task);
-	einfo->task = NULL;
-kthread_fail:
-	iounmap(einfo->rx_reset_reg);
-rx_reset_ioremap_fail:
-	iounmap(mbox_size);
-mbox_size_ioremap_fail:
-	iounmap(mbox_loc);
-mbox_loc_ioremap_fail:
-	iounmap(einfo->out_irq_reg);
-irq_ioremap_fail:
-	mutex_lock(&probe_lock);
-	edge_infos[einfo->remote_proc_id] = NULL;
+	edge_infos = NULL;
 	mutex_unlock(&probe_lock);
 invalid_key:
 missing_key:
@@ -2953,20 +2336,6 @@ static void register_debugfs_info(struct edge_info *einfo)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static struct of_device_id smem_match_table[] = {
-	{ .compatible = "qcom,glink-smem-native-xprt" },
-	{},
-};
-
-static struct platform_driver glink_smem_native_driver = {
-	.probe = glink_smem_native_probe,
-	.driver = {
-		.name = "msm_glink_smem_native_xprt",
-		.owner = THIS_MODULE,
-		.of_match_table = smem_match_table,
-	},
-};
-
 static struct of_device_id rpm_match_table[] = {
 	{ .compatible = "qcom,glink-rpm-native-xprt" },
 	{},
@@ -2981,41 +2350,13 @@ static struct platform_driver glink_rpm_native_driver = {
 	},
 };
 
-static struct of_device_id mailbox_match_table[] = {
-	{ .compatible = "qcom,glink-mailbox-xprt" },
-	{},
-};
-
-static struct platform_driver glink_mailbox_driver = {
-	.probe = glink_mailbox_probe,
-	.driver = {
-		.name = "msm_glink_mailbox_xprt",
-		.owner = THIS_MODULE,
-		.of_match_table = mailbox_match_table,
-	},
-};
-
 static int __init glink_smem_native_xprt_init(void)
 {
 	int rc;
 
-	rc = platform_driver_register(&glink_smem_native_driver);
-	if (rc) {
-		pr_err("%s: glink_smem_native_driver register failed %d\n",
-								__func__, rc);
-		return rc;
-	}
-
 	rc = platform_driver_register(&glink_rpm_native_driver);
 	if (rc) {
 		pr_err("%s: glink_rpm_native_driver register failed %d\n",
-								__func__, rc);
-		return rc;
-	}
-
-	rc = platform_driver_register(&glink_mailbox_driver);
-	if (rc) {
-		pr_err("%s: glink_mailbox_driver register failed %d\n",
 								__func__, rc);
 		return rc;
 	}
