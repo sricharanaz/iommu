@@ -91,6 +91,8 @@ void vcd_ddl_callback(u32 event, u32 status, void *payload,
 
 	VCD_MSG_LOW("event=0x%x status=0x%x", event, status);
 
+	pr_err("\n vcd_ddl_callback event=0x%x status=0x%x", event, status);
+
 	drv_ctxt = vcd_get_drv_context();
 	dev_ctxt = &drv_ctxt->dev_ctxt;
 	dev_state = &drv_ctxt->dev_state;

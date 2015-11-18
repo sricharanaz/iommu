@@ -346,6 +346,7 @@ u32 ddl_handle_core_errors(struct ddl_context *ddl_context)
 	u32 channel_inst_id, status = false;
 	u32 disp_status;
 
+	pr_err("\n ddl_handle_core_errors");
 	if (!ddl_context->cmd_err_status &&
 		!ddl_context->disp_pic_err_status) {
 		DDL_MSG_ERROR("VIDC_NO_ERROR");

@@ -925,6 +925,7 @@ void vcd_response_handler(void)
 {
 	struct vcd_drv_ctxt *drv_ctxt;
 
+	pr_err("\n vcd_response_handler");
 	VCD_MSG_LOW("vcd_response_handler:");
   drv_ctxt = vcd_get_drv_context();
 

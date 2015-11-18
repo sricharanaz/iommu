@@ -129,6 +129,8 @@ static void vidc_timer_handler(struct work_struct *work)
 static void vidc_work_handler(struct work_struct *work)
 {
 	DBG("vidc_work_handler()");
+
+	pr_err("vidc_work_handler");
 	vcd_read_and_clear_interrupt();
 	vcd_response_handler();
 	enable_irq(vidc_device_p->irq);
@@ -303,6 +305,7 @@ static void __exit vidc_exit(void)
 static irqreturn_t vidc_isr(int irq, void *dev)
 {
 	DBG("\n vidc_isr() %d ", irq);
+	pr_err("\n vidc_isr");
 	disable_irq_nosync(irq);
 	queue_work(vidc_wq, &vidc_work);
 	return IRQ_HANDLED;
@@ -919,7 +922,7 @@ void  vidc_timer_release(void *timer_handle)
 }
 EXPORT_SYMBOL(vidc_timer_release);
 
-void  vidc_timer_start(void *timer_handle, u32 time_out)
+void vidc_timer_start(void *timer_handle, u32 time_out)
 {
 	struct vidc_timer *hw_timer = (struct vidc_timer *)timer_handle;
 	DBG("%s(): start timer\n ", __func__);
@@ -930,7 +933,7 @@ void  vidc_timer_start(void *timer_handle, u32 time_out)
 }
 EXPORT_SYMBOL(vidc_timer_start);
 
-void  vidc_timer_stop(void *timer_handle)
+void vidc_timer_stop(void *timer_handle)
 {
 	struct vidc_timer *hw_timer = (struct vidc_timer *)timer_handle;
 	DBG("%s(): stop timer\n ", __func__);
