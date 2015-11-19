@@ -28,38 +28,11 @@
 void *ion_heap_map_kernel(struct ion_heap *heap,
 			  struct ion_buffer *buffer)
 {
-	struct scatterlist *sg;
-	int i, j;
-	void *vaddr;
-	pgprot_t pgprot;
-	struct sg_table *table = buffer->sg_table;
-	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = vmalloc(sizeof(struct page *) * npages);
-	struct page **tmp = pages;
+        void *ret_value;
 
-	if (!pages)
-		return NULL;
+	ret_value = ioremap(buffer->priv_phys, buffer->size);
 
-	if (buffer->flags & ION_FLAG_CACHED)
-		pgprot = PAGE_KERNEL;
-	else
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
-		struct page *page = sg_page(sg);
-
-		BUG_ON(i >= npages);
-		for (j = 0; j < npages_this_entry; j++)
-			*(tmp++) = page++;
-	}
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	vfree(pages);
-
-	if (!vaddr)
-		return ERR_PTR(-ENOMEM);
-
-	return vaddr;
+        return ret_value;
 }
 
 void ion_heap_unmap_kernel(struct ion_heap *heap,

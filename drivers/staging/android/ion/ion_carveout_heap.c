@@ -27,6 +27,7 @@
 #include <linux/msm_ion.h>
 #include <asm/cacheflush.h>
 #include <linux/iommu.h>
+#include <asm/io.h>
 
 struct ion_carveout_heap {
 	struct ion_heap heap;
