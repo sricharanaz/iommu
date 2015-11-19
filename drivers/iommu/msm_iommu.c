@@ -355,17 +355,20 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct msm_priv *priv = to_msm_priv(domain);
 	struct msm_iommu_ctx_dev *master;
 
+	printk("\n iommu master attach %s", dev->of_node->name);
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
 		master = list_first_entry(&iommu->ctx_list,
 					  struct msm_iommu_ctx_dev,
 					  list);
 		if (master->of_node == dev->of_node) {
+			printk("\n iommu found");
 			ret = __enable_clocks(iommu);
 			if (ret)
 				goto fail;
 
 			list_for_each_entry(master, &iommu->ctx_list, list) {
+				printk("\n iommu ctx found");
 				if (master->num) {
 					dev_err(dev, "domain already attached");
 					ret = -EEXIST;
@@ -698,14 +701,19 @@ static void insert_iommu_master(struct device *dev,
 	struct msm_iommu_ctx_dev *master;
 	int sid;
 
+	printk("\n insert_iommu_master");
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	master->of_node = dev->of_node;
 	list_add(&master->list, &iommu->ctx_list);
 
-	for (sid = 0; sid < spec->args_count; sid++)
+	for (sid = 0; sid < spec->args_count; sid++) {
+		printk("\n  master->mid =%d",  master->mids[sid]);
 		master->mids[sid] = spec->args[sid];
+	}
 
 	master->num_mids = spec->args_count;
+
+	printk("\n master->num_mids %d", master->num_mids);
 }
 
 static int qcom_iommu_of_xlate(struct device *dev,
@@ -722,6 +730,8 @@ static int qcom_iommu_of_xlate(struct device *dev,
 
 	if (!iommu || (iommu->dev->of_node != spec->np))
 		return -ENODEV;
+
+	printk("\n iommu insert for master %s", dev->of_node->name);
 
 	insert_iommu_master(dev, iommu, spec);
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);

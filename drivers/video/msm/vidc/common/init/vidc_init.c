@@ -129,8 +129,6 @@ static void vidc_timer_handler(struct work_struct *work)
 static void vidc_work_handler(struct work_struct *work)
 {
 	DBG("vidc_work_handler()");
-
-	pr_err("vidc_work_handler");
 	vcd_read_and_clear_interrupt();
 	vcd_response_handler();
 	enable_irq(vidc_device_p->irq);
@@ -275,6 +273,8 @@ static int __init vidc_720p_probe(struct platform_device *pdev)
                                                           SZ_16M - SZ_128K);
 
         video_firmware_mapping->domain = video_main_mapping->domain;
+
+	printk("\n vidc attach device");
         iommu_attach_device(video_main_mapping->domain, vidc_device_p->device);
 
 	vid_dec_init();
@@ -305,7 +305,6 @@ static void __exit vidc_exit(void)
 static irqreturn_t vidc_isr(int irq, void *dev)
 {
 	DBG("\n vidc_isr() %d ", irq);
-	pr_err("\n vidc_isr");
 	disable_irq_nosync(irq);
 	queue_work(vidc_wq, &vidc_work);
 	return IRQ_HANDLED;
