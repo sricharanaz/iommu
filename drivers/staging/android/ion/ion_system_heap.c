@@ -137,9 +137,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
-	if (align > PAGE_SIZE)
-		return -EINVAL;
-
 	if (size / PAGE_SIZE > totalram_pages / 2)
 		return -ENOMEM;
 
@@ -249,9 +246,38 @@ int ion_system_contig_heap_cache_ops(struct ion_heap *heap,
                         unsigned int offset, unsigned int length,
                         unsigned int cmd)
 {
-        void (*outer_cache_op)(phys_addr_t, phys_addr_t);
 
-	dmac_flush_range(vaddr, vaddr + length);
+	pr_err("\nvaddr =%x length =%d", vaddr, length);
+        struct sg_table *table = buffer->priv_virt;
+
+        switch (cmd) {
+        case ION_IOC_CLEAN_CACHES:
+                printk("\n ION_IOC_CLEAN_CACHES");
+                if (!vaddr)
+                        dma_sync_sg_for_device(NULL, table->sgl,
+                                table->nents, DMA_TO_DEVICE);
+                break;
+        case ION_IOC_INV_CACHES:
+                printk("\n ION_IOC_INV_CACHES");
+                if (!vaddr)
+                        dma_sync_sg_for_cpu(NULL, table->sgl,
+                                table->nents, DMA_FROM_DEVICE);
+                break;
+        case ION_IOC_CLEAN_INV_CACHES:
+                printk("\n ION_IOC_CLEAN_INV_CACHES");
+                if (!vaddr) {
+                        dma_sync_sg_for_device(NULL, table->sgl,
+                                table->nents, DMA_TO_DEVICE);
+                        dma_sync_sg_for_cpu(NULL, table->sgl,
+                                table->nents, DMA_FROM_DEVICE);
+                } else {
+                        dmac_flush_range(vaddr, vaddr + length);
+                }
+                break;
+        default:
+                return -EINVAL;
+        }
+
 
         return 0;
 }

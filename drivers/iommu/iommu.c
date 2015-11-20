@@ -1342,7 +1342,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	while (size) {
 		size_t pgsize = iommu_pgsize(domain, iova | paddr, size);
 
-		pr_err("mapping: iova 0x%lx pa %pa pgsize 0x%zx remaining %x \n",
+		pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx remaining %x \n",
 			 iova, &paddr, pgsize, size);
 
 		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
