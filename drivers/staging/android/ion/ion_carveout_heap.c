@@ -212,12 +212,12 @@ int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
 
 	data->iova_addr = alloc_iova(mapping, iova_length);
 
-	printk("\n data->iova_addr %x", data->iova_addr);
+	pr_err("data->iova_addr %x iova_length %d", data->iova_addr, iova_length);
 
-	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, sglist,
-			      1, prot);
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr,
+				   buffer->sg_table->sgl, 1, prot);
 
-	printk("\n done diommu");
+	pr_err("done diommu");
 	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, mapping->domain);
@@ -225,7 +225,8 @@ int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
 	}
 
 	kfree(sglist);
-	printk("\n done ciommu");
+	pr_err("done ciommu");
+
 	return ret;
 
 	iommu_unmap(mapping->domain, data->iova_addr, buffer->size);

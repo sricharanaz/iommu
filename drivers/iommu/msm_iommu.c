@@ -236,6 +236,7 @@ static void __reset_context(void __iomem *base, int ctx)
 
 static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
 {
+	printk("\n __program_context");
 	__reset_context(base, ctx);
 
 	/* Set up HTW mode */
@@ -516,6 +517,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 	sl_offset = SL_OFFSET(va);
 	sl_pte = sl_table + sl_offset;
 
+	//pr_err("mapped va = %x pa = %x", va, pa);
 
 	if (len == SZ_4K)
 		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 | SL_NG |
@@ -707,11 +709,13 @@ static void insert_iommu_master(struct device *dev,
 	list_add(&master->list, &iommu->ctx_list);
 
 	for (sid = 0; sid < spec->args_count; sid++) {
-		printk("\n  master->mid =%d",  master->mids[sid]);
+		printk("\n  master->mid =%d",  spec->args[sid]);
+		if (spec->args[sid] == 3)
+			break;
 		master->mids[sid] = spec->args[sid];
 	}
 
-	master->num_mids = spec->args_count;
+	master->num_mids = sid;
 
 	printk("\n master->num_mids %d", master->num_mids);
 }
@@ -721,6 +725,8 @@ static int qcom_iommu_of_xlate(struct device *dev,
 {
 	struct msm_iommu_dev *iommu;
 	unsigned long flags;
+
+	printk("\n qcom_iommu_of_xlate %s iommu %s", dev->of_node->name, spec->np->name);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {

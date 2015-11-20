@@ -681,8 +681,14 @@ u32 res_trk_download_firmware(void)
 		status = false;
 		goto bail_out;
 	}
+
 	vidc_video_codec_fw = (unsigned char *)fw_video->data;
+
+	pr_err("\n res_trk_download_firmware %x", vidc_video_codec_fw);
+
 	vidc_video_codec_fw_size = (u32) fw_video->size;
+
+	pr_err("\n vidc_video_codec_fw_size %d", vidc_video_codec_fw_size);
 bail_out:
 	mutex_unlock(&resource_context.lock);
 	return status;

@@ -301,6 +301,8 @@ void ddl_list_buffers(struct ddl_client_context *ddl)
 u32 ddl_fw_init(struct ddl_buf_addr *dram_base)
 {
 	u8 *dest_addr;
+	 int i;
+
 	dest_addr = DDL_GET_ALIGNED_VITUAL(*dram_base);
 	DDL_MSG_LOW("FW Addr / FW Size : %x/%d", (u32)vidc_video_codec_fw,
 		vidc_video_codec_fw_size);
@@ -326,9 +328,19 @@ u32 ddl_fw_init(struct ddl_buf_addr *dram_base)
 		if (vidc_video_codec_fw_size > dram_base->buffer_size ||
 				!vidc_video_codec_fw)
 			return false;
+
+		printk("\n ddl_fw_init vidc_video_codec_fw_size %x buffer_size %x dest_addr %x",
+			vidc_video_codec_fw_size, dram_base->buffer_size, dest_addr);
+
 		memcpy(dest_addr, vidc_video_codec_fw,
 				vidc_video_codec_fw_size);
 	}
+#if 0
+        pr_err("\n");
+        for (i = 0; i < 1024; i++) {
+                pr_err("i(%d) = %x", i, *(dest_addr + i));
+        }
+#endif
 	return true;
 }
 

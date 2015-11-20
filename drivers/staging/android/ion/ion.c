@@ -1780,7 +1780,7 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
         data->buffer = buffer;
 	data->mapping = mapping;
 
-        printk("\n __ion_iommu_map");
+        printk("\n __ion_iommu_map buffer->priv_phys %x", buffer->priv_phys);
         ret = buffer->heap->ops->map_iommu(buffer, data,
 						mapping,
                                                 align,
