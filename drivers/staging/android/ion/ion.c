@@ -1328,105 +1328,102 @@ static unsigned int ion_ioctl_dir(unsigned int cmd)
 static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ion_client *client = filp->private_data;
-	struct ion_device *dev = client->dev;
-	struct ion_handle *cleanup_handle = NULL;
-	int ret = 0;
-	unsigned int dir;
-
-	union {
-		struct ion_fd_data fd;
-		struct ion_allocation_data allocation;
-		struct ion_handle_data handle;
-		struct ion_custom_data custom;
-	} data;
-
-	dir = ion_ioctl_dir(cmd);
-
-	if (_IOC_SIZE(cmd) > sizeof(data))
-		return -EINVAL;
-
-	if (dir & _IOC_WRITE)
-		if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
-			return -EFAULT;
 
 	switch (cmd) {
 	case ION_IOC_ALLOC:
 	{
-		struct ion_handle *handle;
+		struct ion_allocation_data data;
 
-		handle = ion_alloc(client, data.allocation.len,
-						data.allocation.align,
-						data.allocation.heap_id_mask,
-						data.allocation.flags);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
+			return -EFAULT;
 
-		data.allocation.handle = handle->id;
+		if (data.heap_id_mask == 0x2000000) {
+			printk("\n data.heap_id_mask %x", data.heap_id_mask);
+			data.heap_id_mask = (1 << 30);
+		}
 
-		cleanup_handle = handle;
+		data.handle = ion_alloc(client, data.len, data.align,
+					     data.heap_id_mask, data.flags);
+
+		if (IS_ERR(data.handle))
+			return PTR_ERR(data.handle);
+
+		if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
+			ion_free(client, data.handle);
+			return -EFAULT;
+		}
 		break;
 	}
 	case ION_IOC_FREE:
 	{
-		struct ion_handle *handle;
+		struct ion_handle_data data;
+		bool valid;
 
-		handle = ion_handle_get_by_id(client, data.handle.handle);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
-		ion_free(client, handle);
-		ion_handle_put(handle);
+		if (copy_from_user(&data, (void __user *)arg,
+				   sizeof(struct ion_handle_data)))
+			return -EFAULT;
+		mutex_lock(&client->lock);
+		valid = ion_handle_validate(client, data.handle);
+		mutex_unlock(&client->lock);
+		if (!valid)
+			return -EINVAL;
+		ion_free(client, data.handle);
 		break;
 	}
-	case ION_IOC_SHARE:
 	case ION_IOC_MAP:
+	case ION_IOC_SHARE:
 	{
-		struct ion_handle *handle;
+		struct ion_fd_data data;
+		int ret;
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
+			return -EFAULT;
 
-		handle = ion_handle_get_by_id(client, data.handle.handle);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
-		data.fd.fd = ion_share_dma_buf_fd(client, handle);
-		ion_handle_put(handle);
-		if (data.fd.fd < 0)
-			ret = data.fd.fd;
+		//ret = ion_share_set_flags(client, data.handle, filp->f_flags);
+		//if (ret)
+		//	return ret;
+
+		data.fd = ion_share_dma_buf_fd(client, data.handle);
+		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
+			return -EFAULT;
+		if (data.fd < 0)
+			return data.fd;
 		break;
 	}
 	case ION_IOC_IMPORT:
 	{
-		struct ion_handle *handle;
-
-		handle = ion_import_dma_buf(client, data.fd.fd);
-		if (IS_ERR(handle))
-			ret = PTR_ERR(handle);
-		else
-			data.handle.handle = handle->id;
-		break;
-	}
-	case ION_IOC_SYNC:
-	{
-		ret = ion_sync_for_device(client, data.fd.fd);
+		struct ion_fd_data data;
+		int ret = 0;
+		if (copy_from_user(&data, (void __user *)arg,
+				   sizeof(struct ion_fd_data)))
+			return -EFAULT;
+		data.handle = ion_import_dma_buf(client, data.fd);
+		if (IS_ERR(data.handle)) {
+			ret = PTR_ERR(data.handle);
+			data.handle = NULL;
+		}
+		if (copy_to_user((void __user *)arg, &data,
+				 sizeof(struct ion_fd_data)))
+			return -EFAULT;
+		if (ret < 0)
+			return ret;
 		break;
 	}
 	case ION_IOC_CUSTOM:
 	{
+		struct ion_device *dev = client->dev;
+		struct ion_custom_data data;
+
 		if (!dev->custom_ioctl)
 			return -ENOTTY;
-		ret = dev->custom_ioctl(client, data.custom.cmd,
-						data.custom.arg);
-		break;
+		if (copy_from_user(&data, (void __user *)arg,
+				sizeof(struct ion_custom_data)))
+			return -EFAULT;
+		return dev->custom_ioctl(client, data.cmd, data.arg);
 	}
 	default:
 		return -ENOTTY;
 	}
-
-	if (dir & _IOC_READ) {
-		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd))) {
-			if (cleanup_handle)
-				ion_free(client, cleanup_handle);
-			return -EFAULT;
-		}
-	}
-	return ret;
+	return 0;
 }
 
 static int ion_release(struct inode *inode, struct file *file)
