@@ -579,6 +579,43 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 }
 EXPORT_SYMBOL(ion_alloc);
 
+int ion_heap_cache_ops(struct ion_heap *heap,
+                        struct ion_buffer *buffer, void *vaddr,
+                        unsigned int offset, unsigned int length,
+                        unsigned int cmd)
+{
+
+        pr_err("\nvaddr =%x length =%d", vaddr, length);
+        struct sg_table *table = buffer->priv_virt;
+
+        switch (cmd) {
+        case ION_IOC_CLEAN_CACHES:
+                printk("\n ION_IOC_CLEAN_CACHES");
+                if (!vaddr)
+                        dma_sync_sg_for_device(NULL, table->sgl,
+                                table->nents, DMA_TO_DEVICE);
+                break;
+        case ION_IOC_INV_CACHES:
+                printk("\n ION_IOC_INV_CACHES");
+                if (!vaddr)
+                        dma_sync_sg_for_cpu(NULL, table->sgl,
+                                table->nents, DMA_FROM_DEVICE);
+                break;
+        case ION_IOC_CLEAN_INV_CACHES:
+                printk("\n ION_IOC_CLEAN_INV_CACHES");
+                        dma_sync_sg_for_device(NULL, table->sgl,
+                                table->nents, DMA_TO_DEVICE);
+                        dma_sync_sg_for_cpu(NULL, table->sgl,
+                                table->nents, DMA_FROM_DEVICE);
+                break;
+        default:
+                return -EINVAL;
+        }
+
+        return 0;
+}
+EXPORT_SYMBOL(ion_heap_cache_ops);
+
 void ion_free(struct ion_client *client, struct ion_handle *handle)
 {
 	bool valid_handle;

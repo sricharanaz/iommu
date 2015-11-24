@@ -118,6 +118,11 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 			     size_t align, unsigned int heap_id_mask,
 			     unsigned int flags);
 
+int ion_heap_cache_ops(struct ion_heap *heap,
+                        struct ion_buffer *buffer, void *vaddr,
+                        unsigned int offset, unsigned int length,
+                        unsigned int cmd);
+
 /**
  * ion_free - free a handle
  * @client:	the client

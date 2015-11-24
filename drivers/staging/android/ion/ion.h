@@ -21,6 +21,7 @@
 #include <asm/dma-iommu.h>
 
 #include "../uapi/ion.h"
+#include <linux/msm_ion.h>
 
 struct ion_handle;
 struct ion_device;
@@ -33,10 +34,17 @@ struct ion_buffer;
 #define VIDEO_MAIN_POOL	1
 #define VIDEO_FIRMWARE_POOL 1
 
+int ion_heap_cache_ops(struct ion_heap *heap,
+                        struct ion_buffer *buffer, void *vaddr,
+                        unsigned int offset, unsigned int length,
+                        unsigned int cmd);
+
+
 /* This should be removed some day when phys_addr_t's are fully
    plumbed in the kernel, and all instances of ion_phys_addr_t should
    be converted to phys_addr_t.  For the time being many kernel interfaces
    do not accept phys_addr_t's that would have to */
+
 #define ion_phys_addr_t unsigned long
 
 int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
