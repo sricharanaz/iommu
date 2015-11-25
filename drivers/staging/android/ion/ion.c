@@ -27,6 +27,7 @@
 #include <linux/memblock.h>
 #include <linux/miscdevice.h>
 #include <linux/export.h>
+#include <linux/iommu.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/rbtree.h>
@@ -587,12 +588,10 @@ int ion_heap_cache_ops(struct ion_heap *heap,
 
         switch (cmd) {
         case ION_IOC_CLEAN_CACHES:
-                if (!vaddr)
                         dma_sync_sg_for_device(NULL, table->sgl,
                                 table->nents, DMA_TO_DEVICE);
                 break;
         case ION_IOC_INV_CACHES:
-                if (!vaddr)
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
                 break;
@@ -1859,6 +1858,8 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
                 goto out;
         }
 
+	printk(KERN_EMERG"ion_map_iommu iova_length %x buffer->size %x", iova_length, buffer->size);
+
         /*
          * If clients don't want a custom iova length, just use whatever
          * the buffer size is
@@ -1953,3 +1954,66 @@ out:
         mutex_unlock(&client->lock);
 }
 EXPORT_SYMBOL(ion_unmap_iommu);
+
+/* dummy 64K for overmapping */
+char iommu_dummy[2*SZ_64K-4];
+
+int iommu_map_extra(struct iommu_domain *domain,
+                                unsigned long start_iova,
+                                unsigned long size,
+                                unsigned long page_size,
+                                int prot)
+{
+        int ret = 0;
+        int i = 0;
+        unsigned long phy_addr = ALIGN(virt_to_phys(iommu_dummy), page_size);
+        unsigned long temp_iova = start_iova;
+
+        if (page_size == SZ_4K) {
+                struct scatterlist *sglist;
+                unsigned int nrpages = PFN_ALIGN(size) >> PAGE_SHIFT;
+                struct page *dummy_page = phys_to_page(phy_addr);
+
+                sglist = kmalloc(sizeof(*sglist) * nrpages, GFP_KERNEL);
+                if (!sglist) {
+                        ret = -ENOMEM;
+                        goto out;
+                }
+
+                sg_init_table(sglist, nrpages);
+
+                for (i = 0; i < nrpages; i++)
+                        sg_set_page(&sglist[i], dummy_page, PAGE_SIZE, 0);
+
+		ret = default_iommu_map_sg(domain, temp_iova, sglist, nrpages, prot);
+                if (ret != size) {
+                        pr_err("%s: could not map extra %lx in domain %p\n",
+                                __func__, start_iova, domain);
+                }
+
+                kfree(sglist);
+        } else {
+                unsigned long order = get_order(page_size);
+                unsigned long aligned_size = ALIGN(size, page_size);
+                unsigned long nrpages = aligned_size >> (PAGE_SHIFT + order);
+
+                for (i = 0; i < nrpages; i++) {
+			ret = iommu_map(domain, temp_iova, phy_addr, size, prot);
+
+                        if (ret) {
+                                pr_err("%s: could not map %lx in domain %p, error: %d\n",
+                                        __func__, start_iova, domain, ret);
+                                ret = -EAGAIN;
+                                goto out;
+                        }
+                        temp_iova += page_size;
+                }
+        }
+        return ret;
+out:
+        for (; i > 0; --i) {
+                temp_iova -= page_size;
+                iommu_unmap(domain, start_iova, page_size);
+        }
+        return ret;
+}

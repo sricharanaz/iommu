@@ -236,7 +236,7 @@ static void __reset_context(void __iomem *base, int ctx)
 
 static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
 {
-	printk("\n __program_context");
+	printk("\n __program_context base %x ctx %d pgtable %x", base, ctx, pgtable);
 	__reset_context(base, ctx);
 
 	/* Set up HTW mode */
@@ -703,21 +703,21 @@ static void insert_iommu_master(struct device *dev,
 	struct msm_iommu_ctx_dev *master;
 	int sid;
 
-	printk("\n insert_iommu_master");
+	printk(KERN_EMERG"\n insert_iommu_master count = %d", spec->args_count);
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	master->of_node = dev->of_node;
 	list_add(&master->list, &iommu->ctx_list);
 
 	for (sid = 0; sid < spec->args_count; sid++) {
-		printk("\n  master->mid =%d",  spec->args[sid]);
-		if (spec->args[sid] == 3)
+		printk(KERN_EMERG"\n master->mid =%d",  spec->args[sid]);
+		if (spec->args[sid] == 33)
 			break;
 		master->mids[sid] = spec->args[sid];
 	}
 
 	master->num_mids = sid;
 
-	printk("\n master->num_mids %d", master->num_mids);
+	printk(KERN_EMERG"\n master->num_mids %d", master->num_mids);
 }
 
 static int qcom_iommu_of_xlate(struct device *dev,
@@ -726,7 +726,7 @@ static int qcom_iommu_of_xlate(struct device *dev,
 	struct msm_iommu_dev *iommu;
 	unsigned long flags;
 
-	printk("\n qcom_iommu_of_xlate %s iommu %s", dev->of_node->name, spec->np->name);
+	printk(KERN_EMERG"\n qcom_iommu_of_xlate %s iommu %s", dev->of_node->name, spec->np->name);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
@@ -737,7 +737,7 @@ static int qcom_iommu_of_xlate(struct device *dev,
 	if (!iommu || (iommu->dev->of_node != spec->np))
 		return -ENODEV;
 
-	printk("\n iommu insert for master %s", dev->of_node->name);
+	printk(KERN_EMERG"\n iommu insert for master %s", dev->of_node->name);
 
 	insert_iommu_master(dev, iommu, spec);
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
@@ -771,7 +771,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 			pr_err("Fault occurred in context %d.\n", i);
 			pr_err("Interesting registers:\n");
 			print_ctx_regs(iommu->base, i);
-			SET_FSR(iommu->base, i, 0x4000000F);
+			SET_FSR(iommu->base, i, fsr);
 		}
 	}
 	__disable_clocks(iommu);
@@ -840,7 +840,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	iommu->irq = platform_get_irq(pdev, 0);
+	iommu->irq = platform_get_irq(pdev, 1);
 	if (iommu->irq < 0) {
 		dev_err(iommu->dev, "could not get iommu irq\n");
 		ret = -ENODEV;

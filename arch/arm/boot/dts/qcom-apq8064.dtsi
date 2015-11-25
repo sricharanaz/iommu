@@ -1838,9 +1838,9 @@
 			<&mmcc VCODEC_AXI_A_CLK>,
 			<&mmcc VCODEC_AXI_B_CLK>;
 
-			iommus = <&vidc_a 2 5 3 3 3 3 3 3 3 3 3 3 3 3 3 3
-				 &vidc_a 0 1 6 7 8 9 10 11 12 13 14 15 3 3 3 3
-				 &vidc_b 0 1 6 7 8 9 10 11 12 13 14 15 3 3 3 3>;
+			iommus = <&vidc_a 2 5 33 33 33 33 33 33 33 33 33 33 33 33 33 33
+				 &vidc_a 0 1 6 7 8 9 10 11 12 13 14 15 33 33 33 33
+				 &vidc_b 0 1 6 7 8 9 10 11 12 13 14 15 33 33 33 33>;
                 };
 
 		msm_ion: qcom,msm_ion@9fe00000 {

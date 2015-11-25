@@ -150,6 +150,8 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 	int prot = IOMMU_WRITE | IOMMU_READ;
 	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
 
+	extra = iova_length - buffer->size;
+
 	data->mapped_size = iova_length;
         data->iova_addr = alloc_iova(mapping, iova_length);
 
@@ -161,10 +163,19 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 		goto out1;
 	}
 
-	return ret;
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+		if (ret)
+			goto out1;
+        }
+
+	return buffer->size;
 
 out1:
-	iommu_unmap(mapping->domain, data->iova_addr, buffer->size);
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
+
 	return ret;
 }
 

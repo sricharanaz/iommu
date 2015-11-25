@@ -40,10 +40,7 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
        if (!pages)
                return NULL;
 
-       if (buffer->flags & ION_FLAG_CACHED)
-               pgprot = PAGE_KERNEL;
-       else
-               pgprot = pgprot_writecombine(PAGE_KERNEL);
+       pgprot = pgprot_writecombine(PAGE_KERNEL);
 
        for_each_sg(table->sgl, sg, table->nents, i) {
                int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;

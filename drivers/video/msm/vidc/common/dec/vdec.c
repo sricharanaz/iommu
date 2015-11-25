@@ -1577,6 +1577,8 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 				ION_IOC_CLEAN_CACHES);
 			}
 		}
+		printk(KERN_EMERG"vcd_input_buffer.virtual = %x", vcd_input_buffer.virtual);
+
 		vcd_status = vcd_decode_frame(client_ctx->vcd_handle,
 					      &vcd_input_buffer);
 		if (!vcd_status)

@@ -296,6 +296,8 @@ dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
         iova = mapping->base + (mapping_size * i);
         iova += start << PAGE_SHIFT;
 
+	printk(KERN_EMERG"returned iova %x size %x", iova, size);
+
         return iova;
 }
 

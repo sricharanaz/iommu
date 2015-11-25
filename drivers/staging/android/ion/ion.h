@@ -230,4 +230,10 @@ int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
                         void *uaddr, unsigned long offset, unsigned long len,
                         unsigned int cmd);
 
+int iommu_map_extra(struct iommu_domain *domain,
+                               unsigned long start_iova,
+                               unsigned long size,
+                               unsigned long page_size,
+                               int cached);
+
 #endif /* _LINUX_ION_H */

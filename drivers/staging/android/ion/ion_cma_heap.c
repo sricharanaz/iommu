@@ -172,12 +172,12 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 	int ret = 0;
 	struct iommu_domain *domain;
 	unsigned long extra;
-	unsigned long extra_iova_addr;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 	struct sg_table *table = info->table;
 	int prot = IOMMU_WRITE | IOMMU_READ;
 
 	data->mapped_size = iova_length;
+	extra = iova_length - buffer->size;
 
 	data->iova_addr = alloc_iova(mapping, iova_length);
 	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
@@ -186,15 +186,21 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, domain);
-		goto out1;
+		goto out;
 	}
 
-	return ret;
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+                if (ret != extra)
+                        goto out;
+        }
 
-out2:
-	iommu_unmap(domain, data->iova_addr, buffer->size);
-out1:
+        return buffer->size;
+
 out:
+        iommu_unmap(mapping->domain, data->iova_addr, iova_length);
 	return ret;
 }
 

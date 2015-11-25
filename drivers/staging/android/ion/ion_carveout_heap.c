@@ -156,47 +156,41 @@ int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
                               unsigned long flags)
 {
 	int ret = 0;
-	struct scatterlist *sglist = 0;
 	int prot = IOMMU_WRITE | IOMMU_READ;
+	unsigned long extra;
 	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
+
+	struct sg_table *table = buffer->priv_virt;
 
 	data->mapped_size = iova_length;
 
 	if (ret)
 		goto out;
 
-	sglist = kmalloc(sizeof(*sglist), GFP_KERNEL);
-	if (!sglist)
-		goto out1;
-
-	sg_init_table(sglist, 1);
-	sglist->length = buffer->size;
-	sglist->offset = 0;
-	sglist->dma_address = buffer->priv_phys;
-
 	data->iova_addr = alloc_iova(mapping, iova_length);
-
-	pr_err("data->iova_addr %x iova_length %d", data->iova_addr, iova_length);
+	extra = iova_length - buffer->size;
 
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr,
-				   buffer->sg_table->sgl, 1, prot);
+				   table->sgl, 1, prot);
 
-	pr_err("done diommu");
 	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, mapping->domain);
-		goto out1;
+		goto out;
 	}
 
-	kfree(sglist);
-	pr_err("done ciommu");
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+                if (ret != extra)
+                        goto out;
+        }
 
-	return ret;
+        return buffer->size;
 
-	iommu_unmap(mapping->domain, data->iova_addr, buffer->size);
-out1:
-	kfree(sglist);
 out:
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
 	return ret;
 }
 

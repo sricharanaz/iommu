@@ -181,7 +181,7 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 	struct ion_system_heap *sys_heap = container_of(buffer->heap,
 							struct ion_system_heap,
 							heap);
-	struct sg_table *table = buffer->sg_table;
+	struct sg_table *table = buffer->priv_virt;
 	bool cached = ion_buffer_cached(buffer);
 	struct scatterlist *sg;
 	int i;
@@ -257,11 +257,13 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 			      unsigned long flags)
 {
 	int ret = 0;
+	unsigned long extra;
 	struct sg_table *table = buffer->priv_virt;
 	int prot = IOMMU_WRITE | IOMMU_READ;
 	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
 
 	data->mapped_size = iova_length;
+	extra = iova_length - buffer->size;
 
 	/* Use the biggest alignment to allow bigger IOMMU mappings.
 	 * Use the first entry since the first entry will always be the
@@ -277,9 +279,24 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, table->sgl,
 			      table->nents, prot);
 
-	if (ret != buffer->size)
+	if (ret != buffer->size) {
 		pr_err("%s: could not map %lx in domain %p\n",
 			__func__, data->iova_addr, mapping->domain);
+		goto out;
+	}
+
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+
+		if (ret != extra)
+			goto out;
+        }
+
+	return buffer->size;
+out:
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
 
 	return ret;
 }
