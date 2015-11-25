@@ -178,8 +178,6 @@ static struct ion_iommu_map *ion_iommu_lookup(struct ion_buffer *buffer,
         struct rb_node *parent = NULL;
         struct ion_iommu_map *entry;
 
-        printk("\n ion_iommu_lookup");
-
         while (*p) {
                 parent = *p;
                 entry = rb_entry(parent, struct ion_iommu_map, node);
@@ -585,24 +583,20 @@ int ion_heap_cache_ops(struct ion_heap *heap,
                         unsigned int cmd)
 {
 
-        pr_err("\nvaddr =%x length =%d", vaddr, length);
         struct sg_table *table = buffer->priv_virt;
 
         switch (cmd) {
         case ION_IOC_CLEAN_CACHES:
-                printk("\n ION_IOC_CLEAN_CACHES");
                 if (!vaddr)
                         dma_sync_sg_for_device(NULL, table->sgl,
                                 table->nents, DMA_TO_DEVICE);
                 break;
         case ION_IOC_INV_CACHES:
-                printk("\n ION_IOC_INV_CACHES");
                 if (!vaddr)
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
                 break;
         case ION_IOC_CLEAN_INV_CACHES:
-                printk("\n ION_IOC_CLEAN_INV_CACHES");
                         dma_sync_sg_for_device(NULL, table->sgl,
                                 table->nents, DMA_TO_DEVICE);
                         dma_sync_sg_for_cpu(NULL, table->sgl,
@@ -1375,7 +1369,6 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		if (data.heap_id_mask == 0x2000000) {
-			printk("\n data.heap_id_mask %x", data.heap_id_mask);
 			data.heap_id_mask = (1 << 30);
 		}
 
@@ -1814,7 +1807,6 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
         data->buffer = buffer;
 	data->mapping = mapping;
 
-        printk("\n __ion_iommu_map buffer->priv_phys %x", buffer->priv_phys);
         ret = buffer->heap->ops->map_iommu(buffer, data,
 						mapping,
                                                 align,
@@ -1824,13 +1816,9 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
                 goto out;
 
         kref_init(&data->ref);
-	printk("\n done mi");
         *iova = data->iova_addr;
 
-	printk("\n done_iommu_map_1");
         ion_iommu_add(buffer, data);
-
-	printk("\n done_iommu_map_2");
 
         return data;
 out:
@@ -1848,7 +1836,6 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
         struct ion_iommu_map *iommu_map;
         int ret = 0;
 
-        printk("\n ion_map_iommu");
         if (ION_IS_CACHED(flags)) {
                 pr_err("%s: Cannot map iommu as cached.\n", __func__);
                 return -EINVAL;
@@ -1921,7 +1908,6 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
                 } else {
                         kref_get(&iommu_map->ref);
                         *iova = iommu_map->iova_addr;
-                        printk("\n iommu_map->iova_addr %d", iommu_map->iova_addr);
                 }
         }
         if (!ret)

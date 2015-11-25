@@ -356,7 +356,6 @@ static int msm_ion_probe(struct platform_device *pdev)
         int i;
         const struct of_device_id *pd;
 
-
         pd = of_match_device(ion_data_match, &pdev->dev);
         pdata = pd->data;
         pdata_needs_to_be_freed = 0;
@@ -406,6 +405,7 @@ static int msm_ion_probe(struct platform_device *pdev)
 
                 ion_device_add_heap(idev, heaps[i]);
         }
+
         if (pdata_needs_to_be_freed)
                 free_pdata(pdata);
 
