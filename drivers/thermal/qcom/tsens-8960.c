@@ -62,6 +62,7 @@
 #define S0_STATUS_ADDR		0x3628
 #define INT_STATUS_ADDR		0x363c
 #define TRDY_MASK		BIT(7)
+#define TIMEOUT_US		100
 
 static int suspend_8960(struct tsens_device *tmdev)
 {
@@ -85,8 +86,6 @@ static int suspend_8960(struct tsens_device *tmdev)
 	ret = regmap_update_bits(map, CNTL_ADDR, mask, 0);
 	if (ret)
 		return ret;
-
-	tmdev->trdy = false;
 
 	return 0;
 }
@@ -140,7 +139,6 @@ static int enable_8960(struct tsens_device *tmdev, int id)
 	else
 		reg |= mask | SLP_CLK_ENA_8660 | EN;
 
-	tmdev->trdy = false;
 	ret = regmap_write(tmdev->map, CNTL_ADDR, reg);
 	if (ret)
 		return ret;
@@ -253,25 +251,23 @@ static int get_temp_8960(struct tsens_device *tmdev, int id, int *temp)
 	int ret;
 	u32 code, trdy;
 	const struct tsens_sensor *s = &tmdev->sensor[id];
+	unsigned long timeout;
 
-	if (!tmdev->trdy) {
+	timeout = jiffies + usecs_to_jiffies(TIMEOUT_US);
+	do {
 		ret = regmap_read(tmdev->map, INT_STATUS_ADDR, &trdy);
 		if (ret)
 			return ret;
-		while (!(trdy & TRDY_MASK)) {
-			usleep_range(1000, 1100);
-			regmap_read(tmdev->map, INT_STATUS_ADDR, &trdy);
-		}
-		tmdev->trdy = true;
-	}
+		if (!(trdy & TRDY_MASK))
+			continue;
+		ret = regmap_read(tmdev->map, s->status, &code);
+		if (ret)
+			return ret;
+		*temp = code_to_mdegC(code, s);
+		return 0;
+	} while (time_before(jiffies, timeout));
 
-	ret = regmap_read(tmdev->map, s->status, &code);
-	if (ret)
-		return ret;
-
-	*temp = code_to_mdegC(code, s);
-
-	return 0;
+	return -ETIMEDOUT;
 }
 
 const struct tsens_ops ops_8960 = {
