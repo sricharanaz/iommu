@@ -23,6 +23,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
@@ -38,6 +40,8 @@
 #include "glink_core_if.h"
 #include "glink_private.h"
 #include "glink_xprt_if.h"
+#include <linux/soc/qcom/smd.h>
+#include <soc/qcom/glink.h>
 
 #define XPRT_NAME "smem"
 #define FIFO_FULL_RESERVE 8
@@ -51,6 +55,8 @@
 #define RPM_MAX_TOC_ENTRIES 20
 #define RPM_FIFO_ADDR_ALIGN_BYTES 3
 #define TRACER_PKT_FEATURE BIT(2)
+
+static struct device *glink_dev;
 
 /**
  * enum command_types - definition of the types of commands sent/received
@@ -221,11 +227,97 @@ static uint32_t negotiate_features_v1(struct glink_transport_if *if_ptr,
 				      uint32_t features);
 static void register_debugfs_info(struct edge_info *einfo);
 
-static struct edge_info *edge_infos;
 static DEFINE_MUTEX(probe_lock);
 static struct glink_core_version versions[] = {
 	{1, TRACER_PKT_FEATURE, negotiate_features_v1},
 };
+
+static struct qcom_ipc_device *to_ipc_device(struct device *dev)
+{
+	return container_of(dev, struct qcom_ipc_device, dev);
+}
+
+static struct qcom_ipc_driver *to_ipc_driver(struct device *dev)
+{
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+
+	return container_of(qidev->dev.driver, struct qcom_ipc_driver, driver);
+}
+
+static int qcom_ipc_dev_match(struct device *dev, struct device_driver *drv)
+{
+	return of_driver_match_device(dev, drv);
+}
+
+/*
+ * Probe the ipc client.
+ */
+static int qcom_ipc_dev_probe(struct device *dev)
+{
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qidrv = to_ipc_driver(dev);
+	struct glink_open_config *open_config;
+	const char *channel_name, *key;
+	int ret;
+
+	key = "qcom,glink-channels";
+	ret = of_property_read_string(dev->of_node, key,
+					&channel_name);
+
+	if (ret) {
+		pr_err("Failed to read node: %s, key=%s\n",
+			dev->of_node->full_name, key);
+		return ret;
+	}
+
+	/* open a glink channel */
+	open_config->name = channel_name;
+	open_config->edge = dev_get_drvdata(dev);
+	open_config->notify_rx = qidrv->callback;
+	qidev->channel = glink_open(open_config);
+
+	ret = qidrv->probe(qidev);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	dev_err(&qidev->dev, "probe failed\n");
+	return ret;
+}
+
+static int qcom_ipc_dev_remove(struct device *dev)
+{
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qidrv = to_ipc_driver(dev);
+	int ret;
+
+	ret = glink_close(qidev->channel);
+	if (ret)
+		dev_err(&qidev->dev, "glink_close failed");
+
+	qidrv->remove(qidev);
+
+	return ret;
+}
+
+static struct bus_type qcom_ipc_bus = {
+	.name = "qcom_ipc",
+	.match = qcom_ipc_dev_match,
+	.probe = qcom_ipc_dev_probe,
+	.remove = qcom_ipc_dev_remove,
+};
+
+/*
+ * Release function for the qcom_smd_device object.
+ */
+static void qcom_ipc_release_device(struct device *dev)
+{
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+
+	kfree(qidev);
+}
 
 /**
  * send_irq() - send an irq to a remote entity as an event signal
@@ -1998,23 +2090,48 @@ static void init_xprt_cfg(struct edge_info *einfo, const char *name)
 	einfo->xprt_cfg.max_iid = SZ_2G;
 }
 
-static int glink_rpm_native_probe(struct platform_device *pdev)
+/*
+ * Create a ipc client device for channel that is being opened.
+ */
+static int qcom_ipc_create_device(struct device_node *node, const char *edge_name)
 {
-	struct device_node *node;
+	struct qcom_ipc_device *qidev;
+	int ret;
+
+	qidev = kzalloc(sizeof(*qidev), GFP_KERNEL);
+	if (!qidev)
+		return -ENOMEM;
+
+	qidev->dev.parent = glink_dev;
+	qidev->dev.bus = &qcom_ipc_bus;
+	qidev->dev.release = qcom_ipc_release_device;
+	qidev->dev.of_node = node;
+	dev_set_drvdata(&qidev->dev, edge_name);
+
+	ret = device_register(&qidev->dev);
+	if (ret) {
+		dev_err(&qidev->dev, "device_register failed: %d\n", ret);
+		put_device(&qidev->dev);
+	}
+
+	return ret;
+}
+
+static int glink_edge_parse(struct device_node *node, const char *edge_name)
+{
+	struct device_node *child_node;
 	struct edge_info *einfo;
 	int rc;
 	char *key;
 	const char *subsys_name;
 	uint32_t irq_line;
 	uint32_t irq_mask;
-	struct resource *irq_r;
-	struct resource *msgram_r;
+	struct resource irq_r;
+	struct resource msgram_r;
 	void __iomem *msgram;
 	char toc[RPM_TOC_SIZE];
 	uint32_t *tocp;
 	uint32_t num_toc_entries;
-
-	node = pdev->dev.of_node;
 
 	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
 	if (!einfo) {
@@ -2023,7 +2140,7 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		goto edge_info_alloc_fail;
 	}
 
-	subsys_name = "rpm";
+	subsys_name = edge_name;
 
 	key = "interrupts";
 	irq_line = irq_of_parse_and_map(node, 0);
@@ -2041,17 +2158,15 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		goto missing_key;
 	}
 
-	key = "irq-reg-base";
-	irq_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!irq_r) {
+	rc = of_address_to_resource(node, 0, &irq_r);
+	if (rc || !irq_r.start) {
 		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
 		goto missing_key;
 	}
 
-	key = "msgram";
-	msgram_r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
-	if (!msgram_r) {
+	rc = of_address_to_resource(node, 1, &msgram_r);
+	if (rc || !msgram_r.start) {
 		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
 		goto missing_key;
@@ -2072,27 +2187,16 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 	spin_lock_init(&einfo->rx_lock);
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
-	mutex_lock(&probe_lock);
-	if (edge_infos) {
-		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
-								subsys_name);
-		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
-		goto invalid_key;
-	}
-	edge_infos = einfo;
-	mutex_unlock(&probe_lock);
-
 	einfo->out_irq_mask = irq_mask;
-	einfo->out_irq_reg = ioremap_nocache(irq_r->start,
-							resource_size(irq_r));
+	einfo->out_irq_reg = ioremap_nocache(irq_r.start,
+							resource_size(&irq_r));
 	if (!einfo->out_irq_reg) {
 		pr_err("%s: unable to map irq reg\n", __func__);
 		rc = -ENOMEM;
 		goto irq_ioremap_fail;
 	}
 
-	msgram = ioremap_nocache(msgram_r->start, resource_size(msgram_r));
+	msgram = ioremap_nocache(msgram_r.start, resource_size(&msgram_r));
 	if (!msgram) {
 		pr_err("%s: unable to map msgram\n", __func__);
 		rc = -ENOMEM;
@@ -2107,7 +2211,7 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		goto kthread_fail;
 	}
 
-	memcpy32_fromio(toc, msgram + resource_size(msgram_r) - RPM_TOC_SIZE,
+	memcpy32_fromio(toc, msgram + resource_size(&msgram_r) - RPM_TOC_SIZE,
 								RPM_TOC_SIZE);
 	tocp = (uint32_t *)toc;
 	if (*tocp != RPM_TOC_ID) {
@@ -2134,16 +2238,16 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		einfo->tx_ch_desc = msgram + *tocp;
 		einfo->tx_fifo = einfo->tx_ch_desc + 1;
 		if ((uintptr_t)einfo->tx_fifo >
-				(uintptr_t)(msgram + resource_size(msgram_r))) {
+				(uintptr_t)(msgram + resource_size(&msgram_r))) {
 			pr_err("%s: invalid tx fifo address\n", __func__);
 			einfo->tx_fifo = NULL;
 			break;
 		}
 		++tocp;
 		einfo->tx_fifo_size = *tocp;
-		if (einfo->tx_fifo_size > resource_size(msgram_r) ||
+		if (einfo->tx_fifo_size > resource_size(&msgram_r) ||
 			(uintptr_t)(einfo->tx_fifo + einfo->tx_fifo_size) >
-				(uintptr_t)(msgram + resource_size(msgram_r))) {
+				(uintptr_t)(msgram + resource_size(&msgram_r))) {
 			pr_err("%s: invalid tx fifo size\n", __func__);
 			einfo->tx_fifo = NULL;
 			break;
@@ -2167,16 +2271,16 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 		einfo->rx_ch_desc = msgram + *tocp;
 		einfo->rx_fifo = einfo->rx_ch_desc + 1;
 		if ((uintptr_t)einfo->rx_fifo >
-				(uintptr_t)(msgram + resource_size(msgram_r))) {
+				(uintptr_t)(msgram + resource_size(&msgram_r))) {
 			pr_err("%s: invalid rx fifo address\n", __func__);
 			einfo->rx_fifo = NULL;
 			break;
 		}
 		++tocp;
 		einfo->rx_fifo_size = *tocp;
-		if (einfo->rx_fifo_size > resource_size(msgram_r) ||
+		if (einfo->rx_fifo_size > resource_size(&msgram_r) ||
 			(uintptr_t)(einfo->rx_fifo + einfo->rx_fifo_size) >
-				(uintptr_t)(msgram + resource_size(msgram_r))) {
+				(uintptr_t)(msgram + resource_size(&msgram_r))) {
 			pr_err("%s: invalid rx fifo size\n", __func__);
 			einfo->rx_fifo = NULL;
 			break;
@@ -2217,6 +2321,11 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 
 	register_debugfs_info(einfo);
 	einfo->xprt_if.glink_core_if_ptr->link_up(&einfo->xprt_if);
+
+	/* scan through all the edges available channels */
+	for_each_available_child_of_node(node, child_node)
+		qcom_ipc_create_device(child_node, edge_name);
+
 	return 0;
 
 request_irq_fail:
@@ -2231,14 +2340,31 @@ kthread_fail:
 msgram_ioremap_fail:
 	iounmap(einfo->out_irq_reg);
 irq_ioremap_fail:
-	mutex_lock(&probe_lock);
-	edge_infos = NULL;
-	mutex_unlock(&probe_lock);
-invalid_key:
 missing_key:
 	kfree(einfo);
 edge_info_alloc_fail:
 	return rc;
+}
+
+static int glink_native_probe(struct platform_device *pdev)
+{
+	struct device_node *node;
+	const char *edge_name, *key;
+	int ret;
+
+	glink_dev = &pdev->dev;
+
+	for_each_available_child_of_node(pdev->dev.of_node, node) {
+		key = "qcom,glink-edge";
+		ret = of_property_read_string(node, key, &edge_name);
+		if (ret) {
+			dev_err(&pdev->dev, "edge missing %s property\n", key);
+			return -EINVAL;
+		}
+		glink_edge_parse(node, edge_name);
+	}
+
+	return 0;
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -2336,17 +2462,17 @@ static void register_debugfs_info(struct edge_info *einfo)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static struct of_device_id rpm_match_table[] = {
-	{ .compatible = "qcom,glink-rpm-native-xprt" },
+static struct of_device_id glink_match_table[] = {
+	{ .compatible = "qcom,glink" },
 	{},
 };
 
 static struct platform_driver glink_rpm_native_driver = {
-	.probe = glink_rpm_native_probe,
+	.probe = glink_native_probe,
 	.driver = {
-		.name = "msm_glink_rpm_native_xprt",
+		.name = "qcom_glink",
 		.owner = THIS_MODULE,
-		.of_match_table = rpm_match_table,
+		.of_match_table = glink_match_table,
 	},
 };
 
