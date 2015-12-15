@@ -69,6 +69,9 @@ static const struct of_device_id tsens_table[] = {
 	}, {
 		.compatible = "qcom,msm8974-tsens",
 		.data = &ops_8974,
+	}, {
+		.compatible = "qcom,msm8996-tsens",
+		.data = &ops_8996,
 	},
 	{}
 };
@@ -150,8 +153,7 @@ static int tsens_probe(struct platform_device *pdev)
 	else
 		tmdev->ops = &ops_8960;
 
-	if (!tmdev->ops || !tmdev->ops->init || !tmdev->ops->calibrate ||
-	    !tmdev->ops->get_temp)
+	if (!tmdev->ops || !tmdev->ops->init || !tmdev->ops->get_temp)
 		return -EINVAL;
 
 	ret = tmdev->ops->init(tmdev);
@@ -160,10 +162,12 @@ static int tsens_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = tmdev->ops->calibrate(tmdev);
-	if (ret < 0) {
-		dev_err(dev, "tsens calibration failed\n");
-		return ret;
+	if (tmdev->ops->calibrate) {
+		ret = tmdev->ops->calibrate(tmdev);
+		if (ret < 0) {
+			dev_err(dev, "tsens calibration failed\n");
+			return ret;
+		}
 	}
 
 	ret = tsens_register(tmdev);
