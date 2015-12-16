@@ -265,7 +265,7 @@ static int __init qcom_ipc_rpm_init(void)
 {
 	return qcom_ipc_driver_register(&qcom_ipc_rpm_driver);
 }
-arch_initcall(qcom_ipc_rpm_init);
+subsys_initcall(qcom_ipc_rpm_init);
 
 static void __exit qcom_ipc_rpm_exit(void)
 {

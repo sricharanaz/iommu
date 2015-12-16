@@ -2104,6 +2104,7 @@ static int qcom_ipc_create_device(struct device_node *node, const char *edge_nam
 	if (!qidev)
 		return -ENOMEM;
 
+	dev_set_name(&qidev->dev, "%s.%s", edge_name, node->name);
 	qidev->dev.parent = glink_dev;
 	qidev->dev.bus = &qcom_ipc_bus;
 	qidev->dev.release = qcom_ipc_release_device;
@@ -2359,6 +2360,7 @@ static int glink_native_probe(struct platform_device *pdev)
 	glink_dev = &pdev->dev;
 
 	printk("glink_native_probe");
+	qcom_ipc_bus_register(&qcom_ipc_bus);
 
 	for_each_available_child_of_node(pdev->dev.of_node, node) {
 		key = "qcom,glink-edge";
@@ -2373,7 +2375,6 @@ static int glink_native_probe(struct platform_device *pdev)
 		glink_edge_parse(node, edge_name);
 	}
 
-	qcom_ipc_bus_register(&qcom_ipc_bus);
 	return 0;
 }
 
@@ -2499,7 +2500,7 @@ static int __init glink_smem_native_xprt_init(void)
 
 	return 0;
 }
-arch_initcall(glink_smem_native_xprt_init);
+postcore_initcall(glink_smem_native_xprt_init);
 
 MODULE_DESCRIPTION("MSM G-Link SMEM Native Transport");
 MODULE_LICENSE("GPL v2");

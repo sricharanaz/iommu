@@ -1059,7 +1059,7 @@ int device_add(struct device *dev)
 
 	if (!dev_name(dev)) {
 		error = -EINVAL;
-		printk("\n dev_name set failed");
+		printk("\n dev_name set failed bus %x", dev->bus->dev_name);
 		goto name_error;
 	}
 

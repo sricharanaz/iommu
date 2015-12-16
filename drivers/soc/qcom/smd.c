@@ -1297,6 +1297,7 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	int i = 0;
 	void *p;
 
+	printk("\n qcom_smd_probe");
 	/* Wait for smem */
 	p = qcom_smem_get(QCOM_SMEM_HOST_ANY, smem_items[0].alloc_tbl_id, NULL);
 	if (PTR_ERR(p) == -EPROBE_DEFER)
