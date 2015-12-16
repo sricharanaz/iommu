@@ -2162,14 +2162,14 @@ static int glink_edge_parse(struct device_node *node, const char *edge_name)
 		goto missing_key;
 	}
 
-	rc = of_address_to_resource(node, 0, &irq_r);
+	rc = of_address_to_resource(node, 1, &irq_r);
 	if (rc || !irq_r.start) {
 		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
 		goto missing_key;
 	}
 
-	rc = of_address_to_resource(node, 1, &msgram_r);
+	rc = of_address_to_resource(node, 0, &msgram_r);
 	if (rc || !msgram_r.start) {
 		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
@@ -2373,6 +2373,7 @@ static int glink_native_probe(struct platform_device *pdev)
 		glink_edge_parse(node, edge_name);
 	}
 
+	qcom_ipc_bus_register(&qcom_ipc_bus);
 	return 0;
 }
 

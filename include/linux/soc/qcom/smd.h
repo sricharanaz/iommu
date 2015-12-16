@@ -47,6 +47,7 @@ struct qcom_ipc_driver {
 
 int qcom_ipc_driver_register(struct qcom_ipc_driver *drv);
 void qcom_ipc_driver_unregister(struct qcom_ipc_driver *drv);
+void qcom_ipc_bus_register(struct bus_type *bus);
 
 #define module_qcom_ipc_driver(__ipc_driver) \
 	module_driver(__ipc_driver, qcom_ipc_driver_register, \

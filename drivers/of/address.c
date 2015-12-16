@@ -645,18 +645,26 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 
 	/* Get parent & match bus type */
 	parent = of_get_parent(dev);
-	if (parent == NULL)
+	if (parent == NULL) {
+		printk("\n of_get_address parent NULL");
 		return NULL;
+	}
+
 	bus = of_match_bus(parent);
 	bus->count_cells(dev, &na, &ns);
 	of_node_put(parent);
-	if (!OF_CHECK_ADDR_COUNT(na))
+	if (!OF_CHECK_ADDR_COUNT(na)) {
+		printk("\n of_get_address OF_CHECK_ADDR_COUNT NULL");
 		return NULL;
+	}
 
 	/* Get "reg" or "assigned-addresses" property */
 	prop = of_get_property(dev, bus->addresses, &psize);
-	if (prop == NULL)
+	if (prop == NULL) {
+		printk("\n of_get_address prop NULL");
 		return NULL;
+	}
+
 	psize /= 4;
 
 	onesize = na + ns;
@@ -668,6 +676,7 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 				*flags = bus->get_flags(prop);
 			return prop;
 		}
+	printk("\n of_get_address END NULL");
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_address);

@@ -273,6 +273,7 @@
 			compatible = "qcom,glink";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges;
 
 			rpm {
 				qcom,glink-edge = "rpm";

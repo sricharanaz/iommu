@@ -69,6 +69,8 @@ struct smd_channel_info_pair;
 struct smd_channel_info_word;
 struct smd_channel_info_word_pair;
 
+static struct bus_type *ipc_bus;
+
 #define SMD_ALLOC_TBL_COUNT	2
 #define SMD_ALLOC_TBL_SIZE	64
 
@@ -890,7 +892,7 @@ static int qcom_ipc_dev_remove(struct device *dev)
 	return 0;
 }
 
-static struct bus_type qcom_ipc_bus = {
+struct bus_type qcom_ipc_bus = {
 	.name = "qcom_ipc",
 	.match = qcom_ipc_dev_match,
 	.probe = qcom_ipc_dev_probe,
@@ -958,7 +960,7 @@ static int qcom_ipc_create_device(struct qcom_smd_channel *channel)
 
 	dev_set_name(&qidev->dev, "%s.%s", edge->of_node->name, node->name);
 	qidev->dev.parent = smd->dev;
-	qidev->dev.bus = &qcom_ipc_bus;
+	qidev->dev.bus = ipc_bus;
 	qidev->dev.release = qcom_ipc_release_device;
 	qidev->dev.of_node = node;
 
@@ -997,7 +999,9 @@ static void qcom_ipc_destroy_device(struct qcom_smd_channel *channel)
  */
 int qcom_ipc_driver_register(struct qcom_ipc_driver *qidrv)
 {
-	qidrv->driver.bus = &qcom_ipc_bus;
+	qidrv->driver.bus = ipc_bus;
+
+	printk("\n qcom_ipc_driver_register done");
 	return driver_register(&qidrv->driver);
 }
 EXPORT_SYMBOL(qcom_ipc_driver_register);
@@ -1319,6 +1323,7 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, smd);
+	qcom_ipc_bus_register(&qcom_ipc_bus);
 
 	return 0;
 }
@@ -1366,16 +1371,22 @@ static struct platform_driver qcom_smd_driver = {
 	},
 };
 
-static int __init qcom_ipc_init(void)
+void qcom_ipc_bus_register(struct bus_type *bus)
 {
 	int ret;
 
-	ret = bus_register(&qcom_ipc_bus);
+	ret = bus_register(bus);
 	if (ret) {
 		pr_err("failed to register ipc bus: %d\n", ret);
-		return ret;
+		return;
 	}
 
+	ipc_bus = bus;
+}
+
+static int __init qcom_ipc_init(void)
+{
+	printk("\n qcom_ipc_init bus_register done");
 	return platform_driver_register(&qcom_smd_driver);
 }
 postcore_initcall(qcom_ipc_init);
@@ -1383,7 +1394,7 @@ postcore_initcall(qcom_ipc_init);
 static void __exit qcom_ipc_exit(void)
 {
 	platform_driver_unregister(&qcom_smd_driver);
-	bus_unregister(&qcom_ipc_bus);
+	bus_unregister(ipc_bus);
 }
 module_exit(qcom_ipc_exit);
 

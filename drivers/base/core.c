@@ -1030,13 +1030,17 @@ int device_add(struct device *dev)
 	int error = -EINVAL;
 
 	dev = get_device(dev);
-	if (!dev)
+	if (!dev) {
+		printk("\n get_device failed");
 		goto done;
+	}
 
 	if (!dev->p) {
 		error = device_private_init(dev);
-		if (error)
+		if (error) {
+			printk("\n device_private_init failed");
 			goto done;
+		}
 	}
 
 	/*
@@ -1055,6 +1059,7 @@ int device_add(struct device *dev)
 
 	if (!dev_name(dev)) {
 		error = -EINVAL;
+		printk("\n dev_name set failed");
 		goto name_error;
 	}
 
@@ -1072,29 +1077,45 @@ int device_add(struct device *dev)
 	/* first, register with generic layer. */
 	/* we require the name to be set before, and pass NULL */
 	error = kobject_add(&dev->kobj, dev->kobj.parent, NULL);
-	if (error)
+	if (error) {
+		printk("\n kobject_add failed");
 		goto Error;
+	}
 
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
 
 	error = device_create_file(dev, &dev_attr_uevent);
-	if (error)
+	if (error) {
+		printk("\n device_create_file failed");
 		goto attrError;
+	}
 
 	error = device_add_class_symlinks(dev);
-	if (error)
+	if (error) {
+		printk("\n device_add_class_symlinks");
 		goto SymlinkError;
+	}
+
 	error = device_add_attrs(dev);
-	if (error)
+	if (error) {
+		printk("\n device_add_attrs failed");
 		goto AttrsError;
+	}
+
 	error = bus_add_device(dev);
-	if (error)
+	if (error) {
+		printk("\n bus_add_device");
 		goto BusError;
+	}
+
 	error = dpm_sysfs_add(dev);
-	if (error)
+	if (error) {
+		printk("\n dpm_sysfs_add failed");
 		goto DPMError;
+	}
+
 	device_pm_add(dev);
 
 	if (MAJOR(dev->devt)) {
