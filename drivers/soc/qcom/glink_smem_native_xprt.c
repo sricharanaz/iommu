@@ -276,6 +276,8 @@ static int qcom_ipc_dev_probe(struct device *dev)
 	open_config->notify_rx = qidrv->callback;
 	qidev->channel = glink_open(open_config);
 
+	printk("\n qcom_ipc_dev_probe qidev->channel %x", qidev->channel);
+
 	ret = qidrv->probe(qidev);
 	if (ret)
 		goto err;
@@ -2108,6 +2110,8 @@ static int qcom_ipc_create_device(struct device_node *node, const char *edge_nam
 	qidev->dev.of_node = node;
 	dev_set_drvdata(&qidev->dev, edge_name);
 
+	printk("\n qcom_ipc_create_device %s", node->name);
+
 	ret = device_register(&qidev->dev);
 	if (ret) {
 		dev_err(&qidev->dev, "device_register failed: %d\n", ret);
@@ -2354,6 +2358,8 @@ static int glink_native_probe(struct platform_device *pdev)
 
 	glink_dev = &pdev->dev;
 
+	printk("glink_native_probe");
+
 	for_each_available_child_of_node(pdev->dev.of_node, node) {
 		key = "qcom,glink-edge";
 		ret = of_property_read_string(node, key, &edge_name);
@@ -2361,6 +2367,9 @@ static int glink_native_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "edge missing %s property\n", key);
 			return -EINVAL;
 		}
+
+		printk("\n edge_name %s", edge_name);
+
 		glink_edge_parse(node, edge_name);
 	}
 

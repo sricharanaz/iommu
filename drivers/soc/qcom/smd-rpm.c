@@ -221,10 +221,13 @@ static int qcom_ipc_rpm_probe(struct qcom_ipc_device *idev)
 	if (of_device_is_compatible(idev->dev.of_node, "qcom,rpm-msm8996")) {
 		rpm->flag |= GLINK_RPM;
 		rpm->smd_channel = idev->channel;
+
+		printk("\n qcom_ipc_rpm_probe glink_rpm");
 	} else if (of_device_is_compatible(idev->dev.of_node,
 						"qcom,rpm-msm8974")) {
 		rpm->flag |= SMD_RPM;
 		rpm->glink_channel = idev->channel;
+		printk("\n qcom_ipc_rpm_probe glink_smd");
 	}
 
 	mutex_init(&rpm->lock);
