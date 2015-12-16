@@ -260,13 +260,6 @@ static int qcom_ipc_dev_probe(struct device *dev)
 	const char *channel_name, *key;
 	int ret;
 
-	if (!qidrv) {
-		printk("\n qcom_ipc_dev_probe deferral");
-		return -EPROBE_DEFER;
-	}
-
-	printk("\n qcom_ipc_dev_probe after driver");
-
 	key = "qcom,glink-channels";
 	ret = of_property_read_string(dev->of_node, key,
 					&channel_name);
@@ -276,6 +269,8 @@ static int qcom_ipc_dev_probe(struct device *dev)
 			dev->of_node->full_name, key);
 		return ret;
 	}
+
+	open_config = kzalloc(sizeof(*open_config), GFP_KERNEL);
 
 	/* open a glink channel */
 	open_config->name = channel_name;
