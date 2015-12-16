@@ -285,7 +285,7 @@
 
 				rpm-requests {
 					compatible = "qcom,rpm-msm8996";
-					qcom,smd-channels = "rpm_requests";
+					qcom,glink-channels = "rpm_requests";
 				};
 			};
 		};

@@ -214,6 +214,7 @@ static int qcom_ipc_rpm_probe(struct qcom_ipc_device *idev)
 {
 	struct qcom_smd_rpm *rpm;
 
+	printk("\n qcom_ipc_rpm_probe");
 	rpm = devm_kzalloc(&idev->dev, sizeof(*rpm), GFP_KERNEL);
 	if (!rpm)
 		return -ENOMEM;

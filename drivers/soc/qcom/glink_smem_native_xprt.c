@@ -260,6 +260,13 @@ static int qcom_ipc_dev_probe(struct device *dev)
 	const char *channel_name, *key;
 	int ret;
 
+	if (!qidrv) {
+		printk("\n qcom_ipc_dev_probe deferral");
+		return -EPROBE_DEFER;
+	}
+
+	printk("\n qcom_ipc_dev_probe after driver");
+
 	key = "qcom,glink-channels";
 	ret = of_property_read_string(dev->of_node, key,
 					&channel_name);
@@ -274,6 +281,8 @@ static int qcom_ipc_dev_probe(struct device *dev)
 	open_config->name = channel_name;
 	open_config->edge = dev_get_drvdata(dev);
 	open_config->notify_rx = qidrv->callback;
+
+	printk("\n callback present");
 	qidev->channel = glink_open(open_config);
 
 	printk("\n qcom_ipc_dev_probe qidev->channel %x", qidev->channel);
