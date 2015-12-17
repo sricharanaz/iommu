@@ -57,7 +57,8 @@
 #define TRACER_PKT_FEATURE BIT(2)
 
 static struct device *glink_dev;
-
+static struct completion glink_ack;
+#define GLINK_RPM_REQUEST_TIMEOUT 5*HZ
 /**
  * enum command_types - definition of the types of commands sent/received
  * @VERSION_CMD:		Version and feature set supported
@@ -267,6 +268,7 @@ static void msm_rpm_trans_notify_state(void *handle, const void *priv,
 			(int)PTR_ERR(handle));
 			BUG_ON(1);
 		 }
+		complete(&glink_ack);
 		printk("\n glink_open succeded");
 		break;
 	default:
@@ -307,6 +309,9 @@ static int qcom_ipc_dev_probe(struct device *dev)
 
 	printk("\n callback present");
 	qidev->channel = glink_open(open_config);
+        ret = wait_for_completion_timeout(&glink_ack, GLINK_RPM_REQUEST_TIMEOUT);
+        if (!ret)
+                return -ETIMEDOUT;
 
 	printk("\n qcom_ipc_dev_probe qidev->channel %x", qidev->channel);
 
@@ -2391,6 +2396,7 @@ static int glink_native_probe(struct platform_device *pdev)
 
 	glink_dev = &pdev->dev;
 
+	init_completion(&glink_ack);
 	printk("glink_native_probe");
 	qcom_ipc_bus_register(&qcom_ipc_bus);
 

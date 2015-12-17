@@ -783,8 +783,8 @@ static struct qcom_ipc_driver *to_ipc_driver(struct device *dev)
 
 static int qcom_ipc_dev_match(struct device *dev, struct device_driver *drv)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
-	struct qcom_smd_driver *qsdrv = container_of(drv, struct qcom_smd_driver, driver);
+	struct qcom_ipc_device *qsdev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qsdrv = container_of(drv, struct qcom_ipc_driver, driver);
 	const struct qcom_smd_id *match = qsdrv->smd_match_table;
 	const char *name = qsdev->channel->name;
 
@@ -954,7 +954,7 @@ static int qcom_ipc_create_device(struct qcom_smd_channel *channel)
 		return -ENOMEM;
 
 	node = qcom_smd_match_channel(edge->of_node, channel->name);
-	dev_set_name(&qsdev->dev, "%s.%s",
+	dev_set_name(&qidev->dev, "%s.%s",
 		     edge->of_node->name,
 		     node ? node->name : channel->name);
 

@@ -172,15 +172,9 @@ static int qcom_ipc_rpm_callback(struct qcom_ipc_device *qidev,
 	int status = 0;
 	u32 len, msg_length;
 
-<<<<<<< HEAD
 	if (le32_to_cpu(hdr->service_type) != RPM_SERVICE_TYPE_REQUEST ||
 	    hdr_length < sizeof(struct qcom_rpm_message)) {
-		dev_err(&qsdev->dev, "invalid request\n");
-=======
-	if (hdr->service_type != RPM_SERVICE_TYPE_REQUEST ||
-	    hdr->length < sizeof(struct qcom_rpm_message)) {
 		dev_err(&qidev->dev, "invalid request\n");
->>>>>>> Prep work to make smd-rpm as ipc-rpm driver over smd and glink
 		return 0;
 	}
 
