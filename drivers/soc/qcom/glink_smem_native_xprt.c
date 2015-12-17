@@ -249,6 +249,32 @@ static int qcom_ipc_dev_match(struct device *dev, struct device_driver *drv)
 	return of_driver_match_device(dev, drv);
 }
 
+
+
+static void msm_rpm_trans_notify_tx_done(void *handle, const void *priv,
+                                        const void *pkt_priv, const void *ptr)
+{
+        return;
+}
+
+static void msm_rpm_trans_notify_state(void *handle, const void *priv,
+                                   unsigned event)
+{
+	switch (event) {
+	case GLINK_CONNECTED:
+		if (IS_ERR_OR_NULL(handle)) {
+			pr_err("glink_handle %d\n",
+			(int)PTR_ERR(handle));
+			BUG_ON(1);
+		 }
+		printk("\n glink_open succeded");
+		break;
+	default:
+		printk("\nunrecogonised event");
+		break;
+	}
+}
+
 /*
  * Probe the ipc client.
  */
@@ -276,6 +302,8 @@ static int qcom_ipc_dev_probe(struct device *dev)
 	open_config->name = channel_name;
 	open_config->edge = dev_get_drvdata(dev);
 	open_config->notify_rx = qidrv->callback;
+	open_config->notify_tx_done = msm_rpm_trans_notify_tx_done;
+	open_config->notify_state = msm_rpm_trans_notify_state;
 
 	printk("\n callback present");
 	qidev->channel = glink_open(open_config);
