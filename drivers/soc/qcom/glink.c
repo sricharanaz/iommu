@@ -209,7 +209,7 @@ struct channel_ctx {
 
 	/* user info */
 	void *user_priv;
-	int (*notify_rx)(void *handle, const void *data, size_t size);
+	int (*notify_rx)(void *handle, const void *priv, const void *data, size_t size);
 	void (*notify_tx_done)(void *handle, const void *priv,
 			const void *pkt_priv, const void *ptr);
 	void (*notify_state)(void *handle, const void *priv, unsigned event);
@@ -694,8 +694,10 @@ static int glink_qos_ch_vote_xprt(struct channel_ctx *ctx)
 {
 	uint32_t prio;
 
-	if (unlikely(!ctx || !ctx->transport_ptr))
+	if (unlikely(!ctx || !ctx->transport_ptr)) {
+		printk("\n !ctx->transport_ptr error");
 		return -EINVAL;
+	}
 
 	prio = ctx->curr_priority;
 	ctx->transport_ptr->prio_bin[prio].active_ch_cnt++;
@@ -730,9 +732,10 @@ static int glink_qos_ch_unvote_xprt(struct channel_ctx *ctx)
 {
 	uint32_t prio;
 
-	if (unlikely(!ctx || !ctx->transport_ptr))
+	if (unlikely(!ctx || !ctx->transport_ptr)) {
+		printk("\n !ctx error");
 		return -EINVAL;
-
+	}
 	prio = ctx->curr_priority;
 	ctx->transport_ptr->prio_bin[prio].active_ch_cnt--;
 
@@ -772,8 +775,10 @@ static int glink_qos_add_ch_tx_intent(struct channel_ctx *ctx)
 {
 	bool active_tx;
 
-	if (unlikely(!ctx))
+	if (unlikely(!ctx)) {
+		printk("\n glink_qos_add_ch_tx_intent error");
 		return -EINVAL;
+	}
 
 	active_tx = GLINK_GET_CH_TX_STATE(ctx);
 	ctx->tx_intent_cnt++;
@@ -796,9 +801,10 @@ static int glink_qos_do_ch_tx(struct channel_ctx *ctx)
 {
 	bool active_tx;
 
-	if (unlikely(!ctx))
+	if (unlikely(!ctx)) {
+		printk("\n glink_qos_do_ch_tx error");
 		return -EINVAL;
-
+	}
 	active_tx = GLINK_GET_CH_TX_STATE(ctx);
 	ctx->tx_cnt++;
 	if (ctx->tx_intent_cnt)
@@ -823,9 +829,10 @@ static int glink_qos_done_ch_tx(struct channel_ctx *ctx)
 {
 	bool active_tx;
 
-	if (unlikely(!ctx))
+	if (unlikely(!ctx)) {
+		printk("\n glink_qos_done_ch_tx error");
 		return -EINVAL;
-
+	}
 	WARN_ON(ctx->tx_cnt == 0);
 	ctx->tx_cnt = 0;
 	active_tx = GLINK_GET_CH_TX_STATE(ctx);
@@ -1027,11 +1034,14 @@ int ch_pop_remote_rx_intent(struct channel_ctx *ctx, size_t size,
 	if (GLINK_MAX_PKT_SIZE < size) {
 		GLINK_ERR_CH(ctx, "%s: R[]:%zu Invalid size.\n", __func__,
 				size);
+		printk("\n GLINK_MAX_PKT_SIZE < size error");
 		return -EINVAL;
 	}
 
-	if (riid_ptr == NULL)
+	if (riid_ptr == NULL) {
+		printk("\n riid_ptr error");
 		return -EINVAL;
+	}
 
 	*riid_ptr = 0;
 	spin_lock_irqsave(&ctx->rmt_rx_intent_lst_lock_lhc2, flags);
@@ -2457,9 +2467,10 @@ EXPORT_SYMBOL(glink_open);
 int glink_get_channel_id_for_handle(void *handle)
 {
 	struct channel_ctx *ctx = (struct channel_ctx *)handle;
-	if (ctx == NULL)
+	if (ctx == NULL) {
+		printk("\n glink_get_channel_id_for_handle error");
 		return -EINVAL;
-
+	}
 	return ctx->lcid;
 }
 EXPORT_SYMBOL(glink_get_channel_id_for_handle);
@@ -2638,15 +2649,18 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 	enum local_channel_state_e ch_st;
 	unsigned long flags;
 
-	if (!size)
+	if (!size) {
+		printk("\n glink_tx_common !size error");
 		return -EINVAL;
-
-	if (!ctx)
+	}
+	if (!ctx) {
+		printk("\n glink_tx_common !ctx error");
 		return -EINVAL;
-
+	}
 	rwref_get(&ctx->ch_state_lhc0);
 	if (!(vbuf_provider || pbuf_provider)) {
 		rwref_put(&ctx->ch_state_lhc0);
+		printk("\n glink_tx_common !(vbuf_provider error");
 		return -EINVAL;
 	}
 
@@ -2657,6 +2671,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 
 	if (size > GLINK_MAX_PKT_SIZE) {
 		rwref_put(&ctx->ch_state_lhc0);
+		printk("\n (size > GLINK_MAX_PKT_SIZE) error");
 		return -EINVAL;
 	}
 
@@ -2684,6 +2699,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 				"%s: Cannot request intent in atomic context\n",
 				__func__);
 			rwref_put(&ctx->ch_state_lhc0);
+			printk("\n Cannot request intent in atomic context");
 			return -EINVAL;
 		}
 
@@ -2695,6 +2711,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 			GLINK_ERR_CH(ctx, "%s: Request intent failed %d\n",
 					__func__, ret);
 			rwref_put(&ctx->ch_state_lhc0);
+			printk("\n tx_cmd_rx_intent_req error");
 			return ret;
 		}
 
@@ -2775,6 +2792,9 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 					       ctx, tx_info);
 	else
 		xprt_schedule_tx(ctx->transport_ptr, ctx, tx_info);
+
+	if (ret)
+		printk("\n xprt_single_threaded_tx error");
 
 	rwref_put(&ctx->ch_state_lhc0);
 	return ret;
@@ -4780,7 +4800,7 @@ void glink_core_rx_put_pkt_ctx(struct glink_transport_if *if_ptr,
 
 	ch_set_local_rx_intent_notified(ctx, intent_ptr);
 	if (ctx->notify_rx && (intent_ptr->data || intent_ptr->bounce_buf)) {
-		ctx->notify_rx(ctx, intent_ptr->data ?
+		ctx->notify_rx(ctx, ctx->user_priv, intent_ptr->data ?
 				intent_ptr->data : intent_ptr->bounce_buf,
 			       intent_ptr->pkt_size);
 	} else if (ctx->notify_rxv) {

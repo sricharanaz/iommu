@@ -137,11 +137,14 @@ int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
 	pkt->req.data_len = cpu_to_le32(count);
 	memcpy(pkt->payload, buf, count);
 
-	if (rpm->flag & SMD_RPM)
+	if (rpm->flag & SMD_RPM) {
 		ret = qcom_smd_send(rpm->smd_channel, pkt, size);
-	else
+		printk("\n qcom_smd_send %d", ret);
+	} else {
 		ret = glink_tx(rpm->glink_channel, pkt, pkt, size,
 				GLINK_TX_SINGLE_THREADED);
+		printk("\n glink_tx %d", ret);
+	}
 	if (ret)
 		goto out;
 
@@ -158,10 +161,13 @@ out:
 }
 EXPORT_SYMBOL(qcom_rpm_smd_write);
 
-static int qcom_ipc_rpm_callback(struct qcom_ipc_device *qidev,
+static int qcom_ipc_rpm_callback(void *handle,
+				struct qcom_ipc_device *qidev,
 				 const void *data,
 				 size_t count)
 {
+	printk("\n qidev %x data %d count %d",qidev, data, count);
+
 	const struct qcom_rpm_header *hdr = data;
 	size_t hdr_length = le32_to_cpu(hdr->length);
 	const struct qcom_rpm_message *msg;
@@ -172,19 +178,26 @@ static int qcom_ipc_rpm_callback(struct qcom_ipc_device *qidev,
 	int status = 0;
 	u32 len, msg_length;
 
+	printk("\n 1");
 	if (le32_to_cpu(hdr->service_type) != RPM_SERVICE_TYPE_REQUEST ||
 	    hdr_length < sizeof(struct qcom_rpm_message)) {
 		dev_err(&qidev->dev, "invalid request\n");
 		return 0;
 	}
 
+	printk("\n 2");
+
 	while (buf < end) {
 		msg = (struct qcom_rpm_message *)buf;
 		msg_length = le32_to_cpu(msg->length);
+
+		printk("\n 3");
 		switch (le32_to_cpu(msg->msg_type)) {
 		case RPM_MSG_TYPE_MSG_ID:
+			printk("\n RPM_MSG_TYPE_MSG_ID:");
 			break;
 		case RPM_MSG_TYPE_ERR:
+			printk("\n RPM_MSG_TYPE_ERR:");
 			len = min_t(u32, ALIGN(msg_length, 4), sizeof(msgbuf));
 			memcpy_fromio(msgbuf, msg->message, len);
 			msgbuf[len - 1] = 0;
@@ -199,7 +212,10 @@ static int qcom_ipc_rpm_callback(struct qcom_ipc_device *qidev,
 		buf = PTR_ALIGN(buf + 2 * sizeof(u32) + msg_length, 4);
 	}
 
+	printk("\n 4");
 	rpm->ack_status = status;
+
+	printk("\n 5");
 	complete(&rpm->ack);
 	return 0;
 }
@@ -215,13 +231,13 @@ static int qcom_ipc_rpm_probe(struct qcom_ipc_device *idev)
 
 	if (of_device_is_compatible(idev->dev.of_node, "qcom,rpm-msm8996")) {
 		rpm->flag |= GLINK_RPM;
-		rpm->smd_channel = idev->channel;
+		rpm->glink_channel = idev->channel;
 
 		printk("\n qcom_ipc_rpm_probe glink_rpm");
 	} else if (of_device_is_compatible(idev->dev.of_node,
 						"qcom,rpm-msm8974")) {
 		rpm->flag |= SMD_RPM;
-		rpm->glink_channel = idev->channel;
+		rpm->smd_channel = idev->channel;
 		printk("\n qcom_ipc_rpm_probe glink_smd");
 	}
 

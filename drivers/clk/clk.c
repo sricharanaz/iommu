@@ -2309,7 +2309,7 @@ static int __clk_init(struct device *dev, struct clk *clk_user)
 
 	/* check to see if a clock with this name is already registered */
 	if (clk_core_lookup(core->name)) {
-		pr_debug("%s: clk %s already initialized\n",
+		pr_err("%s: clk %s already initialized\n",
 				__func__, core->name);
 		ret = -EEXIST;
 		goto out;

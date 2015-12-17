@@ -236,6 +236,8 @@ static int clk_smd_rpm_enable_scaling(struct qcom_smd_rpm *rpm)
 	if (ret) {
 		pr_err("RPM clock scaling (sleep set) not enabled!\n");
 		return ret;
+	} else {
+		printk("\n RPM clock scaling (sleep set) enabled");
 	}
 
 	ret = qcom_rpm_smd_write(rpm, QCOM_SMD_RPM_ACTIVE_STATE,
@@ -244,6 +246,8 @@ static int clk_smd_rpm_enable_scaling(struct qcom_smd_rpm *rpm)
 	if (ret) {
 		pr_err("RPM clock scaling (active set) not enabled!\n");
 		return ret;
+	} else {
+		printk("\n RPM clock scaling (active set) enabled!");
 	}
 
 	pr_debug("%s: RPM clock scaling is enabled\n", __func__);
@@ -336,7 +340,7 @@ DEFINE_CLK_SMD_RPM(msm8996, mmssnoc_axi_rpm_clk, mmssnoc_axi_rpm_a_clk,
 		   QCOM_SMD_RPM_MMAXI_CLK, 0);
 DEFINE_CLK_SMD_RPM(msm8996, ipa_clk, ipa_a_clk, QCOM_SMD_RPM_IPA_CLK, 0);
 DEFINE_CLK_SMD_RPM(msm8996, ce1_clk, ce1_a_clk, QCOM_SMD_RPM_CE_CLK, 0);
-DEFINE_CLK_SMD_RPM_BRANCH(msm8996, xo, xo_a, QCOM_SMD_RPM_MISC_CLK, 0, 19200000);
+DEFINE_CLK_SMD_RPM_BRANCH(msm8996, cxo, xo_a, QCOM_SMD_RPM_MISC_CLK, 0, 19200000);
 DEFINE_CLK_SMD_RPM_BRANCH(msm8996, aggre1_noc_clk, aggre1_noc_a_clk,
 			  QCOM_SMD_RPM_AGGR_CLK, 0, 1000);
 DEFINE_CLK_SMD_RPM_BRANCH(msm8996, aggre2_noc_clk, aggre2_noc_a_clk,
@@ -355,7 +359,7 @@ DEFINE_CLK_SMD_RPM_XO_BUFFER_PINCTRL(msm8996, rf_clk1_pin, rf_clk1_a_pin, 4);
 DEFINE_CLK_SMD_RPM_XO_BUFFER_PINCTRL(msm8996, rf_clk2_pin, rf_clk2_a_pin, 5);
 
 static struct clk_smd_rpm *msm8996_clks[] = {
-	[RPM_XO_CLK_SRC] = &msm8996_xo,
+	[RPM_XO_CLK_SRC] = &msm8996_cxo,
 	[RPM_XO_A_CLK_SRC] = &msm8996_xo_a,
 	[RPM_AGGR1_NOC_CLK] = &msm8996_aggre1_noc_clk,
 	[RPM_AGGR1_NOC_A_CLK] = &msm8996_aggre1_noc_a_clk,
@@ -417,6 +421,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	struct clk_smd_rpm **rpm_smd_clks;
 	const struct rpm_smd_clk_desc *desc;
 
+	printk("\n rpm_smd_clk_probe");
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to RPM\n");
@@ -449,6 +454,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 		rpm_smd_clks[i]->rpm = rpm;
 		clk = devm_clk_register(&pdev->dev, &rpm_smd_clks[i]->hw);
 		if (IS_ERR(clk)) {
+			printk("\n devm_clk_register failed for %d", i);
 			ret = PTR_ERR(clk);
 			goto err;
 		}
@@ -458,11 +464,14 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 
 	ret = of_clk_add_provider(pdev->dev.of_node, of_clk_src_onecell_get,
 				  data);
-	if (ret)
+	if (ret) {
+		printk("\n of_clk_add_provider failed");
 		goto err;
+	}
 
 	ret = clk_smd_rpm_enable_scaling(rpm);
 	if (ret) {
+		printk("\n clk_smd_rpm_enable_scaling failed");
 		of_clk_del_provider(pdev->dev.of_node);
 		goto err;
 	}

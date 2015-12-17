@@ -302,6 +302,7 @@ static int qcom_ipc_dev_probe(struct device *dev)
 
 	/* open a glink channel */
 	open_config->name = channel_name;
+	open_config->priv = qidev;
 	open_config->edge = dev_get_drvdata(dev);
 	open_config->notify_rx = qidrv->callback;
 	open_config->notify_tx_done = msm_rpm_trans_notify_tx_done;
@@ -1564,8 +1565,10 @@ static int allocate_rx_intent(struct glink_transport_if *if_ptr, size_t size,
 static int deallocate_rx_intent(struct glink_transport_if *if_ptr,
 				struct glink_core_rx_intent *intent)
 {
-	if (!intent || !intent->data)
+	if (!intent || !intent->data) {
+		printk("\n deallocate_rx_intent error");
 		return -EINVAL;
+	}
 
 	kfree(intent->data);
 	intent->data = NULL;
@@ -1923,6 +1926,7 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	if (einfo->intentless &&
 	    (pctx->size_remaining != pctx->size || cmd_id == TRACER_PKT_CMD)) {
 		srcu_read_unlock(&einfo->use_ref, rcu_id);
+		printk("\n pctx->size_remaining error");
 		return -EINVAL;
 	}
 
@@ -1944,6 +1948,7 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	if (!data_start) {
 		GLINK_ERR("%s: invalid data_start\n", __func__);
 		srcu_read_unlock(&einfo->use_ref, rcu_id);
+		printk("\n invalid data_start error");
 		return -EINVAL;
 	}
 
