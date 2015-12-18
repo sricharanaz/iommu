@@ -189,6 +189,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 		clk_disable_unprepare(mdp5_kms->mmagic_bimc_axi_clk);
 	if (mdp5_kms->mmagic_ahb_clk)
 		clk_disable_unprepare(mdp5_kms->mmagic_ahb_clk);
+	if (mdp5_kms->iommu_clk)
+		clk_disable_unprepare(mdp5_kms->iommu_clk);
 
 	return 0;
 }
@@ -218,6 +220,9 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 		clk_prepare_enable(mdp5_kms->mmagic_mdss_axi_clk);
 	if (mdp5_kms->misc_mmss_ahb_clk)
 		clk_prepare_enable(mdp5_kms->misc_mmss_ahb_clk);
+	if (mdp5_kms->iommu_clk)
+		clk_prepare_enable(mdp5_kms->iommu_clk);
+
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
