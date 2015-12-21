@@ -77,118 +77,67 @@ static void hdmi_phy_reset(struct hdmi *hdmi)
 	}
 }
 
+static const char * const gpio_request_names[] = {
+	"HDMI_DDC_CLK",
+	"HDMI_DDC_DATA",
+	"HDMI_HPD",
+	"HDMI_MUX_EN",
+	"HDMI_MUX_SEL",
+	"HDMI_MUX_LPM",
+};
+
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
 	struct device *dev = &hdmi->pdev->dev;
 	const struct hdmi_platform_config *config = hdmi->config;
-	int ret;
+	int ret, i, j;
 
 	if (on) {
-		if (config->ddc_clk_gpio != -1) {
-			ret = gpio_request(config->ddc_clk_gpio, "HDMI_DDC_CLK");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
-				goto error1;
+		for (i = 0; i < HDMI_GPIO_MAX; i++) {
+			int value = 1;
+
+			if (config->gpio[i] != -1) {
+				ret = gpio_request(config->gpio[i],
+					gpio_request_names[i]);
+				if (ret) {
+					dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
+						gpio_request_names[i],
+						config->gpio[i], ret);
+					goto err;
+				}
+
+				if (i == HDMI_GPIO_TX_HPD)
+					gpio_direction_input(config->gpio[i]);
+
+				if (i == HDMI_GPIO_MUX_SEL)
+					value = 0;
+
+				gpio_set_value_cansleep(config->gpio[i], value);
 			}
-			gpio_set_value_cansleep(config->ddc_clk_gpio, 1);
 		}
 
-		if (config->ddc_data_gpio != -1) {
-			ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
-				goto error2;
-			}
-			gpio_set_value_cansleep(config->ddc_data_gpio, 1);
-		}
-
-		ret = gpio_request(config->hpd_gpio, "HDMI_HPD");
-		if (ret) {
-			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-				"HDMI_HPD", config->hpd_gpio, ret);
-			goto error3;
-		}
-		gpio_direction_input(config->hpd_gpio);
-		gpio_set_value_cansleep(config->hpd_gpio, 1);
-
-		if (config->mux_en_gpio != -1) {
-			ret = gpio_request(config->mux_en_gpio, "HDMI_MUX_EN");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_EN", config->mux_en_gpio, ret);
-				goto error4;
-			}
-			gpio_set_value_cansleep(config->mux_en_gpio, 1);
-		}
-
-		if (config->mux_sel_gpio != -1) {
-			ret = gpio_request(config->mux_sel_gpio, "HDMI_MUX_SEL");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_SEL", config->mux_sel_gpio, ret);
-				goto error5;
-			}
-			gpio_set_value_cansleep(config->mux_sel_gpio, 0);
-		}
-
-		if (config->mux_lpm_gpio != -1) {
-			ret = gpio_request(config->mux_lpm_gpio,
-					"HDMI_MUX_LPM");
-			if (ret) {
-				dev_err(dev,
-					"'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_LPM",
-					config->mux_lpm_gpio, ret);
-				goto error6;
-			}
-			gpio_set_value_cansleep(config->mux_lpm_gpio, 1);
-		}
 		DBG("gpio on");
 	} else {
-		if (config->ddc_clk_gpio != -1)
-			gpio_free(config->ddc_clk_gpio);
+		for (i = 0; i < HDMI_GPIO_MAX; i++) {
+			int value = 0;
 
-		if (config->ddc_data_gpio != -1)
-			gpio_free(config->ddc_data_gpio);
+			if (i == HDMI_GPIO_MUX_SEL)
+				value = 1;
 
-		gpio_free(config->hpd_gpio);
+			if (i != HDMI_GPIO_TX_HPD)
+				gpio_set_value_cansleep(config->gpio[i], value);
 
-		if (config->mux_en_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_en_gpio, 0);
-			gpio_free(config->mux_en_gpio);
-		}
+			gpio_free(config->gpio[i]);
+		};
 
-		if (config->mux_sel_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_sel_gpio, 1);
-			gpio_free(config->mux_sel_gpio);
-		}
-
-		if (config->mux_lpm_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_lpm_gpio, 0);
-			gpio_free(config->mux_lpm_gpio);
-		}
 		DBG("gpio off");
 	}
 
 	return 0;
+err:
+	for (j = i; j >= 0; j--)
+		gpio_free(config->gpio[i]);
 
-error6:
-	if (config->mux_sel_gpio != -1)
-		gpio_free(config->mux_sel_gpio);
-error5:
-	if (config->mux_en_gpio != -1)
-		gpio_free(config->mux_en_gpio);
-error4:
-	gpio_free(config->hpd_gpio);
-error3:
-	if (config->ddc_data_gpio != -1)
-		gpio_free(config->ddc_data_gpio);
-error2:
-	if (config->ddc_clk_gpio != -1)
-		gpio_free(config->ddc_clk_gpio);
-error1:
 	return ret;
 }
 

@@ -388,7 +388,16 @@ static struct hdmi_platform_config hdmi_tx_8996_config = {
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
-static int get_gpio(struct device *dev, struct device_node *of_node, const char *name)
+static const char * const hdmi_gpio_names[] = {
+	"qcom,hdmi-tx-ddc-clk",
+	"qcom,hdmi-tx-ddc-data",
+	"qcom,hdmi-tx-hpd",
+	"qcom,hdmi-tx-mux-en",
+	"qcom,hdmi-tx-mux-sel",
+	"qcom,hdmi-tx-mux-lpm"
+};
+
+static int get_gpio(struct device_node *of_node, const char *name)
 {
 	int gpio = of_get_named_gpio(of_node, name, 0);
 	if (gpio < 0) {
@@ -410,6 +419,7 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	static struct hdmi_platform_config *hdmi_cfg;
 	struct hdmi *hdmi;
 	struct device_node *of_node = dev->of_node;
+	int i;
 
 	hdmi_cfg = (struct hdmi_platform_config *)
 			of_device_get_match_data(dev);
@@ -420,12 +430,9 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi_cfg->mmio_name     = "core_physical";
 	hdmi_cfg->qfprom_mmio_name = "qfprom_physical";
-	hdmi_cfg->ddc_clk_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-clk");
-	hdmi_cfg->ddc_data_gpio = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-data");
-	hdmi_cfg->hpd_gpio      = get_gpio(dev, of_node, "qcom,hdmi-tx-hpd");
-	hdmi_cfg->mux_en_gpio   = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-en");
-	hdmi_cfg->mux_sel_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-sel");
-	hdmi_cfg->mux_lpm_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-lpm");
+
+	for (i = 0; i < HDMI_GPIO_MAX; i++)
+		hdmi_cfg->gpio[i] = get_gpio(of_node, hdmi_gpio_names[i]);
 
 	dev->platform_data = hdmi_cfg;
 

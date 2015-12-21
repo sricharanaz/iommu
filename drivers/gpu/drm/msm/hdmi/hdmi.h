@@ -27,6 +27,15 @@
 #include "msm_drv.h"
 #include "hdmi.xml.h"
 
+enum hdmi_gpio {
+	HDMI_GPIO_DDC_CLK,
+	HDMI_GPIO_DDC_DATA,
+	HDMI_GPIO_TX_HPD,
+	HDMI_GPIO_MUX_EN,
+	HDMI_GPIO_MUX_SEL,
+	HDMI_GPIO_MUX_LPM,
+	HDMI_GPIO_MAX,
+};
 
 struct hdmi_phy;
 struct hdmi_platform_config;
@@ -110,8 +119,7 @@ struct hdmi_platform_config {
 	int pwr_clk_cnt;
 
 	/* gpio's: */
-	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
-	int mux_lpm_gpio;
+	int gpio[HDMI_GPIO_MAX];
 };
 
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on);
