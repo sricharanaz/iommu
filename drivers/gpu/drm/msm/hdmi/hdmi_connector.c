@@ -297,7 +297,7 @@ static enum drm_connector_status detect_reg(struct hdmi *hdmi)
 static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
 {
 	const struct hdmi_platform_config *config = hdmi->config;
-	return gpio_get_value(config->hpd_gpio) ?
+	return gpio_get_value(config->gpio[HDMI_GPIO_TX_HPD]) ?
 			connector_status_connected :
 			connector_status_disconnected;
 }
@@ -307,8 +307,16 @@ static enum drm_connector_status hdmi_connector_detect(
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
 	enum drm_connector_status stat_gpio, stat_reg;
 	int retry = 20;
+
+	/*
+	 * some platforms may not have hpd gpio. Rely only on the status provided
+	 * by the register in such cases
+	 */
+	if (config->gpio[HDMI_GPIO_TX_HPD] == -1)
+		return detect_reg(hdmi);
 
 	do {
 		stat_gpio = detect_gpio(hdmi);
