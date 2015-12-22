@@ -179,10 +179,29 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->core_clk);
 	if (mdp5_kms->lut_clk)
 		clk_disable_unprepare(mdp5_kms->lut_clk);
+	if (mdp5_kms->misc_mmss_ahb_clk)
+		clk_disable_unprepare(mdp5_kms->misc_mmss_ahb_clk);
+	if (mdp5_kms->mmagic_mdss_axi_clk)
+		clk_disable_unprepare(mdp5_kms->mmagic_mdss_axi_clk);
+	if (mdp5_kms->mmagic_mmss_axi_clk)
+		clk_disable_unprepare(mdp5_kms->mmagic_mmss_axi_clk);
+	if (mdp5_kms->mmagic_bimc_axi_clk)
+		clk_disable_unprepare(mdp5_kms->mmagic_bimc_axi_clk);
 	if (mdp5_kms->mmagic_ahb_clk)
 		clk_disable_unprepare(mdp5_kms->mmagic_ahb_clk);
 
 	return 0;
+}
+
+void hack_axi_cbcr_enable(void)
+{
+	void __iomem *base = ioremap(0x8c5000, SZ_512);
+
+	iowrite32(0x20008001, base + 0x64);
+
+	wmb();
+
+	iounmap(base);
 }
 
 int mdp5_enable(struct mdp5_kms *mdp5_kms)
@@ -191,11 +210,21 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 
 	if (mdp5_kms->mmagic_ahb_clk)
 		clk_prepare_enable(mdp5_kms->mmagic_ahb_clk);
+	if (mdp5_kms->mmagic_bimc_axi_clk)
+		clk_prepare_enable(mdp5_kms->mmagic_bimc_axi_clk);
+	if (mdp5_kms->mmagic_mmss_axi_clk)
+		clk_prepare_enable(mdp5_kms->mmagic_mmss_axi_clk);
+	if (mdp5_kms->mmagic_mdss_axi_clk)
+		clk_prepare_enable(mdp5_kms->mmagic_mdss_axi_clk);
+	if (mdp5_kms->misc_mmss_ahb_clk)
+		clk_prepare_enable(mdp5_kms->misc_mmss_ahb_clk);
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
 	if (mdp5_kms->lut_clk)
 		clk_prepare_enable(mdp5_kms->lut_clk);
+
+	hack_axi_cbcr_enable();
 
 	return 0;
 }
@@ -665,12 +694,19 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	get_clk(pdev, &mdp5_kms->mmagic_clk, "mmagic_clk", false);
 	get_clk(pdev, &mdp5_kms->iommu_clk, "iommu_clk", false);
 	get_clk(pdev, &mdp5_kms->mmagic_ahb_clk, "mmagic_iface_clk", false);
+	get_clk(pdev, &mdp5_kms->mmagic_mdss_axi_clk, "mmagic_mdss_bus_clk", false);
+	get_clk(pdev, &mdp5_kms->mmagic_mmss_axi_clk, "mmagic_mmss_bus_clk", false);
+	get_clk(pdev, &mdp5_kms->mmagic_bimc_axi_clk, "mmagic_bimc_bus_clk", false);
+	get_clk(pdev, &mdp5_kms->axi_clk_src, "axi_clk_src", false);
+	get_clk(pdev, &mdp5_kms->misc_mmss_ahb_clk, "mmss_misc_bus_clk", false);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
 	 * more optimal rate:
 	 */
 	clk_set_rate(mdp5_kms->src_clk, 200000000);
+	/* align with android kernel rates */
+	clk_set_rate(mdp5_kms->ahb_clk, 19200000);
 
 	read_hw_revision(mdp5_kms, &major, &minor);
 
@@ -686,6 +722,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
+	/* align with android kernel rates */
+	clk_set_rate(mdp5_kms->axi_clk_src, 75000000);
 
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
