@@ -108,7 +108,7 @@ void hdmi_phy_resource_disable(struct hdmi_phy *phy)
 	for (i = cfg->num_regs - 1; i >= 0; i--)
 		regulator_disable(phy->regs[i]);
 
-	pm_runtime_put_sync(dev);
+	//pm_runtime_put_sync(dev);
 }
 
 void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock)
