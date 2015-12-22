@@ -141,9 +141,9 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 	unsigned long pinmask = bgc->pin2mask(bgc, gpio);
 
 	if (bgc->dir & pinmask)
-		return bgc->read_reg(bgc->reg_set) & pinmask;
+		return !!(bgc->read_reg(bgc->reg_set) & pinmask);
 	else
-		return bgc->read_reg(bgc->reg_dat) & pinmask;
+		return !!(bgc->read_reg(bgc->reg_dat) & pinmask);
 }
 
 static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
@@ -545,7 +545,7 @@ int bgpio_init(struct bgpio_chip *bgc, struct device *dev,
 		return -EINVAL;
 
 	spin_lock_init(&bgc->lock);
-	bgc->gc.dev = dev;
+	bgc->gc.parent = dev;
 	bgc->gc.label = dev_name(dev);
 	bgc->gc.base = -1;
 	bgc->gc.ngpio = bgc->bits;

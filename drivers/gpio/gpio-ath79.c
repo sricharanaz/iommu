@@ -113,7 +113,7 @@ static int ar934x_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 		__raw_writel(BIT(offset), ctrl->base + AR71XX_GPIO_REG_CLEAR);
 
 	__raw_writel(
-		__raw_readl(ctrl->base + AR71XX_GPIO_REG_OE) & BIT(offset),
+		__raw_readl(ctrl->base + AR71XX_GPIO_REG_OE) & ~BIT(offset),
 		ctrl->base + AR71XX_GPIO_REG_OE);
 
 	spin_unlock_irqrestore(&ctrl->lock, flags);
@@ -138,7 +138,7 @@ static const struct of_device_id ath79_gpio_of_match[] = {
 
 static int ath79_gpio_probe(struct platform_device *pdev)
 {
-	struct ath79_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct ath79_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct ath79_gpio_ctrl *ctrl;
 	struct resource *res;
@@ -177,7 +177,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ctrl->lock);
 	memcpy(&ctrl->chip, &ath79_gpio_chip, sizeof(ctrl->chip));
-	ctrl->chip.dev = &pdev->dev;
+	ctrl->chip.parent = &pdev->dev;
 	ctrl->chip.ngpio = ath79_gpio_count;
 	if (oe_inverted) {
 		ctrl->chip.direction_input = ar934x_gpio_direction_input;
