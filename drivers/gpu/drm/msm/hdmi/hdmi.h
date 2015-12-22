@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/hdmi.h>
+#include <linux/clk-provider.h>
 
 #include "msm_drv.h"
 #include "hdmi.xml.h"
@@ -38,6 +39,7 @@ enum hdmi_gpio {
 };
 
 struct hdmi_phy;
+struct hdmi_pll;
 struct hdmi_platform_config;
 
 struct hdmi_audio {
@@ -173,6 +175,7 @@ struct hdmi_phy {
 	struct platform_device *pdev;
 	void __iomem *mmio;
 	struct hdmi_phy_cfg *cfg;
+	struct hdmi_pll *pll;
 	const struct hdmi_phy_funcs *funcs;
 	struct regulator **regs;
 	struct clk **clks;
@@ -198,6 +201,25 @@ void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock);
 void hdmi_phy_powerdown(struct hdmi_phy *phy);
 void __init hdmi_phy_driver_register(void);
 void __exit hdmi_phy_driver_unregister(void);
+
+ /*
+ * hdmi pll:
+ */
+struct hdmi_pll {
+	enum hdmi_phy_type type;
+	struct clk_hw clk_hw;
+};
+
+#define hw_clk_to_pll(x) container_of(x, struct hdmi_pll, clk_hw)
+
+#ifdef CONFIG_COMMON_CLK
+struct hdmi_pll *hdmi_pll_8960_init(struct platform_device *pdev);
+#else
+struct hdmi_pll *hdmi_pll_8960_init(struct platform_device *pdev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 /*
  * audio:

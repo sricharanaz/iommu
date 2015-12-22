@@ -127,6 +127,34 @@ void hdmi_phy_powerdown(struct hdmi_phy *phy)
 	phy->cfg->powerdown(phy);
 }
 
+struct hdmi_pll *hdmi_phy_pll_init(struct platform_device *pdev,
+			       enum hdmi_phy_type type)
+{
+	struct hdmi_pll *pll = NULL;
+
+	switch (type) {
+	case MSM_HDMI_PHY_8960:
+		pll = hdmi_pll_8960_init(pdev);
+		break;
+	/*
+	 * we don't have PLL support for these, don't report an error for now
+	 */
+	case MSM_HDMI_PHY_8x60:
+	case MSM_HDMI_PHY_8x74:
+	default:
+		break;
+	}
+
+	if (IS_ERR_OR_NULL(pll))
+		return pll;
+
+	pll->type = type;
+
+	DBG("HDMI PLL registered");
+
+	return pll;
+}
+
 static int hdmi_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -158,6 +186,18 @@ static int hdmi_phy_probe(struct platform_device *pdev)
 		return ret;
 
 	pm_runtime_enable(&pdev->dev);
+
+	ret = hdmi_phy_resource_enable(phy);
+	if (ret)
+		return ret;
+
+	phy->pll = hdmi_phy_pll_init(pdev, phy->cfg->type);
+	if (IS_ERR(phy->pll)) {
+		dev_err(dev, "couldn't init PLL\n");
+		return PTR_ERR(phy->pll);
+	}
+
+	hdmi_phy_resource_disable(phy);
 
 	platform_set_drvdata(pdev, phy);
 
