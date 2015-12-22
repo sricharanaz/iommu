@@ -452,19 +452,29 @@
 			clocks = <&mmcc MDSS_AHB_CLK>,
 				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
+				 <&mmcc MMSS_MMAGIC_AXI_CLK>,
+				 <&mmcc MMAGIC_BIMC_AXI_CLK>,
 				 <&mmcc MDP_CLK_SRC>,
 				 <&mmcc MDSS_MDP_CLK>,
 				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
-				 <&mmcc MDSS_VSYNC_CLK>;
+				 <&mmcc MDSS_VSYNC_CLK>,
+				 <&mmcc AXI_CLK_SRC>,
+				 <&mmcc MMSS_MISC_AHB_CLK>;
 			clock-names = "iface_clk",
 				"mmagic_iface_clk",
 				"bus_clk",
+				"mmagic_mdss_bus_clk",
+				"mmagic_mmss_bus_clk",
+				"mmagic_bimc_bus_clk",
 				"core_clk_src",
 				"core_clk",
 				"iommu_clk",
 				"mmagic_clk",
-				"vsync_clk";
+				"vsync_clk",
+				"axi_clk_src",
+				"mmss_misc_bus_clk";
 
 			connectors = <&mdss_hdmi>;
 
