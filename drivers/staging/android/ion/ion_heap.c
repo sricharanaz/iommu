@@ -40,7 +40,10 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
        if (!pages)
                return NULL;
 
-       pgprot = pgprot_writecombine(PAGE_KERNEL);
+       if (ION_IS_CACHED(buffer->flags))
+		pgprot = PAGE_KERNEL;
+	else
+		pgprot = pgprot_writecombine(PAGE_KERNEL);
 
        for_each_sg(table->sgl, sg, table->nents, i) {
                int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
@@ -50,6 +53,7 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
                for (j = 0; j < npages_this_entry; j++)
                        *(tmp++) = page++;
        }
+
        vaddr = vmap(pages, npages, VM_MAP, pgprot);
        vfree(pages);
 
@@ -74,6 +78,9 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct scatterlist *sg;
 	int i;
 	int ret;
+
+	if (!ION_IS_CACHED(buffer->flags))
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);

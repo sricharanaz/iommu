@@ -200,14 +200,87 @@ void ion_carveout_heap_unmap_iommu(struct ion_iommu_map *data)
 	return;
 }
 
+static void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
+                          struct ion_buffer *buffer)
+{
+       struct scatterlist *sg;
+       int i, j;
+       void *vaddr;
+       pgprot_t pgprot;
+       struct sg_table *table = buffer->sg_table;
+       int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+       struct page **pages = vmalloc(sizeof(struct page *) * npages);
+       struct page **tmp = pages;
+
+       if (!pages)
+               return NULL;
+
+       pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+       for_each_sg(table->sgl, sg, table->nents, i) {
+               int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
+               struct page *page = sg_page(sg);
+
+               BUG_ON(i >= npages);
+               for (j = 0; j < npages_this_entry; j++)
+                       *(tmp++) = page++;
+       }
+       vaddr = vmap(pages, npages, VM_MAP, pgprot);
+       vfree(pages);
+
+       if (vaddr == NULL)
+               return ERR_PTR(-ENOMEM);
+
+       return vaddr;
+}
+
+static int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
+                      struct vm_area_struct *vma)
+{
+        struct sg_table *table = buffer->sg_table;
+        unsigned long addr = vma->vm_start;
+        unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
+        struct scatterlist *sg;
+        int i;
+        int ret;
+
+        if (!ION_IS_CACHED(buffer->flags))
+                vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
+        for_each_sg(table->sgl, sg, table->nents, i) {
+                struct page *page = sg_page(sg);
+                unsigned long remainder = vma->vm_end - addr;
+                unsigned long len = sg->length;
+
+                if (offset >= sg->length) {
+                        offset -= sg->length;
+                        continue;
+                } else if (offset) {
+                        page += offset / PAGE_SIZE;
+                        len = sg->length - offset;
+                        offset = 0;
+                }
+                len = min(len, remainder);
+                ret = remap_pfn_range(vma, addr, page_to_pfn(page), len,
+                                vma->vm_page_prot);
+                if (ret)
+                        return ret;
+                addr += len;
+                if (addr >= vma->vm_end)
+                        return 0;
+        }
+
+        return 0;
+}
+
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
 	.phys = ion_carveout_heap_phys,
 	.map_dma = ion_carveout_heap_map_dma,
 	.unmap_dma = ion_carveout_heap_unmap_dma,
-	.map_user = ion_heap_map_user,
-	.map_kernel = ion_heap_map_kernel,
+	.map_user = ion_carveout_heap_map_user,
+	.map_kernel = ion_carveout_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
 	.cache_op = ion_carveout_cache_ops,
         .map_iommu = ion_carveout_heap_map_iommu,
