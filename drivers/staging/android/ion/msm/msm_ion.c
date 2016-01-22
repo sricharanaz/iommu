@@ -243,18 +243,14 @@ static int extend_iommu_mapping(struct dma_iommu_mapping *mapping)
 #define CONFIG_ARM_DMA_IOMMU_ALIGNMENT 8
 
 dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
-                                      size_t size)
+                      size_t size, int align)
 {
-        unsigned int order = get_order(size);
-        unsigned int align = 0;
+        unsigned int order = get_order(align);
         unsigned int count, start;
         size_t mapping_size = mapping->bits << PAGE_SHIFT;
         unsigned long flags;
         dma_addr_t iova;
         int i;
-
-        if (order > CONFIG_ARM_DMA_IOMMU_ALIGNMENT)
-                order = CONFIG_ARM_DMA_IOMMU_ALIGNMENT;
 
         count = PAGE_ALIGN(size) >> PAGE_SHIFT;
         align = (1 << order) - 1;

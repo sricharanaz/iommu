@@ -543,6 +543,8 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
 			continue;
+
+		printk(KERN_EMERG"heap_id_mask", heap_id_mask);
 		buffer = ion_buffer_create(heap, dev, len, align, flags);
 		if (!IS_ERR(buffer))
 			break;
@@ -588,18 +590,29 @@ int ion_heap_cache_ops(struct ion_heap *heap,
 
         switch (cmd) {
         case ION_IOC_CLEAN_CACHES:
+		if (!vaddr)
                         dma_sync_sg_for_device(NULL, table->sgl,
-                                table->nents, DMA_TO_DEVICE);
+						table->nents, DMA_TO_DEVICE);
+		else
+			dma_map_single(NULL, vaddr, length, DMA_TO_DEVICE);
                 break;
         case ION_IOC_INV_CACHES:
+		if (!vaddr)
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
+		else
+			dma_unmap_single(NULL, vaddr, length, DMA_FROM_DEVICE);
                 break;
         case ION_IOC_CLEAN_INV_CACHES:
+		if (!vaddr) {
                         dma_sync_sg_for_device(NULL, table->sgl,
                                 table->nents, DMA_TO_DEVICE);
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
+		} else {
+			dma_map_single(NULL, vaddr, length, DMA_TO_DEVICE);
+			dma_unmap_single(NULL, vaddr, length, DMA_FROM_DEVICE);
+		}	
                 break;
         default:
                 return -EINVAL;

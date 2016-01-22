@@ -275,7 +275,7 @@ int ion_system_heap_map_iommu(struct ion_buffer *buffer,
 
 	printk("\n ion_system_heap_map_iommu");
 
-	data->iova_addr = alloc_iova(mapping, iova_length);
+	data->iova_addr = alloc_iova(mapping, iova_length, align);
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, table->sgl,
 			      table->nents, prot);
 

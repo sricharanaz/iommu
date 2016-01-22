@@ -153,7 +153,7 @@ static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
 	extra = iova_length - buffer->size;
 
 	data->mapped_size = iova_length;
-        data->iova_addr = alloc_iova(mapping, iova_length);
+        data->iova_addr = alloc_iova(mapping, iova_length, align);
 
 	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, buffer->sg_table->sgl,
 			      buffer->sg_table->nents, prot);

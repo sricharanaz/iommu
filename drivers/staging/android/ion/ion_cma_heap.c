@@ -179,7 +179,7 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 	data->mapped_size = iova_length;
 	extra = iova_length - buffer->size;
 
-	data->iova_addr = alloc_iova(mapping, iova_length);
+	data->iova_addr = alloc_iova(mapping, iova_length, align);
 	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
 				table->nents, prot);
 
