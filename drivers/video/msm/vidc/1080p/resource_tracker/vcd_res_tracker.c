@@ -26,7 +26,7 @@
 #define PIL_FW_SIZE 0x200000
 
 static unsigned int vidc_clk_table[5] = {
-	228570000, 228570000, 228570000, 228570000,  228570000,
+	27000000, 27000000, 27000000, 27000000, 27000000,
 };
 static struct res_trk_context resource_context;
 

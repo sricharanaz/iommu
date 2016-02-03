@@ -16,10 +16,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/msm_ion.h>
 #include "vcd_res_tracker_api.h"
-#ifdef CONFIG_MSM_BUS_SCALING
-#include <mach/msm_bus.h>
-#include <mach/msm_bus_board.h>
-#endif
 
 #define RESTRK_1080P_VGA_PERF_LEVEL    VCD_MIN_PERF_LEVEL
 #define RESTRK_1080P_720P_PERF_LEVEL   108000

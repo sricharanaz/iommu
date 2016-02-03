@@ -215,7 +215,11 @@ static void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
        if (!pages)
                return NULL;
 
-       pgprot = pgprot_writecombine(PAGE_KERNEL);
+        if (!ION_IS_CACHED(buffer->flags))
+	       pgprot = pgprot_writecombine(PAGE_KERNEL);
+	else
+		pgprot = PAGE_KERNEL;
+
 
        for_each_sg(table->sgl, sg, table->nents, i) {
                int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
