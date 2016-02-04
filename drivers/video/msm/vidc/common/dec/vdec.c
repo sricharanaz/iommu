@@ -304,20 +304,38 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 		/* Data length */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.len =
 		    vcd_frame_data->data_len;
+
+
+		printk(KERN_EMERG"\n ******************************************** \n");
+		printk(KERN_EMERG"\nvcd_frame_data->data_len %d\n", vcd_frame_data->data_len);
 		vdec_msg->vdec_msg_info.msgdata.output_frame.flags =
 		    vcd_frame_data->flags;
+		printk(KERN_EMERG"\nvcd_frame_data->flags %d\n", vcd_frame_data->flags);
+
 		/* metadata offset in output buffer for non-secure mode */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.metadata_len =
 			(size_t)vcd_frame_data->metadata_len;
+
+		printk(KERN_EMERG"\nvcd_frame_data->metadata_len %d\n", vcd_frame_data->metadata_len);
+
 		/* metadata offset in output buffer for non-secure mode */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.metadata_offset =
 			(size_t)vcd_frame_data->metadata_offset;
+
+		printk(KERN_EMERG"\nvcd_frame_data->metadata_offset %d\n", vcd_frame_data->metadata_offset);
+
 		/* Timestamp pass-through from input frame */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.time_stamp =
 		    vcd_frame_data->time_stamp;
+
+		printk(KERN_EMERG"\n vcd_frame_data->time_stamp %d\n", vcd_frame_data->time_stamp);
+
 		/* Output frame client data */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.client_data =
 		    (void *)vcd_frame_data->frm_clnt_data;
+
+		printk(KERN_EMERG"\n vcd_frame_data->frm_clnt_data %d\n", vcd_frame_data->frm_clnt_data);
+
 		/* Associated input frame client data */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.
 		    input_frame_clientdata =
@@ -326,22 +344,40 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 		vdec_msg->vdec_msg_info.msgdata.output_frame.framesize.
 		bottom =
 		    vcd_frame_data->dec_op_prop.disp_frm.bottom;
+
+		printk(KERN_EMERG"\n vcd_frame_data->dec_op_prop.disp_frm.bottom %d\n", vcd_frame_data->dec_op_prop.disp_frm.bottom);
+
 		vdec_msg->vdec_msg_info.msgdata.output_frame.framesize.left =
 		    vcd_frame_data->dec_op_prop.disp_frm.left;
+
+		printk(KERN_EMERG"\n vcd_frame_data->dec_op_prop.disp_frm.left %d\n", vcd_frame_data->dec_op_prop.disp_frm.left);
+
 		vdec_msg->vdec_msg_info.msgdata.output_frame.framesize.right =
 			vcd_frame_data->dec_op_prop.disp_frm.right;
+
+		printk(KERN_EMERG"\n vcd_frame_data->dec_op_prop.disp_frm.right %d\n", vcd_frame_data->dec_op_prop.disp_frm.right);
+
 		vdec_msg->vdec_msg_info.msgdata.output_frame.framesize.top =
 			vcd_frame_data->dec_op_prop.disp_frm.top;
+
+		printk(KERN_EMERG"\n vcd_frame_data->dec_op_prop.disp_frm.top %d\n", vcd_frame_data->dec_op_prop.disp_frm.top);
+
 		if (vcd_frame_data->interlaced) {
+
+			printk(KERN_EMERG"\n vcd_frame_data->interlaced\n");
 			vdec_msg->vdec_msg_info.msgdata.
 				output_frame.interlaced_format =
 				VDEC_InterlaceInterleaveFrameTopFieldFirst;
 		} else {
+			printk(KERN_EMERG"\n VDEC_InterlaceFrameProgressive \n");
 			vdec_msg->vdec_msg_info.msgdata.
 				output_frame.interlaced_format =
 				VDEC_InterlaceFrameProgressive;
 		}
 		/* Decoded picture type */
+
+		printk(KERN_EMERG"\n vcd_frame_data->frame %d \n", vcd_frame_data->frame);
+
 		switch (vcd_frame_data->frame) {
 		case VCD_FRAME_I:
 			pic_type = PICTURE_TYPE_I;
@@ -372,6 +408,11 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 			vcd_frame_data->aspect_ratio_info.par_height;
 		vdec_msg->vdec_msg_info.msgdatasize =
 		    sizeof(struct vdec_output_frameinfo);
+
+		printk(KERN_EMERG"\n output AR %d WIDTH %d HEIGHT %d", vcd_frame_data->aspect_ratio_info.aspect_ratio,
+			vcd_frame_data->aspect_ratio_info.par_width, vcd_frame_data->aspect_ratio_info.par_height);
+
+		printk(KERN_EMERG"\n ******************************************************** \n");
 	} else {
 		ERR("vid_dec_output_frame_done UVA can not be found\n");
 		vdec_msg->vdec_msg_info.status_code = VDEC_S_EFATAL;
