@@ -36,6 +36,8 @@
 #include "msm_iommu_hw-8xxx.h"
 #include "msm_iommu.h"
 
+#define DUMMY_SID	33
+
 #define MRC(reg, processor, op1, crn, crm, op2)				\
 __asm__ __volatile__ (							\
 "   mrc   "   #processor "," #op1 ", %0,"  #crn "," #crm "," #op2 "\n"  \
@@ -513,7 +515,6 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 	sl_offset = SL_OFFSET(va);
 	sl_pte = sl_table + sl_offset;
 
-
 	if (len == SZ_4K)
 		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 | SL_NG |
 					  SL_SHARED | SL_TYPE_SMALL | pgprot;
@@ -702,10 +703,13 @@ static void insert_iommu_master(struct device *dev,
 	master->of_node = dev->of_node;
 	list_add(&master->list, &iommu->ctx_list);
 
-	for (sid = 0; sid < spec->args_count; sid++)
+	for (sid = 0; sid < spec->args_count; sid++) {
+		if (spec->args[sid] == DUMMY_SID)
+			break;
 		master->mids[sid] = spec->args[sid];
+	}
 
-	master->num_mids = spec->args_count;
+	master->num_mids = sid;
 }
 
 static int qcom_iommu_of_xlate(struct device *dev,
@@ -755,7 +759,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 			pr_err("Fault occurred in context %d.\n", i);
 			pr_err("Interesting registers:\n");
 			print_ctx_regs(iommu->base, i);
-			SET_FSR(iommu->base, i, 0x4000000F);
+			SET_FSR(iommu->base, i, fsr);
 		}
 	}
 	__disable_clocks(iommu);
@@ -796,6 +800,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		dev_err(iommu->dev, "could not get smmu_pclk\n");
 		return PTR_ERR(iommu->pclk);
 	}
+
 	ret = clk_prepare(iommu->pclk);
 	if (ret) {
 		dev_err(iommu->dev, "could not prepare smmu_pclk\n");
