@@ -344,4 +344,6 @@ extern struct dma_iommu_mapping *video_main_mapping;
 extern struct dma_iommu_mapping *video_firmware_mapping;
 dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
                       size_t size, int align);
+void free_iova(struct dma_iommu_mapping *mapping,
+		     dma_addr_t addr, size_t size);
 #endif

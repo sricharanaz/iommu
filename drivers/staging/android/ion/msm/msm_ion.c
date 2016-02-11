@@ -295,6 +295,41 @@ dma_addr_t alloc_iova(struct dma_iommu_mapping *mapping,
         return iova;
 }
 
+void free_iova(struct dma_iommu_mapping *mapping,
+                               dma_addr_t addr, size_t size)
+{
+        unsigned int start, count;
+        size_t mapping_size = mapping->bits << PAGE_SHIFT;
+        unsigned long flags;
+        dma_addr_t bitmap_base;
+        u32 bitmap_index;
+
+        if (!size)
+                return;
+
+        bitmap_index = (u32) (addr - mapping->base) / (u32) mapping_size;
+        BUG_ON(addr < mapping->base || bitmap_index > mapping->extensions);
+
+        bitmap_base = mapping->base + mapping_size * bitmap_index;
+
+        start = (addr - bitmap_base) >> PAGE_SHIFT;
+
+        if (addr + size > bitmap_base + mapping_size) {
+                /*
+                 * The address range to be freed reaches into the iova
+                 * range of the next bitmap. This should not happen as
+                 * we don't allow this in __alloc_iova (at the
+                 * moment).
+                 */
+                BUG();
+        } else
+                count = size >> PAGE_SHIFT;
+
+        spin_lock_irqsave(&mapping->lock, flags);
+        bitmap_clear(mapping->bitmaps[bitmap_index], start, count);
+        spin_unlock_irqrestore(&mapping->lock, flags);
+}
+
 static int msm_ion_remove(struct platform_device *pdev)
 {
 	struct ion_device *idev = platform_get_drvdata(pdev);

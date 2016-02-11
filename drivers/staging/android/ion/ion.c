@@ -584,34 +584,22 @@ int ion_heap_cache_ops(struct ion_heap *heap,
                         unsigned int offset, unsigned int length,
                         unsigned int cmd)
 {
-
         struct sg_table *table = buffer->priv_virt;
 
         switch (cmd) {
         case ION_IOC_CLEAN_CACHES:
-		if (!vaddr)
                         dma_sync_sg_for_device(NULL, table->sgl,
 						table->nents, DMA_TO_DEVICE);
-		else
-			dma_map_single(NULL, vaddr, length, DMA_TO_DEVICE);
                 break;
         case ION_IOC_INV_CACHES:
-		if (!vaddr)
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
-		else
-			dma_unmap_single(NULL, vaddr, length, DMA_FROM_DEVICE);
                 break;
         case ION_IOC_CLEAN_INV_CACHES:
-		if (!vaddr) {
                         dma_sync_sg_for_device(NULL, table->sgl,
                                 table->nents, DMA_TO_DEVICE);
                         dma_sync_sg_for_cpu(NULL, table->sgl,
                                 table->nents, DMA_FROM_DEVICE);
-		} else {
-			dma_map_single(NULL, vaddr, length, DMA_TO_DEVICE);
-			dma_unmap_single(NULL, vaddr, length, DMA_FROM_DEVICE);
-		}	
                 break;
         default:
                 return -EINVAL;

@@ -308,6 +308,7 @@ void ion_system_heap_unmap_iommu(struct ion_iommu_map *data)
 		return;
 	}
 
+	free_iova(data->mapping, data->iova_addr, data->mapped_size);
 	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
 	return;
 }
