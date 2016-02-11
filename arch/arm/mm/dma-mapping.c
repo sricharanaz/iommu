@@ -2128,6 +2128,15 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	dev->archdata.dma_coherent = coherent;
 
 	/*
+	 * With MSM_IOMMU driver, the iommu ops are called by the client
+	 * drivers are invidually and do not use the generic dma ops method.
+	 * So let us not set the dma<->iommu ops
+	 */
+	
+#ifdef CONFIG_MSM_IOMMU
+	return false;
+#endif
+	/*
 	 * Don't override the dma_ops if they have already been set. Ideally
 	 * this should be the only location where dma_ops are set, remove this
 	 * check when all other callers of set_dma_ops will have disappeared.
