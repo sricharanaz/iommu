@@ -113,7 +113,6 @@
 #define SET_BIT				0x1
 #define RESET_BIT			0x0
 #define ONE_BYTE			0x1
-#define QUP_I2C_MX_CONFIG_DURING_RUN   BIT(31)
 
 struct qup_i2c_block {
 	int	count;
@@ -122,7 +121,6 @@ struct qup_i2c_block {
 	int	rx_tag_len;
 	int	data_len;
 	u8	tags[6];
-	int     config_run;
 };
 
 struct qup_i2c_dev {
@@ -154,10 +152,6 @@ struct qup_i2c_dev {
 
 	int (*qup_i2c_write_one)(struct qup_i2c_dev *qup,
 				 struct i2c_msg *msg);
-	/* Current i2c_msg in i2c_msgs */
-	int			cmsg;
-	/* total num of i2c_msgs */
-	int			num;
 
 	int (*qup_i2c_read_one)(struct qup_i2c_dev *qup,
 				struct i2c_msg *msg);
@@ -284,8 +278,7 @@ static int qup_i2c_wait_ready(struct qup_i2c_dev *qup, int op, bool val,
 		status = readl(qup->base + QUP_I2C_STATUS);
 
 		if (((opflags & op) >> shift) == val) {
-			if ((op == QUP_OUT_NOT_EMPTY) &&
-			    (qup->cmsg == (qup->num - 1))) {
+			if (op == QUP_OUT_NOT_EMPTY) {
 				if (!(status & I2C_STATUS_BUS_ACTIVE))
 					return 0;
 			} else {
@@ -308,14 +301,12 @@ static void qup_i2c_set_write_mode(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	if (total < qup->out_fifo_sz) {
 		/* FIFO mode */
 		writel(QUP_REPACK_EN, qup->base + QUP_IO_MODE);
-		writel(total | qup->blk.config_run,
-		       qup->base + QUP_MX_WRITE_CNT);
+		writel(total, qup->base + QUP_MX_WRITE_CNT);
 	} else {
 		/* BLOCK mode (transfer data on chunks) */
 		writel(QUP_OUTPUT_BLK_MODE | QUP_REPACK_EN,
 		       qup->base + QUP_IO_MODE);
-		writel(total | qup->blk.config_run,
-		       qup->base + QUP_MX_OUTPUT_CNT);
+		writel(total, qup->base + QUP_MX_OUTPUT_CNT);
 	}
 }
 
@@ -383,9 +374,6 @@ static void qup_i2c_get_blk_data(struct qup_i2c_dev *qup,
 	/* There are 2 tag bytes that are read in to fifo for every block */
 	if (msg->flags & I2C_M_RD)
 		qup->blk.rx_tag_len = qup->blk.count * 2;
-
-	if (qup->cmsg)
-		qup->blk.config_run = QUP_I2C_MX_CONFIG_DURING_RUN;
 }
 
 static int qup_i2c_send_data(struct qup_i2c_dev *qup, int tlen, u8 *tbuf,
@@ -452,8 +440,7 @@ static int qup_i2c_get_tags(u8 *tags, struct qup_i2c_dev *qup,
 	}
 
 	/* Send _STOP commands for the last block */
-	if (qup->blk.pos == (qup->blk.count - 1)
-	    && (qup->cmsg == (qup->num - 1))) {
+	if (qup->blk.pos == (qup->blk.count - 1)) {
 		if (msg->flags & I2C_M_RD)
 			tags[len++] = QUP_TAG_V2_DATARD_STOP;
 		else
@@ -584,6 +571,7 @@ static int qup_i2c_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 		goto err;
 
 	ret = qup_i2c_wait_ready(qup, QUP_OUT_NOT_EMPTY, RESET_BIT, ONE_BYTE);
+
 err:
 	disable_irq(qup->irq);
 	qup->msg = NULL;
@@ -596,19 +584,18 @@ static void qup_i2c_set_read_mode(struct qup_i2c_dev *qup, int len)
 	int tx_len = qup->blk.tx_tag_len;
 
 	len += qup->blk.rx_tag_len;
-	tx_len |= qup->blk.config_run;
 
 	if (len < qup->in_fifo_sz) {
 		/* FIFO mode */
 		writel(QUP_REPACK_EN, qup->base + QUP_IO_MODE);
+		writel(len, qup->base + QUP_MX_READ_CNT);
 		writel(tx_len, qup->base + QUP_MX_WRITE_CNT);
-		writel(len | qup->blk.config_run, qup->base + QUP_MX_READ_CNT);
 	} else {
 		/* BLOCK mode (transfer data on chunks) */
 		writel(QUP_INPUT_BLK_MODE | QUP_REPACK_EN,
 		       qup->base + QUP_IO_MODE);
+		writel(len, qup->base + QUP_MX_INPUT_CNT);
 		writel(tx_len, qup->base + QUP_MX_OUTPUT_CNT);
-		writel(len | qup->blk.config_run, qup->base + QUP_MX_INPUT_CNT);
 	}
 }
 
@@ -783,8 +770,6 @@ static int qup_i2c_xfer(struct i2c_adapter *adap,
 	struct qup_i2c_dev *qup = i2c_get_adapdata(adap);
 	int ret, idx;
 
-	qup->num = 1;
-
 	ret = pm_runtime_get_sync(qup->dev);
 	if (ret < 0)
 		goto out;
@@ -838,9 +823,6 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 	struct qup_i2c_dev *qup = i2c_get_adapdata(adap);
 	int ret, idx;
 
-	qup->num = num;
-	qup->cmsg = 0;
-
 	ret = pm_runtime_get_sync(qup->dev);
 	if (ret < 0)
 		goto out;
@@ -872,14 +854,12 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 		else
 			ret = qup_i2c_write(qup, &msgs[idx]);
 
+		if (!ret)
+			ret = qup_i2c_change_state(qup, QUP_RESET_STATE);
+
 		if (ret)
 			break;
-
-		qup->cmsg++;
 	}
-
-	if (!ret)
-		ret = qup_i2c_change_state(qup, QUP_RESET_STATE);
 
 	if (ret == 0)
 		ret = num;
