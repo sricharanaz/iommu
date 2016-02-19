@@ -676,6 +676,9 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	drm_mode_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 
+	print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
+		edid, EDID_LENGTH, false);
+
 	adv7511_set_config_csc(adv7511, connector, adv7511->rgb);
 
 	return count;
