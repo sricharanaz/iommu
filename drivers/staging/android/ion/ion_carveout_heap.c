@@ -24,6 +24,10 @@
 #include <linux/vmalloc.h>
 #include "ion.h"
 #include "ion_priv.h"
+#include <linux/msm_ion.h>
+#include <asm/cacheflush.h>
+#include <linux/iommu.h>
+#include <asm/io.h>
 
 struct ion_carveout_heap {
 	struct ion_heap heap;
@@ -41,6 +45,8 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
+
+	pr_err("\n ion_carveout_allocate %x", offset);
 
 	return offset;
 }
@@ -135,15 +141,154 @@ static void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 {
 }
 
+int ion_carveout_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
+                        void *vaddr, unsigned int offset, unsigned int length,
+                        unsigned int cmd)
+{
+        return ion_heap_cache_ops(heap, buffer, vaddr, offset, length, cmd);
+}
+
+int ion_carveout_heap_map_iommu(struct ion_buffer *buffer,
+                              struct ion_iommu_map *data,
+                              struct dma_iommu_mapping *mapping,
+                              unsigned long align,
+                              unsigned long iova_length,
+                              unsigned long flags)
+{
+	int ret = 0;
+	int prot = IOMMU_WRITE | IOMMU_READ;
+	unsigned long extra;
+	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
+
+	struct sg_table *table = buffer->priv_virt;
+
+	data->mapped_size = iova_length;
+
+	if (ret)
+		goto out;
+
+	data->iova_addr = alloc_iova(mapping, iova_length, align);
+	extra = iova_length - buffer->size;
+
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr,
+				   table->sgl, 1, prot);
+
+	if (ret != buffer->size) {
+		pr_err("%s: could not map %lx in domain %p\n",
+			__func__, data->iova_addr, mapping->domain);
+		goto out;
+	}
+
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+                if (ret != extra)
+                        goto out;
+        }
+
+        return buffer->size;
+
+out:
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
+	return ret;
+}
+
+void ion_carveout_heap_unmap_iommu(struct ion_iommu_map *data)
+{
+	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
+	return;
+}
+
+static void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
+                          struct ion_buffer *buffer)
+{
+       struct scatterlist *sg;
+       int i, j;
+       void *vaddr;
+       pgprot_t pgprot;
+       struct sg_table *table = buffer->sg_table;
+       int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+       struct page **pages = vmalloc(sizeof(struct page *) * npages);
+       struct page **tmp = pages;
+
+       if (!pages)
+               return NULL;
+
+        if (!ION_IS_CACHED(buffer->flags))
+	       pgprot = pgprot_writecombine(PAGE_KERNEL);
+	else
+		pgprot = PAGE_KERNEL;
+
+
+       for_each_sg(table->sgl, sg, table->nents, i) {
+               int npages_this_entry = PAGE_ALIGN(sg->length) / PAGE_SIZE;
+               struct page *page = sg_page(sg);
+
+               BUG_ON(i >= npages);
+               for (j = 0; j < npages_this_entry; j++)
+                       *(tmp++) = page++;
+       }
+       vaddr = vmap(pages, npages, VM_MAP, pgprot);
+       vfree(pages);
+
+       if (vaddr == NULL)
+               return ERR_PTR(-ENOMEM);
+
+       return vaddr;
+}
+
+static int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
+                      struct vm_area_struct *vma)
+{
+        struct sg_table *table = buffer->sg_table;
+        unsigned long addr = vma->vm_start;
+        unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
+        struct scatterlist *sg;
+        int i;
+        int ret;
+
+        if (!ION_IS_CACHED(buffer->flags))
+                vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
+        for_each_sg(table->sgl, sg, table->nents, i) {
+                struct page *page = sg_page(sg);
+                unsigned long remainder = vma->vm_end - addr;
+                unsigned long len = sg->length;
+
+                if (offset >= sg->length) {
+                        offset -= sg->length;
+                        continue;
+                } else if (offset) {
+                        page += offset / PAGE_SIZE;
+                        len = sg->length - offset;
+                        offset = 0;
+                }
+                len = min(len, remainder);
+                ret = remap_pfn_range(vma, addr, page_to_pfn(page), len,
+                                vma->vm_page_prot);
+                if (ret)
+                        return ret;
+                addr += len;
+                if (addr >= vma->vm_end)
+                        return 0;
+        }
+
+        return 0;
+}
+
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
 	.phys = ion_carveout_heap_phys,
 	.map_dma = ion_carveout_heap_map_dma,
 	.unmap_dma = ion_carveout_heap_unmap_dma,
-	.map_user = ion_heap_map_user,
-	.map_kernel = ion_heap_map_kernel,
+	.map_user = ion_carveout_heap_map_user,
+	.map_kernel = ion_carveout_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
+	.cache_op = ion_carveout_cache_ops,
+        .map_iommu = ion_carveout_heap_map_iommu,
+        .unmap_iommu = ion_carveout_heap_unmap_iommu,
 };
 
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
@@ -173,6 +318,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 		return ERR_PTR(-ENOMEM);
 	}
 	carveout_heap->base = heap_data->base;
+
+	pr_err("carveout_heap->base %x", carveout_heap->base);
 	gen_pool_add(carveout_heap->pool, carveout_heap->base, heap_data->size,
 		     -1);
 	carveout_heap->heap.ops = &carveout_heap_ops;

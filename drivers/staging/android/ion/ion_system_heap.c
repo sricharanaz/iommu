@@ -25,6 +25,10 @@
 #include <linux/vmalloc.h>
 #include "ion.h"
 #include "ion_priv.h"
+#include <linux/msm_ion.h>
+#include <asm/cacheflush.h>
+#include <linux/iommu.h>
+#include <asm/dma-iommu.h>
 
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				     __GFP_NORETRY) & ~__GFP_DIRECT_RECLAIM;
@@ -133,9 +137,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
-	if (align > PAGE_SIZE)
-		return -EINVAL;
-
 	if (size / PAGE_SIZE > totalram_pages / 2)
 		return -ENOMEM;
 
@@ -180,7 +181,7 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 	struct ion_system_heap *sys_heap = container_of(buffer->heap,
 							struct ion_system_heap,
 							heap);
-	struct sg_table *table = buffer->sg_table;
+	struct sg_table *table = buffer->priv_virt;
 	bool cached = ion_buffer_cached(buffer);
 	struct scatterlist *sg;
 	int i;
@@ -240,6 +241,77 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 	return nr_total;
 }
 
+int ion_system_contig_heap_cache_ops(struct ion_heap *heap,
+                        struct ion_buffer *buffer, void *vaddr,
+                        unsigned int offset, unsigned int length,
+                        unsigned int cmd)
+{
+	return ion_heap_cache_ops(heap, buffer, vaddr, offset, length, cmd);
+}
+
+int ion_system_heap_map_iommu(struct ion_buffer *buffer,
+			      struct ion_iommu_map *data,
+			      struct dma_iommu_mapping *mapping,
+			      unsigned long align,
+			      unsigned long iova_length,
+			      unsigned long flags)
+{
+	int ret = 0;
+	unsigned long extra;
+	struct sg_table *table = buffer->priv_virt;
+	int prot = IOMMU_WRITE | IOMMU_READ;
+	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
+
+	data->mapped_size = iova_length;
+	extra = iova_length - buffer->size;
+
+	/* Use the biggest alignment to allow bigger IOMMU mappings.
+	 * Use the first entry since the first entry will always be the
+	 * biggest entry. To take advantage of bigger mapping sizes both the
+	 * VA and PA addresses have to be aligned to the biggest size.
+	 */
+	if (table->sgl->length > align)
+		align = table->sgl->length;
+
+	printk("\n ion_system_heap_map_iommu");
+
+	data->iova_addr = alloc_iova(mapping, iova_length, align);
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, table->sgl,
+			      table->nents, prot);
+
+	if (ret != buffer->size) {
+		pr_err("%s: could not map %lx in domain %p\n",
+			__func__, data->iova_addr, mapping->domain);
+		goto out;
+	}
+
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+
+		if (ret != extra)
+			goto out;
+        }
+
+	return buffer->size;
+out:
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
+
+	return ret;
+}
+
+void ion_system_heap_unmap_iommu(struct ion_iommu_map *data)
+{
+	if (!data->mapping->domain) {
+		WARN(1, "Could not get domain %d. Corruption?\n", data->mapping->domain);
+		return;
+	}
+
+	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
+	return;
+}
+
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
@@ -249,6 +321,9 @@ static struct ion_heap_ops system_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_heap_map_user,
 	.shrink = ion_system_heap_shrink,
+	.cache_op = ion_system_contig_heap_cache_ops,
+	.map_iommu = ion_system_heap_map_iommu,
+	.unmap_iommu = ion_system_heap_unmap_iommu,
 };
 
 static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,

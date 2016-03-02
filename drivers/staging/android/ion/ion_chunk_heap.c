@@ -23,6 +23,9 @@
 #include <linux/vmalloc.h>
 #include "ion.h"
 #include "ion_priv.h"
+#include <linux/msm_ion.h>
+#include <asm/cacheflush.h>
+#include <linux/iommu.h>
 
 struct ion_chunk_heap {
 	struct ion_heap heap;
@@ -128,6 +131,64 @@ static void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
 {
 }
 
+int ion_cp_cache_ops(struct ion_heap *heap, struct ion_buffer *buffer,
+			void *vaddr, unsigned int offset, unsigned int length,
+			unsigned int cmd)
+{
+        return ion_heap_cache_ops(heap, buffer, vaddr, offset, length, cmd);
+}
+
+static int ion_cp_heap_map_iommu(struct ion_buffer *buffer,
+				struct ion_iommu_map *data,
+				struct dma_iommu_mapping *mapping,
+				unsigned long align,
+				unsigned long iova_length,
+				unsigned long flags)
+{
+	int ret = 0;
+	unsigned long extra;
+	int prot = IOMMU_WRITE | IOMMU_READ;
+	prot |= ION_IS_CACHED(flags) ? IOMMU_CACHE : 0;
+
+	extra = iova_length - buffer->size;
+
+	data->mapped_size = iova_length;
+        data->iova_addr = alloc_iova(mapping, iova_length, align);
+
+	ret = default_iommu_map_sg(mapping->domain, data->iova_addr, buffer->sg_table->sgl,
+			      buffer->sg_table->nents, prot);
+	if (ret != buffer->size) {
+		pr_err("%s: could not map %lx in domain %p\n",
+			__func__, data->iova_addr, mapping->domain);
+		goto out1;
+	}
+
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+		if (ret)
+			goto out1;
+        }
+
+	return buffer->size;
+
+out1:
+	iommu_unmap(mapping->domain, data->iova_addr, iova_length);
+
+	return ret;
+}
+
+static void ion_cp_heap_unmap_iommu(struct ion_iommu_map *data)
+{
+	struct ion_chunk_heap *cp_heap =
+		container_of(data->buffer->heap, struct ion_chunk_heap, heap);
+
+	iommu_unmap(data->mapping->domain, data->iova_addr, data->mapped_size);
+
+	return;
+}
+
 static struct ion_heap_ops chunk_heap_ops = {
 	.allocate = ion_chunk_heap_allocate,
 	.free = ion_chunk_heap_free,
@@ -136,6 +197,9 @@ static struct ion_heap_ops chunk_heap_ops = {
 	.map_user = ion_heap_map_user,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,
+	.cache_op = ion_cp_cache_ops,
+	.map_iommu = ion_cp_heap_map_iommu,
+	.unmap_iommu = ion_cp_heap_unmap_iommu,
 };
 
 struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)

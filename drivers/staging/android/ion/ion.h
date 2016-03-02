@@ -18,8 +18,10 @@
 #define _LINUX_ION_H
 
 #include <linux/types.h>
+#include <asm/dma-iommu.h>
 
 #include "../uapi/ion.h"
+#include <linux/msm_ion.h>
 
 struct ion_handle;
 struct ion_device;
@@ -28,13 +30,31 @@ struct ion_mapper;
 struct ion_client;
 struct ion_buffer;
 
-/*
- * This should be removed some day when phys_addr_t's are fully
- * plumbed in the kernel, and all instances of ion_phys_addr_t should
- * be converted to phys_addr_t.  For the time being many kernel interfaces
- * do not accept phys_addr_t's that would have to
- */
+#define VIDEO_DOMAIN	1
+#define VIDEO_MAIN_POOL	1
+#define VIDEO_FIRMWARE_POOL 1
+
+int ion_heap_cache_ops(struct ion_heap *heap,
+                        struct ion_buffer *buffer, void *vaddr,
+                        unsigned int offset, unsigned int length,
+                        unsigned int cmd);
+
+
+/* This should be removed some day when phys_addr_t's are fully
+   plumbed in the kernel, and all instances of ion_phys_addr_t should
+   be converted to phys_addr_t.  For the time being many kernel interfaces
+   do not accept phys_addr_t's that would have to */
+
 #define ion_phys_addr_t unsigned long
+
+int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
+                        struct dma_iommu_mapping *mapping, unsigned long align,
+                        unsigned long iova_length, unsigned long *iova,
+                        unsigned long *buffer_size,
+                        unsigned long flags, unsigned long iommu_flags);
+
+void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
+		     struct dma_iommu_mapping *mapping);
 
 /**
  * struct ion_platform_heap - defines a heap in the given platform
@@ -57,6 +77,7 @@ struct ion_platform_heap {
 	ion_phys_addr_t base;
 	size_t size;
 	ion_phys_addr_t align;
+	void *extra_data;
 	void *priv;
 };
 
@@ -201,5 +222,18 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
  * another exporter is passed in this function will return ERR_PTR(-EINVAL)
  */
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
+
+int ion_handle_get_flags(struct ion_client *client, struct ion_handle *handle,
+                        unsigned long *flags);
+
+int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
+                        void *uaddr, unsigned long offset, unsigned long len,
+                        unsigned int cmd);
+
+int iommu_map_extra(struct iommu_domain *domain,
+                               unsigned long start_iova,
+                               unsigned long size,
+                               unsigned long page_size,
+                               int cached);
 
 #endif /* _LINUX_ION_H */

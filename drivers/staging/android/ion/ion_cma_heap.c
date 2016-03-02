@@ -20,6 +20,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#include <linux/msm_ion.h>
+#include <asm/cacheflush.h>
+#include <linux/iommu.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -159,6 +162,68 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 {
 }
 
+int ion_cma_map_iommu(struct ion_buffer *buffer,
+                              struct ion_iommu_map *data,
+                              struct dma_iommu_mapping *mapping,
+                              unsigned long align,
+                              unsigned long iova_length,
+                              unsigned long flags)		
+{
+	int ret = 0;
+	struct iommu_domain *domain;
+	unsigned long extra;
+	struct ion_cma_buffer_info *info = buffer->priv_virt;
+	struct sg_table *table = info->table;
+	int prot = IOMMU_WRITE | IOMMU_READ;
+
+	data->mapped_size = iova_length;
+	extra = iova_length - buffer->size;
+
+	data->iova_addr = alloc_iova(mapping, iova_length, align);
+	ret = default_iommu_map_sg(domain, data->iova_addr, table->sgl,
+				table->nents, prot);
+
+	if (ret != buffer->size) {
+		pr_err("%s: could not map %lx in domain %p\n",
+			__func__, data->iova_addr, domain);
+		goto out;
+	}
+
+        if (extra) {
+                unsigned long extra_iova_addr = data->iova_addr + buffer->size;
+                ret = iommu_map_extra(mapping->domain, extra_iova_addr, extra, SZ_4K,
+                                          prot);
+                if (ret != extra)
+                        goto out;
+        }
+
+        return buffer->size;
+
+out:
+        iommu_unmap(mapping->domain, data->iova_addr, iova_length);
+	return ret;
+}
+
+
+void ion_cma_unmap_iommu(struct ion_iommu_map *data)
+{
+	unsigned int domain_num;
+	unsigned int partition_num;
+	struct iommu_domain *domain;
+
+	iommu_unmap(domain, data->iova_addr, data->mapped_size);
+
+	return;
+}
+
+int ion_cma_cache_ops(struct ion_heap *heap,
+			struct ion_buffer *buffer, void *vaddr,
+			unsigned int offset, unsigned int length,
+			unsigned int cmd)
+{
+        return ion_heap_cache_ops(heap, buffer, vaddr, offset, length, cmd);
+}
+
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
@@ -168,6 +233,9 @@ static struct ion_heap_ops ion_cma_ops = {
 	.map_user = ion_cma_mmap,
 	.map_kernel = ion_cma_map_kernel,
 	.unmap_kernel = ion_cma_unmap_kernel,
+	.map_iommu = ion_cma_map_iommu,
+	.unmap_iommu = ion_cma_unmap_iommu,
+	.cache_op = ion_cma_cache_ops,
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
