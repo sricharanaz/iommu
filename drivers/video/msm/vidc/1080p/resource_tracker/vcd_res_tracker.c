@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
+#include <linux/msm-bus.h>
 #include <asm/sizes.h>
 #include <media/msm/vidc_init.h>
 #include "vidc.h"
@@ -26,7 +27,7 @@
 #define PIL_FW_SIZE 0x200000
 
 static unsigned int vidc_clk_table[5] = {
-	27000000, 27000000, 27000000, 27000000, 27000000,
+	228570000, 228570000, 228570000, 228570000, 228570000,
 };
 static struct res_trk_context resource_context;
 

@@ -1905,6 +1905,8 @@ static long vid_dec_ioctl(struct file *file,
 			vcd_status =
 			vcd_set_buffer_requirements(client_ctx->vcd_handle,
 				VCD_BUFFER_INPUT, &buffer_req);
+			if (vcd_status)
+				printk("\n\n\n\n set_buffer_requirements returned %d", vcd_status);
 			break;
 		case VDEC_BUFFER_TYPE_OUTPUT:
 			vcd_status =

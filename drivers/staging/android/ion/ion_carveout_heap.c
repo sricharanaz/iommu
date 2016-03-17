@@ -100,6 +100,8 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 		goto err_free_table;
 	}
 
+	printk(KERN_ALERT"\n\n\n ion_carveout_heap_allocate %x", PFN_DOWN(paddr));
+
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), size, 0);
 	buffer->priv_virt = table;
 

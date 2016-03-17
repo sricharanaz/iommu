@@ -39,6 +39,8 @@
 #include <linux/of_device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/iommu.h>
+#include <linux/msm-bus.h>
+#include <dt-bindings/soc/msm-bus-ids.h>
 
 struct dma_iommu_mapping *video_main_mapping;
 struct dma_iommu_mapping *video_firmware_mapping;
@@ -164,6 +166,240 @@ static const struct dev_pm_ops vidc_dev_pm_ops = {
 	.runtime_suspend = vidc_runtime_suspend,
 	.runtime_resume = vidc_runtime_resume,
 };
+
+/* MSM Video core device */
+#ifdef CONFIG_MSM_BUS_SCALING
+static struct msm_bus_vectors vidc_init_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 0,
+		.ib  = 0,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 0,
+		.ib  = 0,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab = 0,
+		.ib = 0,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab = 0,
+		.ib = 0,
+	},
+};
+static struct msm_bus_vectors vidc_venc_vga_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 54525952,
+		.ib  = 436207616,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 72351744,
+		.ib  = 289406976,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 500000,
+		.ib  = 1000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 500000,
+		.ib  = 1000000,
+	},
+};
+
+static struct msm_bus_vectors vidc_venc_720p_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 163577856,
+		.ib  = 1308622848,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 219152384,
+		.ib  = 876609536,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 1750000,
+		.ib  = 3500000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 1750000,
+		.ib  = 3500000,
+	},
+};
+
+static struct msm_bus_vectors vidc_venc_1080p_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 372244480,
+		.ib  = 2560000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 501219328,
+		.ib  = 2560000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+};
+static struct msm_bus_vectors vidc_vdec_1080p_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 4200000000U,
+		.ib  = 4200000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 4200000000U,
+		.ib  = 4200000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 700000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 10000000,
+	},
+};
+
+static struct msm_bus_vectors vidc_venc_1080p_turbo_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 372244480,
+		.ib  = 3522000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 501219328,
+		.ib  = 3522000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+};
+static struct msm_bus_vectors vidc_vdec_1080p_turbo_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 222298112,
+		.ib  = 3522000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 330301440,
+		.ib  = 3522000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 700000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 10000000,
+	},
+};
+
+static struct msm_bus_paths vidc_bus_client_config[] = {
+	{
+		ARRAY_SIZE(vidc_init_vectors),
+		vidc_init_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_venc_vga_vectors),
+		vidc_venc_vga_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_vdec_1080p_vectors),
+		vidc_vdec_1080p_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_venc_720p_vectors),
+		vidc_venc_720p_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_vdec_1080p_vectors),
+		vidc_vdec_1080p_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_venc_1080p_vectors),
+		vidc_venc_1080p_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_vdec_1080p_vectors),
+		vidc_vdec_1080p_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_venc_1080p_turbo_vectors),
+		vidc_venc_1080p_turbo_vectors,
+	},
+	{
+		ARRAY_SIZE(vidc_vdec_1080p_turbo_vectors),
+		vidc_vdec_1080p_turbo_vectors,
+	},
+};
+
+static struct msm_bus_scale_pdata vidc_bus_client_data = {
+	vidc_bus_client_config,
+	ARRAY_SIZE(vidc_bus_client_config),
+	.name = "vidc",
+};
+#endif
 
 const struct msm_vidc_data apq8064_vidc_platform_data = {
 #ifdef CONFIG_MSM_BUS_SCALING

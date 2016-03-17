@@ -970,8 +970,6 @@ static u32 ddl_process_intr_status(struct ddl_context *ddl_context,
 {
 	u32 return_status = true;
 
-	pr_err("\n ddl_process_intr_status %d", intr_status);
-
 	switch (intr_status) {
 	case VIDC_1080P_RISC2HOST_CMD_OPEN_CH_RET:
 		return_status = ddl_channel_set_callback(ddl_context,
@@ -1076,7 +1074,6 @@ u32 ddl_process_core_response(void)
 	struct ddl_hw_interface *ddl_hw_response;
 	u32 status = false;
 
-	printk("\n ddl_process_core_response");
 	ddl_context = ddl_get_context();
 	if (!ddl_context->core_virtual_base_addr) {
 		DDL_MSG_LOW("SPURIOUS_INTERRUPT");
