@@ -595,9 +595,6 @@ static int qup_sg_set_buf(struct scatterlist *sg, void *buf,
 	if (!ret)
 		return -EINVAL;
 
-	if (!map)
-		sg_dma_address(sg) = tg->addr + ((u8 *)buf - tg->start);
-
 	return 0;
 }
 
@@ -1268,6 +1265,8 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 		}
 	}
 
+	idx = 0;
+
 	do {
 		if (msgs[idx].len == 0) {
 			ret = -EINVAL;
@@ -1407,27 +1406,21 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 		/* 2 tag bytes for each block + 5 for start, stop tags */
 		size = blocks * 2 + 5;
-		qup->dpool = dma_pool_create("qup_i2c-dma-pool", &pdev->dev,
-					     size, 4, 0);
 
-		qup->start_tag.start = dma_pool_alloc(qup->dpool, GFP_KERNEL,
-						      &qup->start_tag.addr);
+		qup->start_tag.start = devm_kzalloc(&pdev->dev,
+						    size, GFP_KERNEL);
 		if (!qup->start_tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
 		}
 
-		qup->brx.tag.start = dma_pool_alloc(qup->dpool,
-						    GFP_KERNEL,
-						    &qup->brx.tag.addr);
+		qup->brx.tag.start = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 		if (!qup->brx.tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
 		}
 
-		qup->btx.tag.start = dma_pool_alloc(qup->dpool,
-						    GFP_KERNEL,
-						    &qup->btx.tag.addr);
+		qup->btx.tag.start = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 		if (!qup->btx.tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
@@ -1566,13 +1559,6 @@ static int qup_i2c_remove(struct platform_device *pdev)
 	struct qup_i2c_dev *qup = platform_get_drvdata(pdev);
 
 	if (qup->is_dma) {
-		dma_pool_free(qup->dpool, qup->start_tag.start,
-			      qup->start_tag.addr);
-		dma_pool_free(qup->dpool, qup->brx.tag.start,
-			      qup->brx.tag.addr);
-		dma_pool_free(qup->dpool, qup->btx.tag.start,
-			      qup->btx.tag.addr);
-		dma_pool_destroy(qup->dpool);
 		dma_release_channel(qup->btx.dma);
 		dma_release_channel(qup->brx.dma);
 	}
