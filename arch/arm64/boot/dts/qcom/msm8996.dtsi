@@ -329,7 +329,7 @@
 					       <960000000>,
 					       <825000000>;
 		};
-		
+
 		mdss_mdp: qcom,mdss_mdp@900000 {
 			compatible = "qcom,mdss_mdp";
 			reg = <0x00900000 0x90000>,
@@ -346,9 +346,7 @@
 				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MDSS_VSYNC_CLK>,
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
-				 <&mmcc MMSS_MMAGIC_AXI_CLK>,
-				 <&mmcc MMSS_S0_AXI_CLK>,
-				 <&mmcc MMAGIC_BIMC_AXI_CLK>;
+				 <&rpmcc RPM_MMAXI_CLK>;
 			clock-names = "iface_clk",
 				"mmagic_iface_clk",
 				"bus_clk",
@@ -357,9 +355,7 @@
 				"iommu_clk",
 				"vsync_clk",
 				"mmagic_mdss_bus_clk",
-				"mmagic_mmss_bus_clk",
-				"mmss_s0_bus_clk",
-				"mmagic_bimc_bus_clk";
+				"rpm_mmaxi_clk";
 
 			connectors = <&mdss_hdmi>;
 
@@ -427,7 +423,8 @@
 			pinctrl-1 = <&mdss_hdmi_hpd_suspend
 				     &mdss_hdmi_ddc_suspend>;
 
-			qcom,hdmi-phy = <&mdss_hdmi_phy>;
+			phys = <&mdss_hdmi_phy>;
+			phy-names = "hdmi_phy";
 			status = "ok";
 		};
 
