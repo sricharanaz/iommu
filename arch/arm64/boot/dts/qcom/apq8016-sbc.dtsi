@@ -439,6 +439,7 @@
 	port {
 		dsi_out: endpoint {
 			remote-endpoint = <&adv_in>;
+			qcom,data-lane-map = <0 1 2 3>;
 		};
 	};
 };
