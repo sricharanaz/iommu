@@ -112,13 +112,16 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
 			struct hdmi_gpio_data gpio = config->gpios[i];
 
-			if (gpio.output) {
-				int value = gpio.value ? 0 : 1;
+			if (gpio.num != -1) {
+				if (gpio.output) {
+					int value = gpio.value ? 0 : 1;
 
-				gpio_set_value_cansleep(gpio.num, value);
+					gpio_set_value_cansleep(gpio.num,
+								value);
+				}
+
+				gpio_free(gpio.num);
 			}
-
-			gpio_free(gpio.num);
 		};
 
 		DBG("gpio off");
