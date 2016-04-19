@@ -195,7 +195,7 @@ static int msm_drm_uninit(struct device *dev)
 
 	drm_kms_helper_poll_fini(ddev);
 
-	drm_connector_unregister_all(ddev);
+	drm_connector_unplug_all(ddev);
 
 	drm_dev_unregister(ddev);
 
@@ -323,9 +323,7 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
-static struct drm_driver msm_driver;
-
-static int msm_drm_init(struct device *dev)
+static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev;
@@ -334,7 +332,7 @@ static int msm_drm_init(struct device *dev)
 	struct drm_connector *connector;
 	int ret;
 
-	ddev = drm_dev_alloc(&msm_driver, dev);
+	ddev = drm_dev_alloc(drv, dev);
 	if (!ddev) {
 		dev_err(dev, "failed to allocate drm_device\n");
 		return -ENOMEM;
@@ -436,7 +434,7 @@ static int msm_drm_init(struct device *dev)
 	drm_for_each_connector(connector, ddev) {
 		ret = drm_connector_register(connector);
 		if (ret) {
-			mutex_unlock(&dev->mode_config.mutex);
+			mutex_unlock(&ddev->mode_config.mutex);
 			goto fail;
 		}
 	}
@@ -1091,7 +1089,7 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 
 static int msm_drm_bind(struct device *dev)
 {
-	return msm_drm_init(dev);
+	return msm_drm_init(dev, &msm_driver);
 }
 
 static void msm_drm_unbind(struct device *dev)
