@@ -42,7 +42,16 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 
 	for (i = 0; i < cnt; i++) {
 		struct device *msm_iommu_get_ctx(const char *ctx_name);
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
+		struct device *ctx;
+
+		/* Gigantic HACK to make sure 3 different IOMMU drivers work together */
+
+		if (iommu_capable(dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
+			ctx = (struct device *)DUMMY_CONTEXT;
+		} else {
+			ctx = msm_iommu_get_ctx(names[i]);
+		}
+
 		if (IS_ERR_OR_NULL(ctx)) {
 			dev_warn(dev, "couldn't get %s context", names[i]);
 			continue;
@@ -71,7 +80,14 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 
 	for (i = 0; i < cnt; i++) {
 		struct device *msm_iommu_get_ctx(const char *ctx_name);
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
+		struct device *ctx;
+
+		if (iommu_capable(mmu->dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
+			ctx = (struct device *)DUMMY_CONTEXT;
+		} else {
+			ctx = msm_iommu_get_ctx(names[i]);
+		}
+
 		if (IS_ERR_OR_NULL(ctx))
 			continue;
 
