@@ -1637,7 +1637,7 @@ static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
                if (IS_ERR(c)) {
                        dev_err(dev, "Couldn't get clock: %s",
                                cname);
-                       return -ENODEV;
+                       return -EPROBE_DEFER;
                }
 
                smmu->clocks[i] = c;
@@ -1990,15 +1990,15 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
        err = arm_smmu_init_regulators(smmu);
        if (err)
-               goto out_put_masters;
+               goto out;
 
        err = arm_smmu_init_clocks(smmu);
        if (err)
-               goto out_put_masters;
+               goto out;
 
        err = arm_smmu_enable_regulators(smmu);
        if (err)
-               goto out_put_masters;
+               goto out;
 
        err = arm_smmu_enable_clocks(smmu);
        if (err)
@@ -2048,6 +2048,7 @@ out_disable_regulators:
 out_free_irqs:
 	while (i--)
 		free_irq(smmu->irqs[i], smmu);
+out:
 	return err;
 }
 

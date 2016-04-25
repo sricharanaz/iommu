@@ -557,9 +557,11 @@ static int platform_drv_probe(struct device *_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = of_dma_configure_ops(_dev, _dev->of_node);
-	if (ret < 0)
-		goto done;
+	if (of_have_populated_dt()) {
+		ret = of_dma_configure_ops(_dev, _dev->of_node);
+		if (ret < 0)
+			goto done;
+	}
 
 	ret = dev_pm_domain_attach(_dev, true);
 	if (ret != -EPROBE_DEFER) {
@@ -573,9 +575,10 @@ static int platform_drv_probe(struct device *_dev)
 		}
 	}
 
-	if (ret)
-		of_dma_deconfigure(_dev);
-
+	if (of_have_populated_dt()) {
+		if (ret)
+			of_dma_deconfigure(_dev);
+	}
 done:
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
 		dev_warn(_dev, "probe deferral not supported\n");
