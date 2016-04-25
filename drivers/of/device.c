@@ -155,7 +155,9 @@ int of_dma_configure_ops(struct device *dev, struct device_node *np)
 	dev_dbg(dev, "device is%sbehind an iommu\n",
 		iommu ? " " : " not ");
 
-	iommu_bus_add_dev(dev);
+	if (iommu)
+		iommu_bus_add_dev(dev);
+
 	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
 
 	return 0;
