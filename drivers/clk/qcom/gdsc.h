@@ -43,11 +43,18 @@ struct gdsc {
 	unsigned int			cxc_count;
 	const u8			pwrsts;
 /* Powerdomain allowable state bitfields */
-#define PWRSTS_OFF		BIT(0)
-#define PWRSTS_RET		BIT(1)
+#define PWRSTS_RET		BIT(0)
+#define PWRSTS_OFF		BIT(1)
 #define PWRSTS_ON		BIT(2)
+#define PWRSTS_MAX		3
 #define PWRSTS_OFF_ON		(PWRSTS_OFF | PWRSTS_ON)
 #define PWRSTS_RET_ON		(PWRSTS_RET | PWRSTS_ON)
+#define PWRSTS_OFF_RET_ON	(PWRSTS_OFF | PWRSTS_RET | PWRSTS_ON)
+	const u8			pwrsts_ret;
+/* allowable RET state bitfields */
+#define PWRSTS_RET_ALL		BIT(0)
+#define PWRSTS_RET_MEM		BIT(1)
+#define PWRSTS_RET_PERIPH	BIT(2)
 	const u8			flags;
 #define VOTABLE		BIT(0)
 	struct reset_controller_dev	*rcdev;
