@@ -3029,9 +3029,23 @@ static struct gdsc mdss_gdsc = {
 	.cxc_count = 2,
 	.pd = {
 		.name = "mdss",
+		.states = {
+			/* RET */
+			[0] = {
+				.power_off_latency_ns = 1000,
+				.power_on_latency_ns = 1000,
+			},
+			/* OFF */
+			[1] = {
+				.power_off_latency_ns = 2000000,
+				.power_off_latency_ns = 2500000,
+			},
+		},
+		.state_count = 2,
 	},
 	.parent = &mmagic_mdss_gdsc.pd,
-	.pwrsts = PWRSTS_OFF_ON,
+	.pwrsts = PWRSTS_OFF_RET_ON,
+	.pwrsts_ret = PWRSTS_RET_MEM,
 };
 
 static struct clk_regmap *mmcc_msm8996_clocks[] = {

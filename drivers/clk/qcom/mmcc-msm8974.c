@@ -2363,6 +2363,7 @@ static struct gdsc mdss_gdsc = {
 		.name = "mdss",
 	},
 	.pwrsts = PWRSTS_RET_ON,
+	.pwrsts_ret = PWRSTS_RET_ALL,
 };
 
 static struct gdsc camss_jpeg_gdsc = {
