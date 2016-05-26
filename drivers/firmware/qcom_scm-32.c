@@ -513,3 +513,49 @@ int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
 
 	return ret ? : le32_to_cpu(out);
 }
+
+int __qcom_scm_video_set_state(struct device *dev, u32 state, u32 spare)
+{
+	struct {
+		__le32 state;
+		__le32 spare;
+	} request;
+	__le32 scm_ret = 0;
+	int ret;
+
+	request.state = cpu_to_le32(state);
+	request.spare = cpu_to_le32(spare);
+
+	ret = qcom_scm_call(dev, SCM_SVC_BOOT, TZBSP_VIDEO_SET_STATE, &request,
+			    sizeof(request), &scm_ret, sizeof(scm_ret));
+	if (ret || scm_ret)
+		return ret ? ret : -EINVAL;
+
+	return 0;
+}
+
+int __qcom_scm_video_mem_protect_var(struct device *dev, u32 start, u32 size,
+				     u32 nonpixel_start, u32 nonpixel_size)
+{
+	struct {
+		__le32 start;
+		__le32 size;
+		__le32 nonpixel_start;
+		__le32 nonpixel_size;
+	} request;
+	__le32 scm_ret;
+	int ret;
+
+	request.start = cpu_to_le32(start);
+	request.size = cpu_to_le32(size);
+	request.nonpixel_start = cpu_to_le32(nonpixel_start);
+	request.nonpixel_size = cpu_to_le32(nonpixel_size);
+
+	ret = qcom_scm_call(SCM_SVC_MP, TZBSP_MEM_PROTECT_VIDEO_VAR, &request,
+			    sizeof(request), &scm_ret, sizeof(scm_ret));
+
+	if (ret || scm_ret)
+		return ret ? ret : -EINVAL;
+
+	return 0;
+}

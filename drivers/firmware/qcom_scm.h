@@ -54,6 +54,15 @@ extern int  __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
 
+#define SCM_SVC_BOOT			0x1
+#define SCM_SVC_MP			0xc
+#define TZBSP_VIDEO_SET_STATE		0xa
+#define TZBSP_MEM_PROTECT_VIDEO_VAR	0x8
+extern int __qcom_scm_video_set_state(struct device *dev, u32 state, u32 spare);
+extern int __qcom_scm_video_mem_protect_var(struct device *dev, u32 start,
+					    u32 size, u32 nonpixel_start,
+					    u32 nonpixel_size);
+
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
 #define QCOM_SCM_ENOMEM		-5
