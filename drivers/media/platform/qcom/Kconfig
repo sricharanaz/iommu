@@ -1,0 +1,4 @@
+
+comment "Qualcomm specific video device drivers"
+
+source "drivers/media/platform/qcom/vidc/Kconfig"
