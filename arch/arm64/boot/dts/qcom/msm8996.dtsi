@@ -14,6 +14,7 @@
 #include <dt-bindings/clock/qcom,gcc-msm8996.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include "msm-arm-smmu-8996.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8996";
@@ -505,7 +506,8 @@
 			interrupts = <GIC_SPI 287 0>;
 			power-domains = <&mmcc VENUS_GDSC>,
 					<&mmcc VENUS_CORE0_GDSC>,
-					<&mmcc VENUS_CORE1_GDSC>;
+					<&mmcc VENUS_CORE1_GDSC>,
+					<&mmcc MMAGIC_VIDEO_GDSC>;
 
 			clocks = <&gcc GCC_VENUS0_VCODEC0_CLK>,
 				 <&gcc GCC_VENUS0_AHB_CLK>,
