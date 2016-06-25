@@ -26,6 +26,7 @@
 
 struct qcom_scm {
 	struct device *dev;
+	struct clk *src_clk;
 	struct clk *core_clk;
 	struct clk *iface_clk;
 	struct clk *bus_clk;
@@ -37,9 +38,12 @@ static int qcom_scm_clk_enable(void)
 {
 	int ret;
 
-	ret = clk_prepare_enable(__scm->core_clk);
+	ret = clk_prepare_enable(__scm->src_clk);
 	if (ret)
 		goto bail;
+	ret = clk_prepare_enable(__scm->core_clk);
+	if (ret)
+		goto disable_src;
 
 	ret = clk_prepare_enable(__scm->iface_clk);
 	if (ret)
@@ -55,12 +59,15 @@ disable_iface:
 	clk_disable_unprepare(__scm->iface_clk);
 disable_core:
 	clk_disable_unprepare(__scm->core_clk);
+disable_src:
+	clk_disable_unprepare(__scm->src_clk);
 bail:
 	return ret;
 }
 
 static void qcom_scm_clk_disable(void)
 {
+	clk_disable_unprepare(__scm->src_clk);
 	clk_disable_unprepare(__scm->core_clk);
 	clk_disable_unprepare(__scm->iface_clk);
 	clk_disable_unprepare(__scm->bus_clk);
@@ -334,6 +341,14 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
 	if (!scm)
 		return -ENOMEM;
+
+	scm->src_clk = devm_clk_get(&pdev->dev, "src");
+	if (IS_ERR(scm->src_clk)) {
+		if (PTR_ERR(scm->src_clk) == -EPROBE_DEFER)
+			return PTR_ERR(scm->src_clk);
+
+		scm->src_clk = NULL;
+	}
 
 	scm->core_clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(scm->core_clk)) {
