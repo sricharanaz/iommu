@@ -14,7 +14,6 @@
 #include <dt-bindings/clock/qcom,gcc-msm8996.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
-#include "msm-arm-smmu-8996.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8996";
@@ -509,10 +508,21 @@
 					<&mmcc VENUS_CORE1_GDSC>,
 					<&mmcc MMAGIC_VIDEO_GDSC>;
 
-			clocks = <&gcc GCC_VENUS0_VCODEC0_CLK>,
-				 <&gcc GCC_VENUS0_AHB_CLK>,
-				 <&gcc GCC_VENUS0_AXI_CLK>;
-			clock-names = "core_clk", "iface_clk", "bus_clk";
+			clocks = <&mmcc SMMU_VIDEO_AHB_CLK>,
+				 <&mmcc SMMU_VIDEO_AXI_CLK>,
+				 <&mmcc MMAGIC_VIDEO_AXI_CLK>,
+				 <&mmcc VIDEO_CORE_CLK>,
+				 <&mmcc VIDEO_AHB_CLK>,
+				 <&mmcc VIDEO_AXI_CLK>,
+				 <&mmcc VIDEO_MAXI_CLK>,
+				 <&mmcc VIDEO_SUBCORE0_CLK>,
+				 <&mmcc VIDEO_SUBCORE1_CLK>;
+
+			clock-names = "smmu_ahb_clk", "smmu_axi_clk",
+				      "mmagic_video_axi_clk",
+				      "core_clk", "iface_clk", "bus_clk",
+				      "maxi_clk", "core0_clk", "core1_clk";
+
 			qcom,hfi = "venus";
 			rproc = <&vidc_rproc>;
 			iommus = <&venus_smmu 0x00>,
@@ -615,3 +625,5 @@
 		};
 	};
 };
+
+#include "msm-arm-smmu-8996.dtsi"
