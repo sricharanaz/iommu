@@ -179,6 +179,8 @@ bool qcom_scm_pas_supported(u32 peripheral)
 
 	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
 					   QCOM_SCM_PAS_IS_SUPPORTED_CMD);
+
+	printk("\n __qcom_scm_is_call_available returns %d", ret);
 	if (ret <= 0)
 		return false;
 
@@ -344,16 +346,19 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	scm->src_clk = devm_clk_get(&pdev->dev, "src");
 	if (IS_ERR(scm->src_clk)) {
-		if (PTR_ERR(scm->src_clk) == -EPROBE_DEFER)
+		if (PTR_ERR(scm->src_clk) == -EPROBE_DEFER) {
+			printk("\n scm %d", scm->src_clk);
 			return PTR_ERR(scm->src_clk);
-
+		}
 		scm->src_clk = NULL;
 	}
 
 	scm->core_clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(scm->core_clk)) {
-		if (PTR_ERR(scm->core_clk) == -EPROBE_DEFER)
+		if (PTR_ERR(scm->core_clk) == -EPROBE_DEFER) {
+			printk("\n scm->core_clk %d", scm->core_clk);
 			return PTR_ERR(scm->core_clk);
+		}
 
 		dev_info(&pdev->dev, "failed to acquire optional core clk\n");
 		scm->core_clk = NULL;
@@ -362,15 +367,19 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,scm")) {
 		scm->iface_clk = devm_clk_get(&pdev->dev, "iface");
 		if (IS_ERR(scm->iface_clk)) {
-			if (PTR_ERR(scm->iface_clk) != -EPROBE_DEFER)
+			if (PTR_ERR(scm->iface_clk) != -EPROBE_DEFER) {
+				printk("\n scm->iface_clk %d", scm->iface_clk);
 				dev_err(&pdev->dev, "failed to acquire iface clk\n");
+			}
 			return PTR_ERR(scm->iface_clk);
 		}
 
 		scm->bus_clk = devm_clk_get(&pdev->dev, "bus");
 		if (IS_ERR(scm->bus_clk)) {
-			if (PTR_ERR(scm->bus_clk) != -EPROBE_DEFER)
+			if (PTR_ERR(scm->bus_clk) != -EPROBE_DEFER) {
+				printk("\n scm->bus_clk %d", scm->bus_clk);
 				dev_err(&pdev->dev, "failed to acquire bus clk\n");
+			}
 			return PTR_ERR(scm->bus_clk);
 		}
 	}
@@ -385,6 +394,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	__qcom_scm_init();
 
+	printk("\n qcom,scm probe done");
 	return 0;
 }
 
@@ -392,6 +402,7 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-apq8064",},
 	{ .compatible = "qcom,scm-msm8660",},
 	{ .compatible = "qcom,scm-msm8960",},
+	{ .compatible = "qcom,scm-msm8996",},
 	{ .compatible = "qcom,scm",},
 	{}
 };

@@ -143,11 +143,12 @@ static int venus_probe(struct platform_device *pdev)
 	if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
+#if 0
 	if (!qcom_scm_pas_supported(VENUS_PAS_ID)) {
 		dev_err(&pdev->dev, "PAS is not available for venus\n");
 		return -ENXIO;
 	}
-
+#endif
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &venus_ops,
 			    VENUS_FIRMWARE_NAME, sizeof(*venus));
 	if (!rproc) {

@@ -396,6 +396,7 @@ int iommu_group_add_device(struct iommu_group *group, struct device *dev)
 		return ret;
 	}
 
+	printk("\n iommu_group_add_device");
 	device->name = kasprintf(GFP_KERNEL, "%s", kobject_name(&dev->kobj));
 rename:
 	if (!device->name) {
@@ -831,6 +832,7 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 
 	group = ERR_PTR(-EINVAL);
 
+	printk("\n iommu_group_get_for_dev");
 	if (ops && ops->device_group)
 		group = ops->device_group(dev);
 
@@ -1438,13 +1440,16 @@ size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 		 * smaller than PAGE_SIZE, so s->offset may still represent
 		 * an offset of that boundary within the CPU page.
 		 */
-		if (!IS_ALIGNED(s->offset, min_pagesz))
+		if (!IS_ALIGNED(s->offset, min_pagesz)) {
+			printk("\n not aligned s->offset %x min_pagesz %x", s->offset, min_pagesz);
 			goto out_err;
+		}
 
 		ret = iommu_map(domain, iova + mapped, phys, s->length, prot);
-		if (ret)
+		if (ret) {
+			printk("\n iommu_map_error %d", ret);
 			goto out_err;
-
+		}
 		mapped += s->length;
 	}
 

@@ -562,13 +562,17 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 		struct page **pages;
 		pgprot_t prot = __get_dma_pgprot(attrs, PAGE_KERNEL, coherent);
 
+		printk("\n __iommu_alloc_attrs 1");
 		pages = iommu_dma_alloc(dev, iosize, gfp, attrs, ioprot,
 					handle, flush_page);
 		if (!pages)
 			return NULL;
 
+		printk("\n __iommu_alloc_attrs 2");
 		addr = dma_common_pages_remap(pages, size, VM_USERMAP, prot,
 					      __builtin_return_address(0));
+
+		printk("\n __iommu_alloc_attrs 3 %d", addr);
 		if (!addr)
 			iommu_dma_free(dev, pages, iosize, handle);
 	} else {
@@ -596,6 +600,8 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 			addr = NULL;
 		}
 	}
+
+	printk("\n __iommu_alloc_attrs 4 %x", addr); 
 	return addr;
 }
 
@@ -938,6 +944,7 @@ void arch_teardown_dma_ops(struct device *dev)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 
+	printk("\n arch_teardown_dma_ops domain %x", domain);
 	if (WARN_ON(domain))
 		iommu_detach_device(domain, dev);
 

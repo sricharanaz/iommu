@@ -356,10 +356,12 @@ static int venus_alloc(struct venus_hfi_device *hdev, struct mem_desc *desc,
 {
 	struct smem *smem;
 
+	printk("\n v1.1.1");
 	smem = smem_alloc(hdev->dev, size, align, 1);
 	if (IS_ERR(smem))
 		return PTR_ERR(smem);
 
+	printk("\n v1.1.2");
 	desc->size = smem->size;
 	desc->smem = smem;
 	desc->kva = smem->kvaddr;
@@ -745,10 +747,13 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	unsigned int i;
 	int ret;
 
+	printk("\n v1.1");
+
 	ret = venus_alloc(hdev, &desc, ALIGNED_QUEUE_SIZE, 1);
 	if (ret)
 		return ret;
 
+	printk("\n v1.2");
 	hdev->ifaceq_table.kva = desc.kva;
 	hdev->ifaceq_table.da = desc.da;
 	hdev->ifaceq_table.size = IFACEQ_TABLE_SIZE;
@@ -804,6 +809,7 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 		sfr->buf_size = ALIGNED_SFR_SIZE;
 	}
 
+	printk("\n v1.3");
 	/* ensure table and queue header structs are settled in memory */
 	wmb();
 
@@ -1535,10 +1541,12 @@ int venus_hfi_create(struct hfi_device *hfi, struct vidc_resources *res)
 	struct venus_hfi_device *hdev;
 	int ret;
 
+	printk("\n v.1");
 	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
 
+	printk("\n v.2");
 	mutex_init(&hdev->lock);
 
 	hdev->res = res;
@@ -1556,10 +1564,12 @@ int venus_hfi_create(struct hfi_device *hfi, struct vidc_resources *res)
 			 HAL_VIDEO_ENCODER_DEINTERLACE_CAPABILITY |
 			 HAL_VIDEO_DECODER_MULTI_STREAM_CAPABILITY;
 
+	printk("\n v.3");
 	ret = venus_interface_queues_init(hdev);
 	if (ret)
 		goto err_kfree;
 
+	printk("\n v.4");
 	return 0;
 
 err_kfree:

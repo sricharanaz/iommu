@@ -559,9 +559,12 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
+
+	printk("\n dev_pm_domain_attach ret %d", ret);
 	if (ret != -EPROBE_DEFER) {
 		if (drv->probe) {
 			ret = drv->probe(dev);
+			printk("\n drv->probe %s ret %d", drv->driver.name, ret);
 			if (ret)
 				dev_pm_domain_detach(_dev, true);
 		} else {

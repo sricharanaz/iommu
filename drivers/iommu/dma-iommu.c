@@ -310,18 +310,23 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 		alloc_sizes = min_size;
 
 	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	printk("\n iommu_dma_alloc 1");
 	pages = __iommu_dma_alloc_pages(count, alloc_sizes >> PAGE_SHIFT, gfp);
 	if (!pages)
 		return NULL;
 
+	printk("\n iommu_dma_alloc 2");
 	iova = __alloc_iova(iovad, size, dev->coherent_dma_mask);
 	if (!iova)
 		goto out_free_pages;
 
+	printk("\n iommu_dma_alloc 3");
 	size = iova_align(iovad, size);
 	if (sg_alloc_table_from_pages(&sgt, pages, count, 0, size, GFP_KERNEL))
 		goto out_free_iova;
 
+	printk("\n iommu_dma_alloc 4");
 	if (!(prot & IOMMU_CACHE)) {
 		struct sg_mapping_iter miter;
 		/*
@@ -334,11 +339,15 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 		sg_miter_stop(&miter);
 	}
 
+	printk("\n iommu_dma_alloc 5");
 	dma_addr = iova_dma_addr(iovad, iova);
+
+	printk("\n iommu_dma_alloc 6");
 	if (iommu_map_sg(domain, dma_addr, sgt.sgl, sgt.orig_nents, prot)
 			< size)
 		goto out_free_sg;
 
+	printk("\n iommu_dma_alloc 7");
 	*handle = dma_addr;
 	sg_free_table(&sgt);
 	return pages;

@@ -323,7 +323,9 @@ static int vidc_probe(struct platform_device *pdev)
 	struct resource *r;
 	u64 dma_mask;
 	int ret;
-
+	volatile int loop = 1;
+	
+	printk(KERN_ALERT"\n 1.1");
 	dma_mask = 0xddc00000 - 1;
 	ret = dma_set_mask_and_coherent(dev, dma_mask);
 	if (ret) {
@@ -331,6 +333,7 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	printk(KERN_ALERT"\n 1");
 	if (!vidc_driver) {
 		vidc_driver = kzalloc(sizeof(*vidc_driver), GFP_KERNEL);
 		if (!vidc_driver)
@@ -340,6 +343,7 @@ static int vidc_probe(struct platform_device *pdev)
 		mutex_init(&vidc_driver->lock);
 	}
 
+	printk(KERN_ALERT"\n 2");
 	mutex_lock(&vidc_driver->lock);
 	if (vidc_driver->num_cores + 1 > VIDC_CORES_MAX) {
 		mutex_unlock(&vidc_driver->lock);
@@ -349,10 +353,12 @@ static int vidc_probe(struct platform_device *pdev)
 	vidc_driver->num_cores++;
 	mutex_unlock(&vidc_driver->lock);
 
+	printk(KERN_ALERT"\n 3");
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
 		return -ENOMEM;
 
+	printk(KERN_ALERT"\n 4");
 	core->dev = dev;
 	platform_set_drvdata(pdev, core);
 
@@ -362,12 +368,18 @@ static int vidc_probe(struct platform_device *pdev)
 		return PTR_ERR(rproc);
 	}
 
+	printk(KERN_ALERT"\n 5");
+
 	core->rproc = rproc_get_by_phandle(rproc->phandle);
+
+	printk(KERN_ALERT"\n core->rproc %x", core->rproc);
+
 	if (IS_ERR(core->rproc))
 		return PTR_ERR(core->rproc);
 	else if (!core->rproc)
 		return -EPROBE_DEFER;
 
+	printk(KERN_ALERT"\n 6");
 	res = &core->res;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -375,14 +387,18 @@ static int vidc_probe(struct platform_device *pdev)
 	if (IS_ERR(res->base))
 		return PTR_ERR(res->base);
 
+	printk(KERN_ALERT"\n 7");
 	res->irq = platform_get_irq(pdev, 0);
 	if (res->irq < 0)
 		return res->irq;
+
+	printk(KERN_ALERT"\n 8");
 
 	ret = get_platform_resources(core);
 	if (ret)
 		return ret;
 
+	printk(KERN_ALERT"\n 9");
 	INIT_LIST_HEAD(&core->instances);
 	mutex_init(&core->lock);
 
@@ -397,6 +413,7 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	printk(KERN_ALERT"\n 10");
 	core->hfi.core_ops = &vidc_core_ops;
 	core->hfi.hfi_type = core->hfi_type;
 	core->hfi.dev = dev;
@@ -409,6 +426,7 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	printk(KERN_ALERT"\n 11");
 	ret = enable_clocks(&core->res);
 	if (ret) {
 		dev_err(dev, "%s: cannot enable clocks\n", __func__);
@@ -422,6 +440,7 @@ static int vidc_probe(struct platform_device *pdev)
 		goto err_hfi_destroy;
 	}
 
+	printk(KERN_ALERT"\n 12");
 	pm_runtime_enable(dev);
 
 	ret = pm_runtime_get_sync(dev);
