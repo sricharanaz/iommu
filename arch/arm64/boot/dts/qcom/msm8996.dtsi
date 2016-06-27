@@ -486,7 +486,7 @@
 
 	vidc_rproc: vidc_tzpil@0 {
 		compatible = "qcom,venus-pil";
-		qcom,firmware-name = "venus";
+		qcom,firmware-name = "vidc";
 		qcom,pas-id = <9>;
 		memory-region = <&vidc_mem>;
 		status = "ok";
