@@ -44,6 +44,7 @@
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -2134,17 +2135,23 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+	pm_runtime_enable(dev);
+
+	err = pm_runtime_get_sync(dev);
+	if (err)
+		goto err_pm_runtime;
+
        err = arm_smmu_init_regulators(smmu);
        if (err)
-               goto out;
+               goto err_pm_runtime;
 
        err = arm_smmu_init_clocks(smmu);
        if (err)
-               goto out;
+               goto err_pm_runtime;
 
        err = arm_smmu_enable_regulators(smmu);
        if (err)
-               goto out;
+               goto err_pm_runtime;
 
        err = arm_smmu_enable_clocks(smmu);
        if (err)
@@ -2195,6 +2202,10 @@ out_disable_clocks:
 out_disable_regulators:
        arm_smmu_disable_regulators(smmu);
 
+err_pm_runtime:
+	pm_runtime_set_suspended(dev);
+	pm_runtime_disable(dev);
+
 out:
 	return err;
 }
@@ -2219,6 +2230,8 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 	arm_smmu_disable_clocks(smmu);
 	arm_smmu_disable_regulators(smmu);
+        pm_runtime_set_suspended(&pdev->dev);
+        pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
