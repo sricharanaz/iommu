@@ -488,7 +488,7 @@ venus_hfi_core_unset_resource(void *device, struct hal_resource_hdr *hdr)
 
 static int venus_tzbsp_set_video_state(enum tzbsp_video_state state)
 {
-	return qcom_scm_video_set_state(state, 0);
+	return qcom_scm_set_video_state(state, 0);
 }
 
 static int venus_reset_core(struct venus_hfi_device *hdev)
@@ -1107,7 +1107,7 @@ static int venus_protect_cp_mem(struct venus_hfi_device *hdev)
 	cp_nonpixel_start	= 0x01000000;
 	cp_nonpixel_size	= 0x24800000;
 
-	ret = qcom_scm_video_mem_protect_var(cp_start, cp_size,
+	ret = qcom_scm_mem_protect_video_var(cp_start, cp_size,
 					     cp_nonpixel_start,
 					     cp_nonpixel_size);
 	if (ret) {
