@@ -178,12 +178,16 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
 
+	printk("\n gdsc_enable %s", domain->name);
+
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
 
 	ret = gdsc_toggle_logic(sc, true);
-	if (ret)
+	if (ret) {
+		printk("\n gdsc_toggle_logic ret = %d", ret);
 		return ret;
+	}
 
 	gdsc_force_mem_on(sc);
 
@@ -196,6 +200,7 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
+	printk("\n gdsc_enable returns 0");
 	return 0;
 }
 

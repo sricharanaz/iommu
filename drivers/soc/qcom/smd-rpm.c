@@ -185,8 +185,10 @@ static int qcom_ipc_rpm_callback(struct qcom_smd_rpm *rpm,
 
 		switch (le32_to_cpu(msg->msg_type)) {
 		case RPM_MSG_TYPE_MSG_ID:
+			printk("\n qcom_ipc_rpm_callback success");
 			break;
 		case RPM_MSG_TYPE_ERR:
+			printk("\n qcom_ipc_rpm_callback failure");
 			len = min_t(u32, ALIGN(msg_length, 4), sizeof(msgbuf));
 			memcpy_fromio(msgbuf, msg->message, len);
 			msgbuf[len - 1] = 0;

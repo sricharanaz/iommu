@@ -37,9 +37,9 @@
 		#size-cells = <2>;
 		ranges;
 
-		vidc_mem: vidc_region@8f800000 {
+		vidc_mem: vidc_region@8ea00000 {
 			no-map;
-			reg = <0 0x8f800000 0 0x800000>;
+			reg = <0 0x8ea00000 0 0x2b00000>;
 		};
 	};
 

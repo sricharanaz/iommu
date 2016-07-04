@@ -1426,6 +1426,7 @@ size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 	unsigned int i, min_pagesz;
 	int ret;
 
+
 	if (unlikely(domain->pgsize_bitmap == 0UL))
 		return 0;
 

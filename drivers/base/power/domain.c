@@ -1766,11 +1766,15 @@ int genpd_dev_pm_attach(struct device *dev)
 	unsigned int i;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_node) {
+		printk("\n genpd_dev_pm_attach says no node");
 		return -ENODEV;
+	}
 
-	if (dev->pm_domain)
+	if (dev->pm_domain) {
+		printk("\n genpd_dev_pm_attach says exists");
 		return -EEXIST;
+	}
 
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 					"#power-domain-cells", 0, &pd_args);
@@ -1792,12 +1796,12 @@ int genpd_dev_pm_attach(struct device *dev)
 	pd = of_genpd_get_from_provider(&pd_args);
 	of_node_put(pd_args.np);
 	if (IS_ERR(pd)) {
-		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
+		dev_err(dev, "%s() failed to find PM domain: %ld\n",
 			__func__, PTR_ERR(pd));
 		return -EPROBE_DEFER;
 	}
 
-	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
+	dev_err(dev, "adding to PM domain %s\n", pd->name);
 
 	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
 		ret = pm_genpd_add_device(pd, dev);
