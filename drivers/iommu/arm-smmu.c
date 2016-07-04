@@ -355,6 +355,8 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
+#define ARM_SMMU_OPT_SKIP_INIT	       (1 << 1)
+#define ARM_SMMU_OPT_NO_SMR_CHECK      (1 << 2)
 	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
@@ -433,6 +435,8 @@ static bool using_legacy_binding, using_generic_binding;
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
+	{ ARM_SMMU_OPT_SKIP_INIT, "qcom,skip-init" },
+	{ ARM_SMMU_OPT_NO_SMR_CHECK, "qcom,no-smr-check" },
 	{ 0, NULL},
 };
 
@@ -1617,8 +1621,10 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	 * Reset stream mapping groups: Initial values mark all SMRn as
 	 * invalid and all S2CRn as bypass unless overridden.
 	 */
-	for (i = 0; i < smmu->num_mapping_groups; ++i)
-		arm_smmu_write_sme(smmu, i);
+	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
+		for (i = 0; i < smmu->num_mapping_groups; ++i)
+			arm_smmu_write_sme(smmu, i);
+	}
 
 	/*
 	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
@@ -1633,19 +1639,21 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
-	/* Make sure all context banks are disabled and clear CB_FSR  */
-	for (i = 0; i < smmu->num_context_banks; ++i) {
-		cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, i);
-		writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
-		writel_relaxed(FSR_FAULT, cb_base + ARM_SMMU_CB_FSR);
-		/*
-		 * Disable MMU-500's not-particularly-beneficial next-page
-		 * prefetcher for the sake of errata #841119 and #826419.
-		 */
-		if (smmu->model == ARM_MMU500) {
-			reg = readl_relaxed(cb_base + ARM_SMMU_CB_ACTLR);
-			reg &= ~ARM_MMU500_ACTLR_CPRE;
-			writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
+	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
+		/* Make sure all context banks are disabled and clear CB_FSR  */
+		for (i = 0; i < smmu->num_context_banks; ++i) {
+			cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, i);
+			writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
+			writel_relaxed(FSR_FAULT, cb_base + ARM_SMMU_CB_FSR);
+			/*
+			 * Disable MMU-500's not-particularly-beneficial next-page
+			 * prefetcher for the sake of errata #841119 and #826419.
+			 */
+			if (smmu->model == ARM_MMU500) {
+				reg = readl_relaxed(cb_base + ARM_SMMU_CB_ACTLR);
+				reg &= ~ARM_MMU500_ACTLR_CPRE;
+				writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
+			}
 		}
 	}
 
@@ -1823,15 +1831,17 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		 * bits are set, so check each one separately. We can reject
 		 * masters later if they try to claim IDs outside these masks.
 		 */
-		smr = smmu->streamid_mask << SMR_ID_SHIFT;
-		writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
-		smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-		smmu->streamid_mask = smr >> SMR_ID_SHIFT;
+		if (!(smmu->options & ARM_SMMU_OPT_NO_SMR_CHECK)) {
+			smr = smmu->streamid_mask << SMR_ID_SHIFT;
+			writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
+			smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
+			smmu->streamid_mask = smr >> SMR_ID_SHIFT;
 
-		smr = smmu->streamid_mask << SMR_MASK_SHIFT;
-		writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
-		smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-		smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
+			smr = smmu->streamid_mask << SMR_MASK_SHIFT;
+			writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
+			smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
+			smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
+		}
 
 		/* Zero-initialised to mark as invalid */
 		smmu->smrs = devm_kcalloc(smmu->dev, size, sizeof(*smmu->smrs),
@@ -2068,11 +2078,11 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, smmu);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
+	parse_driver_options(smmu);
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
-
-	parse_driver_options(smmu);
 
 	if (smmu->version == ARM_SMMU_V2 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
