@@ -35,6 +35,9 @@ static struct clock_info clks_8916[] = {
 	{ .name = "core_clk", },
 	{ .name = "iface_clk", },
 	{ .name = "bus_clk", },
+	{ .name = "maxi_clk", },
+	{ .name = "core0_clk" },
+	{ .name = "core1_clk" },
 };
 
 static const u32 max_load_8916 = 352800; /* 720p@30 + 1080p@30 */
