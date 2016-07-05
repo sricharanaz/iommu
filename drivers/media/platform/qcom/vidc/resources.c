@@ -66,6 +66,7 @@ int enable_clocks(struct vidc_resources *res)
 		ret = clk_prepare_enable(clks[i].clk);
 		if (ret)
 			goto err;
+		printk("\n vidc: clk enable for %d is %d", i, ret);
 	}
 
 	return 0;
