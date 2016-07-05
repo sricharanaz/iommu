@@ -393,6 +393,10 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = clk_set_rate(scm->src_clk, INT_MAX);
+	if (ret)
+		return ret;
+
 	__scm = scm;
 	__scm->dev = &pdev->dev;
 
