@@ -2197,14 +2197,14 @@ out_free_irqs:
                 free_irq(smmu->irqs[i], smmu);
 
 out_disable_clocks:
-       arm_smmu_disable_clocks(smmu);
+//       arm_smmu_disable_clocks(smmu);
 
 out_disable_regulators:
-       arm_smmu_disable_regulators(smmu);
+  //     arm_smmu_disable_regulators(smmu);
 
 err_pm_runtime:
-	pm_runtime_set_suspended(dev);
-	pm_runtime_disable(dev);
+//	pm_runtime_set_suspended(dev);
+//	pm_runtime_disable(dev);
 
 out:
 	return err;
@@ -2228,10 +2228,10 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
-	arm_smmu_disable_clocks(smmu);
-	arm_smmu_disable_regulators(smmu);
-        pm_runtime_set_suspended(&pdev->dev);
-        pm_runtime_disable(&pdev->dev);
+//	arm_smmu_disable_clocks(smmu);
+//	arm_smmu_disable_regulators(smmu);
+  //      pm_runtime_set_suspended(&pdev->dev);
+    //    pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

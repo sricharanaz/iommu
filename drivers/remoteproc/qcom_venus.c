@@ -286,6 +286,8 @@ static int qproc_load(struct rproc *rproc, const struct firmware *fw)
 		dev_err(qproc->dev, "Invalid firmware metadata\n");
 		ret = -EINVAL;
 		goto clk_disable;
+	} else {
+		printk("\n qcom_scm_pas_init_image passed");
 	}
 
 	diff_addr = max_addr - min_addr;
@@ -293,10 +295,15 @@ static int qproc_load(struct rproc *rproc, const struct firmware *fw)
 
 	ret = qcom_scm_pas_mem_setup(qproc->pas_id,
 		relocatable ? qproc->reloc_phys : min_addr, max_addr - min_addr);
+
+	printk("\n relocatable %d", relocatable);
+
 	if (ret) {
 		dev_err(qproc->dev, "unable to setup memory for image\n");
 		ret = -EINVAL;
 		goto clk_disable;
+	} else {
+		printk("\n qcom_scm_pas_mem_setup passed");
 	}
 
 	fw_name = kzalloc(strlen(qproc->name) + 5, GFP_KERNEL);
@@ -322,6 +329,7 @@ static int qproc_load(struct rproc *rproc, const struct firmware *fw)
 
 	kfree(fw_name);
 
+	printk("\n qproc_load succedded");
 clk_disable:
 	//qproc_scm_clk_disable(qproc);
 

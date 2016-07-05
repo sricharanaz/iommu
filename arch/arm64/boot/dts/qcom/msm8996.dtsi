@@ -236,9 +236,9 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-msm8996";
+			compatible = "qcom,scm";
 			clocks = <&rpmcc RPM_CE1_CLK>;
-			clock-names = "src";
+			clock-names = "core";
 		};
 	};
 
@@ -484,8 +484,8 @@
 	};
 
 	vidc_rproc: vidc_tzpil@0 {
-		compatible = "qcom,venus-pil";
-		qcom,firmware-name = "vidc";
+		compatible = "qcom,tz-pil";
+		qcom,firmware-name = "venus";
 		qcom,pas-id = <9>;
 		memory-region = <&vidc_mem>;
 		status = "ok";

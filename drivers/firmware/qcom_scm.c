@@ -395,16 +395,13 @@ static int qcom_scm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = clk_set_rate(scm->src_clk, INT_MAX);
-	if (ret)
-		return ret;
-
-	ret = clk_set_rate(scm->src_clk, INT_MAX);
+	ret = clk_set_rate(scm->core_clk, INT_MAX);
 	if (ret)
 		return ret;
 
 	__scm = scm;
 
+	printk("\n scm probe done");
 	return 0;
 }
 
