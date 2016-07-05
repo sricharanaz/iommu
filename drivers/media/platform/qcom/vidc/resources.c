@@ -26,9 +26,9 @@ static const struct freq_tbl freq_table_8916[] = {
 };
 
 static const struct reg_val reg_preset_8916[] = {
-	{ 0xe0020, 0x05555556 },
-	{ 0xe0024, 0x05555556 },
-	{ 0x80124, 0x00000003 },
+	{ 0x80010, 0xffffffff },
+	{ 0x80018, 0x00001556 },
+	{ 0x8001C, 0x00001556 },
 };
 
 static struct clock_info clks_8916[] = {
@@ -126,6 +126,7 @@ int get_platform_resources(struct vidc_core *core)
 		return ret;
 	}
 
+	printk("\n vidc: get_platform_resources updated preset array");
 	return 0;
 }
 
