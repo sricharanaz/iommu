@@ -32,6 +32,7 @@ static const struct reg_val reg_preset_8916[] = {
 };
 
 static struct clock_info clks_8916[] = {
+	{ .name = "mmagic_ahb_clk", },
 	{ .name = "core_clk", },
 	{ .name = "iface_clk", },
 	{ .name = "bus_clk", },
