@@ -211,6 +211,8 @@ static int qproc_load_segment(struct rproc *rproc, const char *fw_name,
 	void *ptr;
 	int ret = 0;
 
+	printk(KERN_ALERT"\n qproc_load_segment addr %x", paddr);
+
 	ptr = ioremap_nocache(paddr, phdr->p_memsz);
 	if (!ptr) {
 		dev_err(&rproc->dev, "failed to ioremap segment area (%pa+0x%x)\n", &paddr, phdr->p_memsz);

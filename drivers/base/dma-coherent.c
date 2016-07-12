@@ -46,6 +46,8 @@ static bool dma_init_coherent_memory(
 	if (!dma_mem->bitmap)
 		goto out;
 
+	printk("\n dma_init_coherent_memory phys = %x", phys_addr);
+
 	dma_mem->virt_base = mem_base;
 	dma_mem->device_base = device_addr;
 	dma_mem->pfn_base = PFN_DOWN(phys_addr);
@@ -289,6 +291,8 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 {
 	struct dma_coherent_mem *mem = rmem->priv;
 
+	printk(KERN_ALERT"rmem_dma_device_init");
+
 	if (!mem &&
 	    !dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
 				      DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE,
@@ -316,6 +320,8 @@ static const struct reserved_mem_ops rmem_dma_ops = {
 static int __init rmem_dma_setup(struct reserved_mem *rmem)
 {
 	unsigned long node = rmem->fdt_node;
+
+	printk(KERN_ALERT"rmem_dma_setup");
 
 	if (of_get_flat_dt_prop(node, "reusable", NULL))
 		return -EINVAL;

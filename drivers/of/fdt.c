@@ -576,6 +576,8 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		return -EINVAL;
 	}
 
+	printk(KERN_ALERT"\n__reserved_mem_reserve_reg tlen %d", t_len);
+
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
 
 	while (len >= t_len) {
@@ -584,10 +586,10 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 
 		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
-			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
+			printk(KERN_ALERT"Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 		else
-			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
+			printk(KERN_ALERT"Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 
 		len -= t_len;

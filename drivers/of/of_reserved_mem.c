@@ -33,6 +33,8 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 	phys_addr_t *res_base)
 {
 	phys_addr_t base;
+
+	printk("\n early_init_dt_alloc_reserved_memory_arch");
 	/*
 	 * We use __memblock_alloc_base() because memblock_alloc_base()
 	 * panic()s on allocation failure.
@@ -50,6 +52,7 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 		return -ENOMEM;
 	}
 
+	printk("\n __memblock_alloc_base %x", base);
 	*res_base = base;
 	if (nomap)
 		return memblock_remove(base, size);
@@ -73,6 +76,8 @@ void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 				      phys_addr_t base, phys_addr_t size)
 {
 	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
+
+	printk(KERN_ALERT"\n fdt_reserved_mem_save_node base %x size %d", base, size);
 
 	if (reserved_mem_count == ARRAY_SIZE(reserved_mem)) {
 		pr_err("Reserved memory: not enough space all defined regions.\n");
@@ -134,7 +139,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	if (prop) {
 
 		if (len % t_len != 0) {
-			pr_err("Reserved memory: invalid alloc-ranges property in '%s', skipping node.\n",
+			pr_err(KERN_ALERT"Reserved memory: invalid alloc-ranges property in '%s', skipping node.\n",
 			       uname);
 			return -EINVAL;
 		}
@@ -149,7 +154,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 			ret = early_init_dt_alloc_reserved_memory_arch(size,
 					align, start, end, nomap, &base);
 			if (ret == 0) {
-				pr_debug("Reserved memory: allocated memory for '%s' node: base %pa, size %ld MiB\n",
+				printk(KERN_ALERT"Reserved memory: allocated memory for '%s' node: base %pa, size %ld MiB\n",
 					uname, &base,
 					(unsigned long)size / SZ_1M);
 				break;
@@ -161,7 +166,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 		ret = early_init_dt_alloc_reserved_memory_arch(size, align,
 							0, 0, nomap, &base);
 		if (ret == 0)
-			pr_debug("Reserved memory: allocated memory for '%s' node: base %pa, size %ld MiB\n",
+			printk(KERN_ALERT"Reserved memory: allocated memory for '%s' node: base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 	}
 
@@ -252,6 +257,7 @@ void __init fdt_init_reserved_mem(void)
 {
 	int i;
 
+	printk(KERN_ALERT"\n fdt_init_reserved_mem");
 	/* check for overlapping reserved regions */
 	__rmem_check_for_overlap();
 

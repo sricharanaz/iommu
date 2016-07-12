@@ -532,7 +532,7 @@ static u32 venus_hwversion(struct venus_hfi_device *hdev)
 	minor = minor >> VIDC_WRAPPER_HW_VERSION_MINOR_VERSION_SHIFT;
 	step = ver & VIDC_WRAPPER_HW_VERSION_STEP_VERSION_MASK;
 
-	dev_dbg(dev, "venus hw version %d.%d.%d\n", major, minor, step);
+	printk(KERN_ALERT"venus hw version %d.%d.%d\n", major, minor, step);
 
 	return major;
 }
@@ -542,6 +542,7 @@ static int venus_run(struct venus_hfi_device *hdev)
 	struct device *dev = hdev->dev;
 	int ret;
 
+	printk("\n venus_run");
 	/*
 	 * Re-program all of the registers that get reset as a result of
 	 * regulator_disable() and _enable()

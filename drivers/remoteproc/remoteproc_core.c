@@ -100,7 +100,7 @@ static int rproc_enable_iommu(struct rproc *rproc)
 	int ret;
 
 	if (!rproc->has_iommu) {
-		dev_dbg(dev, "iommu not present\n");
+		printk(KERN_ALERT"iommu not present\n");
 		return 0;
 	}
 
