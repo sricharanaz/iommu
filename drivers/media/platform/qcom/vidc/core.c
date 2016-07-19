@@ -21,6 +21,13 @@
 #include <linux/types.h>
 #include <linux/remoteproc.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
+#include <linux/printk.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/string.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ioctl.h>
 
@@ -610,7 +617,50 @@ static struct platform_driver qcom_vidc_driver = {
 	},
 };
 
-module_platform_driver(qcom_vidc_driver);
+static struct kobject *example_kobject;
+static int foo;
+
+static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf)
+{
+}
+
+static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf, size_t count)
+{
+        return platform_driver_register(&qcom_vidc_driver);
+}
+
+static struct kobj_attribute foo_attribute =__ATTR(foo, 0660, foo_show,
+                                                   foo_store);
+
+static int __init mymodule_init (void)
+{
+        int error = 0;
+
+        pr_debug("VIDC Module initialized successfully \n");
+
+        example_kobject = kobject_create_and_add("kobject_example",
+                                                 kernel_kobj);
+        if(!example_kobject)
+                return -ENOMEM;
+
+        error = sysfs_create_file(example_kobject, &foo_attribute.attr);
+        if (error) {
+                pr_debug("failed to create the foo file in /sys/kernel/kobject_example \n");
+        }
+
+        return error;
+}
+module_init(mymodule_init);
+
+static void __exit mymodule_exit (void)
+{
+        pr_debug ("VIDC Module un initialized successfully \n");
+        platform_driver_unregister(&qcom_vidc_driver);
+        kobject_put(example_kobject);
+}
+module_exit(mymodule_exit);
 
 MODULE_ALIAS("platform:qcom-vidc");
 MODULE_DESCRIPTION("Qualcomm video encoder and decoder driver");
