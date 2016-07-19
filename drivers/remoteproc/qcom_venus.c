@@ -317,6 +317,7 @@ static int qproc_load(struct rproc *rproc, const struct firmware *fw)
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		phdr = &mdt->phdr[i];
 
+		printk("\n qproc_load for segment %d", i);
 		if (!segment_is_loadable(phdr))
 			continue;
 

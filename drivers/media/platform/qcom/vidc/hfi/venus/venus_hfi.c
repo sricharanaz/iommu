@@ -556,6 +556,8 @@ static int venus_run(struct venus_hfi_device *hdev)
 	if (hdev->sfr.da)
 		venus_writel(hdev, VIDC_SFR_ADDR, hdev->sfr.da);
 
+	printk("\n hdev->ifaceq_table.da %x", hdev->ifaceq_table.da);
+
 	ret = venus_reset_core(hdev);
 	if (ret) {
 		dev_err(dev, "failed to reset venus core\n");
@@ -1104,7 +1106,7 @@ static int venus_protect_cp_mem(struct venus_hfi_device *hdev)
 	int ret;
 
 	cp_start		= 0;
-	cp_size			= 0x5dc00000;
+	cp_size			= 0x70800000;
 	cp_nonpixel_start	= 0x01000000;
 	cp_nonpixel_size	= 0x24800000;
 

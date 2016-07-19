@@ -518,6 +518,7 @@
 			clock-names = "mmagic_ahb_clk", "smmu_ahb_clk", "smmu_axi_clk",
 				      "mmagic_video_axi_clk",
 				      "core_clk", "iface_clk", "bus_clk",
+				      "mmagic_video_noc_cfg_ahb_clk",
 				      "maxi_clk", "core0_clk", "core1_clk";
 
 			qcom,hfi = "venus";

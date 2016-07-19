@@ -33,9 +33,13 @@ static const struct reg_val reg_preset_8916[] = {
 
 static struct clock_info clks_8916[] = {
 	{ .name = "mmagic_ahb_clk", },
+	{ .name = "smmu_ahb_clk", },
+	{ .name = "smmu_axi_clk", },
+	{ .name = "mmagic_video_axi_clk" },
 	{ .name = "core_clk", },
 	{ .name = "iface_clk", },
 	{ .name = "bus_clk", },
+	{ .name  = "mmagic_video_noc_cfg_ahb_clk", },
 	{ .name = "maxi_clk", },
 	{ .name = "core0_clk" },
 	{ .name = "core1_clk" },
