@@ -497,6 +497,9 @@ static int venus_reset_core(struct venus_hfi_device *hdev)
 	u32 ctrl_status = 0, count = 0;
 	int max_tries = 100, ret = 0;
 
+	venus_writel(hdev, VIDC_WRAPPER_CLOCK_CONFIG, 0);
+	venus_writel(hdev, VIDC_WRAPPER_CPU_CLOCK_CONFIG, 0);
+
 	venus_writel(hdev, VIDC_CTRL_INIT, 0x1);
 	venus_writel(hdev, VIDC_WRAPPER_INTR_MASK,
 		     VIDC_WRAPPER_INTR_MASK_A2HVCODEC_BMSK);
