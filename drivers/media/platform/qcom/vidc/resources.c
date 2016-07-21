@@ -61,9 +61,10 @@ static int get_clks(struct device *dev, struct vidc_resources *res)
 	return 0;
 }
 
-int enable_clocks(struct vidc_resources *res)
+int enable_clocks(struct vidc_core *core)
 {
-	struct clock_info *clks = res->clks;
+	struct vidc_resources *res = &(core->res);
+        struct clock_info *clks = res->clks;
 	unsigned int i;
 	int ret;
 
@@ -74,6 +75,8 @@ int enable_clocks(struct vidc_resources *res)
 			goto err;
 	}
 
+	venus_enable_clock_config(core);
+
 	return 0;
 err:
 	while (--i)
@@ -82,8 +85,9 @@ err:
 	return ret;
 }
 
-void disable_clocks(struct vidc_resources *res)
+void disable_clocks(struct vidc_core *core)
 {
+        struct vidc_resources *res = &(core->res);
 	struct clock_info *clks = res->clks;
 	unsigned int i;
 

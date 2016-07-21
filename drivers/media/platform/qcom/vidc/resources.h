@@ -49,7 +49,8 @@ struct vidc_resources {
 int get_platform_resources(struct vidc_core *);
 void put_platform_resources(struct vidc_core *);
 
-int enable_clocks(struct vidc_resources *);
-void disable_clocks(struct vidc_resources *);
+int enable_clocks(struct vidc_core *);
+void disable_clocks(struct vidc_core *);
+extern void venus_enable_clock_config(struct vidc_core *core);
 
 #endif

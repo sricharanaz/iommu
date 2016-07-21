@@ -434,7 +434,7 @@ static int vidc_probe(struct platform_device *pdev)
 	}
 
 	printk(KERN_ALERT"\n 11");
-	ret = enable_clocks(&core->res);
+	ret = enable_clocks(core);
 	if (ret) {
 		dev_err(dev, "%s: cannot enable clocks\n", __func__);
 		goto err_hfi_destroy;
@@ -442,7 +442,7 @@ static int vidc_probe(struct platform_device *pdev)
 
 	ret = vidc_rproc_boot(core);
 	if (ret) {
-		disable_clocks(&core->res);
+		disable_clocks(core);
 		dev_err(dev, "rproc boot failed (%d)\n", ret);
 		goto err_hfi_destroy;
 	}
@@ -471,7 +471,7 @@ static int vidc_probe(struct platform_device *pdev)
 		goto err_core_deinit;
 	}
 
-	disable_clocks(&core->res);
+	disable_clocks(core);
 
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
@@ -563,7 +563,7 @@ static int vidc_runtime_suspend(struct device *dev)
 	if (ret)
 		dev_err(dev, "%s: venus suspend failed (%d)", __func__, ret);
 
-	disable_clocks(&core->res);
+	disable_clocks(core);
 
 	dev_dbg(dev, "%s: exit (%d)\n", __func__, ret);
 
@@ -577,7 +577,7 @@ static int vidc_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "%s: enter\n", __func__);
 
-	ret = enable_clocks(&core->res);
+	ret = enable_clocks(core);
 	if (ret) {
 		dev_err(dev, "%s: cannot enable clocks\n", __func__);
 		return ret;

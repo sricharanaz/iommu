@@ -26,6 +26,7 @@
 #include "mem.h"
 #include "venus_hfi.h"
 #include "venus_hfi_io.h"
+#include </local/mnt/workspace/kernel/mainline/linux/drivers/media/platform/qcom/vidc/core.h>
 
 #define HFI_MASK_QHDR_TX_TYPE		0xff000000
 #define HFI_MASK_QHDR_RX_TYPE		0x00ff0000
@@ -491,15 +492,27 @@ static int venus_tzbsp_set_video_state(enum tzbsp_video_state state)
 	return qcom_scm_set_video_state(state, 0);
 }
 
+void venus_enable_clock_config(struct vidc_core *core)
+{
+	printk("\n venus_enable_clock_config %x", &core->hfi);
+
+	struct venus_hfi_device *hdev = to_hfi_priv(&(core->hfi));
+
+	printk("\n hdev %x", hdev);
+
+	venus_writel(hdev, VIDC_WRAPPER_CLOCK_CONFIG, 0);
+	venus_writel(hdev, VIDC_WRAPPER_CPU_CLOCK_CONFIG, 0);
+}
+
 static int venus_reset_core(struct venus_hfi_device *hdev)
 {
 	struct device *dev = hdev->dev;
 	u32 ctrl_status = 0, count = 0;
 	int max_tries = 100, ret = 0;
 
-	venus_writel(hdev, VIDC_WRAPPER_CLOCK_CONFIG, 0);
-	venus_writel(hdev, VIDC_WRAPPER_CPU_CLOCK_CONFIG, 0);
+	printk(KERN_ALERT"\n cpu status %x", venus_readl(hdev, VIDC_WRAPPER_CPU_STATUS));
 
+	printk(KERN_ALERT"\n venus power status %x", venus_readl(hdev, VIDC_WRAPPER_POWER_STATUS));
 	venus_writel(hdev, VIDC_CTRL_INIT, 0x1);
 	venus_writel(hdev, VIDC_WRAPPER_INTR_MASK,
 		     VIDC_WRAPPER_INTR_MASK_A2HVCODEC_BMSK);
