@@ -63,6 +63,13 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	ktime_t start;
 	unsigned int status_reg = sc->gdscr;
 
+	if (!en) {
+		ret = regmap_update_bits(sc->regmap, sc->gdscr, HW_CONTROL_MASK, 0);
+		if (ret)
+			return ret;
+		printk(KERN_ALERT"\n updated to disable HWCONTROL_MASK");
+	}
+
 	ret = regmap_update_bits(sc->regmap, sc->gdscr, SW_COLLAPSE_MASK, val);
 	if (ret)
 		return ret;
@@ -91,6 +98,13 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 		 * and polling the status bit.
 		 */
 		udelay(1);
+	}
+
+	if (en) {
+                ret = regmap_update_bits(sc->regmap, sc->gdscr, HW_CONTROL_MASK, HW_CONTROL_MASK);
+		if (ret)
+			return ret;
+		printk(KERN_ALERT"\n GDSC: updated to enable HWCONTROL_MASK");
 	}
 
 	start = ktime_get();
@@ -200,7 +214,6 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
-	printk("\n gdsc_enable returns 0");
 	return 0;
 }
 
