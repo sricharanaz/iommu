@@ -101,10 +101,9 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	}
 
 	if (en) {
-                ret = regmap_update_bits(sc->regmap, sc->gdscr, HW_CONTROL_MASK, HW_CONTROL_MASK);
-		if (ret)
-			return ret;
-		printk(KERN_ALERT"\n GDSC: updated to enable HWCONTROL_MASK");
+		ret = regmap_read(sc->regmap, sc->gdscr, &val);
+		if (val & HW_CONTROL_MASK)
+			printk(KERN_ALERT"\n GDSC: updated to enable HWCONTROL_MASK in gdsc_init");
 	}
 
 	start = ktime_get();

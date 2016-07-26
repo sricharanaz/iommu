@@ -516,10 +516,11 @@ static int venus_reset_core(struct venus_hfi_device *hdev)
 	venus_writel(hdev, VIDC_CTRL_INIT, 0x1);
 	venus_writel(hdev, VIDC_WRAPPER_INTR_MASK,
 		     VIDC_WRAPPER_INTR_MASK_A2HVCODEC_BMSK);
-	venus_writel(hdev, VIDC_CPU_CS_SCIACMDARG3, 1);
+	//venus_writel(hdev, VIDC_CPU_CS_SCIACMDARG3, 1);
 
 	while (!ctrl_status && count < max_tries) {
 		ctrl_status = venus_readl(hdev, VIDC_CPU_CS_SCIACMDARG0);
+		printk("\n ctrl_status %x", ctrl_status);
 		if ((ctrl_status & 0xfe) == 0x4) {
 			dev_err(dev, "invalid setting for UC_REGION\n");
 			ret = -EINVAL;

@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/export.h>
@@ -468,6 +468,22 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	if (ret) {
 		of_clk_del_provider(pdev->dev.of_node);
 		goto err;
+	}
+
+	for (i = 0; i < num_clks; i++) {
+                if (!rpm_smd_clks[i])
+                        continue;
+
+		ret = clk_set_rate(clks[i], INT_MAX);
+		if (ret) {
+			printk(KERN_ALERT"\n clk_set_rate failed for %s", clks[i]);
+			return ret;
+		}
+		ret = clk_prepare_enable(clks[i]);
+		if (ret) {
+			printk(KERN_ALERT"\n clk_prepare_enable failed for %s", clks[i]);
+			return ret;
+		}
 	}
 
 	return 0;

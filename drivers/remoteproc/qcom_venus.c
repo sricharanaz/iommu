@@ -360,11 +360,15 @@ static int qproc_start(struct rproc *rproc)
 	if (ret)
 		goto disable_regulator;
 
+	printk("\n Calling qcom_scm_pas_auth_and_reset for %d", qproc->pas_id);
+
 	ret = qcom_scm_pas_auth_and_reset(qproc->pas_id);
 	if (ret) {
 		dev_err(qproc->dev,
 				"failed to authenticate image and release reset\n");
 		goto unroll_clocks;
+	} else {
+		printk("\n auth_and_reset passed");
 	}
 
 	/* if ready irq not provided skip waiting */
