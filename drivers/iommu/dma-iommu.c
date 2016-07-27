@@ -181,15 +181,21 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 EXPORT_SYMBOL(iommu_dma_init_domain);
 
 /**
- * dma_direction_to_prot - Translate DMA API directions to IOMMU API page flags
+ * dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
+ *                    page flags.
  * @dir: Direction of DMA transfer
  * @coherent: Is the DMA master cache-coherent?
+ * @attrs: DMA attributes for the mapping
  *
  * Return: corresponding IOMMU API page protection flags
  */
-int dma_direction_to_prot(enum dma_data_direction dir, bool coherent)
+int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
+		     unsigned long attrs)
 {
 	int prot = coherent ? IOMMU_CACHE : 0;
+
+	if (attrs & DMA_ATTR_PRIVILEGED)
+		prot |= IOMMU_PRIV;
 
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
