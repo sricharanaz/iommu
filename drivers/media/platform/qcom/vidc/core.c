@@ -459,11 +459,14 @@ static int vidc_probe(struct platform_device *pdev)
 	dev_dbg(dev, "pm_runtime_get_sync (%d) is_suspended:%d\n", ret,
 		pm_runtime_suspended(dev));
 
+	printk(KERN_ALERT"\n pm_runtime_get_sync done");
 	ret = vidc_hfi_core_init(&core->hfi);
 	if (ret) {
 		dev_err(dev, "core: init failed (%d)\n", ret);
 		goto err_rproc_shutdown;
 	}
+
+	printk("\n vidc_hfi_core_init done");
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret) {
@@ -471,20 +474,26 @@ static int vidc_probe(struct platform_device *pdev)
 		goto err_core_deinit;
 	}
 
-	disable_clocks(core);
+	printk("\n pm_runtime_put_sync done");
+	//disable_clocks(core);
+
+	printk("\n disable_clocks done");
 
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
 		goto err_core_deinit;
 
+	printk("\n v4l2_device_register done");
 	ret = vdec_init(core, &core->vdev_dec);
 	if (ret)
 		goto err_dev_unregister;
 
+	printk("\n vdec_init done");
 	ret = venc_init(core, &core->vdev_enc);
 	if (ret)
 		goto err_vdec_deinit;
 
+	printk("\n venc_init done");
 	mutex_lock(&vidc_driver->lock);
 	list_add_tail(&core->list, &vidc_driver->cores);
 	mutex_unlock(&vidc_driver->lock);

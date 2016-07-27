@@ -1514,6 +1514,8 @@ static int venus_hfi_suspend(struct hfi_device *hfi)
 
 	mutex_unlock(&hdev->lock);
 
+	printk("\n venus_hfi_suspend");
+
 	return 0;
 }
 
