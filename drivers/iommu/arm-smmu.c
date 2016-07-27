@@ -558,8 +558,6 @@ static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu)
 
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_sTLBGSYNC);
 
-	return;
-
 	while (readl_relaxed(gr0_base + ARM_SMMU_GR0_sTLBGSTATUS)
 	       & sTLBGSTATUS_GSACTIVE) {
 		cpu_relax();
