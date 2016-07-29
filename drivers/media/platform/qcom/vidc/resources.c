@@ -32,6 +32,7 @@ static const struct reg_val reg_preset_8916[] = {
 };
 
 static struct clock_info clks_8916[] = {
+	{ .name = "rpm_mmaxi_clk", },
 	{ .name = "mmagic_ahb_clk", },
 	{ .name = "smmu_ahb_clk", },
 	{ .name = "smmu_axi_clk", },
@@ -91,8 +92,11 @@ void disable_clocks(struct vidc_core *core)
 	struct clock_info *clks = res->clks;
 	unsigned int i;
 
-	for (i = 0; i < res->clks_num; i++)
+	for (i = 0; i < res->clks_num; i++) {
+		if (i == 8)
+			continue;
 		clk_disable_unprepare(clks[i].clk);
+	}
 }
 
 int get_platform_resources(struct vidc_core *core)

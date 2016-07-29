@@ -475,7 +475,7 @@ static int vidc_probe(struct platform_device *pdev)
 	}
 
 	printk("\n pm_runtime_put_sync done");
-	//disable_clocks(core);
+	disable_clocks(core);
 
 	printk("\n disable_clocks done");
 

@@ -503,7 +503,8 @@
 			interrupts = <GIC_SPI 287 0>;
 			power-domains = <&mmcc VENUS_CORE1_GDSC>;
 
-			clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
+			clocks = <&rpmcc RPM_MMAXI_CLK>,
+				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 				 <&mmcc SMMU_VIDEO_AHB_CLK>,
 				 <&mmcc SMMU_VIDEO_AXI_CLK>,
 				 <&mmcc MMAGIC_VIDEO_AXI_CLK>,
@@ -515,7 +516,8 @@
 				 <&mmcc VIDEO_SUBCORE0_CLK>,
 				 <&mmcc VIDEO_SUBCORE1_CLK>;
 
-			clock-names = "mmagic_ahb_clk", "smmu_ahb_clk", "smmu_axi_clk",
+			clock-names = "rpm_mmaxi_clk", "mmagic_ahb_clk",
+				      "smmu_ahb_clk", "smmu_axi_clk",
 				      "mmagic_video_axi_clk",
 				      "core_clk", "iface_clk", "bus_clk",
 				      "mmagic_video_noc_cfg_ahb_clk",

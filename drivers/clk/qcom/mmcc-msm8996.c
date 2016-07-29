@@ -2902,7 +2902,8 @@ static struct gdsc mmagic_video_gdsc = {
 	.pd = {
 		.name = "mmagic_video",
 	},
-	.pwrsts = PWRSTS_ON,
+	.pwrsts = PWRSTS_OFF_ON,
+	.parent = &mmagic_bimc_gdsc.pd,
 	.flags = VOTABLE,
 };
 
@@ -2934,7 +2935,7 @@ static struct gdsc venus_gdsc = {
 		.name = "venus",
 	},
 	.parent = &mmagic_video_gdsc.pd,
-	.pwrsts = PWRSTS_ON,
+	.pwrsts = PWRSTS_OFF_ON,
 };
 
 static struct gdsc venus_core0_gdsc = {
@@ -2945,7 +2946,7 @@ static struct gdsc venus_core0_gdsc = {
 		.name = "venus_core0",
 	},
 	.parent = &venus_gdsc.pd,
-	.pwrsts = PWRSTS_ON,
+	.pwrsts = PWRSTS_OFF_ON,
 };
 
 static struct gdsc venus_core1_gdsc = {
@@ -2956,7 +2957,7 @@ static struct gdsc venus_core1_gdsc = {
 		.name = "venus_core1",
 	},
 	.parent = &venus_core0_gdsc.pd,
-	.pwrsts = PWRSTS_ON,
+	.pwrsts = PWRSTS_OFF_ON,
 };
 
 static struct gdsc camss_gdsc = {
