@@ -55,6 +55,9 @@ struct gdsc {
 #define PWRSTS_RET_ALL		BIT(0)
 #define PWRSTS_RET_MEM		BIT(1)
 #define PWRSTS_RET_PERIPH	BIT(2)
+/* supported flags */
+#define VOTABLE				BIT(0)
+#define HW_CTRL				BIT(1)
 	const u8			flags;
 #define VOTABLE		BIT(0)
 	struct reset_controller_dev	*rcdev;
