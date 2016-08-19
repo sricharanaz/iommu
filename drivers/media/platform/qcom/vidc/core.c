@@ -333,7 +333,7 @@ static int vidc_probe(struct platform_device *pdev)
 	volatile int loop = 1;
 	
 	printk(KERN_ALERT"\n 1.1");
-	dma_mask = 0xddc00000 - 1;
+	dma_mask = 0x70800000 - 1;
 	ret = dma_set_mask_and_coherent(dev, dma_mask);
 	if (ret) {
 		dev_warn(dev, "failed to set dma mask (%d)\n", ret);

@@ -469,7 +469,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 		of_clk_del_provider(pdev->dev.of_node);
 		goto err;
 	}
-#if 0
+
 	for (i = 0; i < num_clks; i++) {
                 if (!rpm_smd_clks[i])
                         continue;
@@ -485,7 +485,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-#endif
+
 	return 0;
 err:
 	dev_err(&pdev->dev, "Error registering SMD clock driver (%d)\n", ret);

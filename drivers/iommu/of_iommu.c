@@ -203,7 +203,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		}
 
 		if (ops->add_device)
-			ops = ops->add_device(dev) ? ops : NULL;
+			ops = ops->add_device(dev) ? NULL : ops;
 
 		of_node_put(np);
 		idx++;
