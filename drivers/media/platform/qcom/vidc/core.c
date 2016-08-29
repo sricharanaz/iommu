@@ -333,7 +333,7 @@ static int vidc_probe(struct platform_device *pdev)
 	volatile int loop = 1;
 	
 	printk(KERN_ALERT"\n 1.1");
-	dma_mask = 0x70800000 - 1;
+	dma_mask = 0xddc00000 - 1;
 	ret = dma_set_mask_and_coherent(dev, dma_mask);
 	if (ret) {
 		dev_warn(dev, "failed to set dma mask (%d)\n", ret);
@@ -468,14 +468,14 @@ static int vidc_probe(struct platform_device *pdev)
 
 	printk("\n vidc_hfi_core_init done");
 
-	ret = pm_runtime_put_sync(dev);
+	//ret = pm_runtime_put_sync(dev);
 	if (ret) {
 		dev_err(dev, "pm_runtime_put_sync (%d)\n", ret);
 		goto err_core_deinit;
 	}
 
 	printk("\n pm_runtime_put_sync done");
-	disable_clocks(core);
+	//disable_clocks(core);
 
 	printk("\n disable_clocks done");
 

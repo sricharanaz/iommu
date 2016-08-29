@@ -342,7 +342,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 	printk("\n iommu_dma_alloc 5");
 	dma_addr = iova_dma_addr(iovad, iova);
 
-	printk("\n iommu_dma_alloc 6");
+	printk("\n iommu_dma_alloc 6 %x", dma_addr);
 	if (iommu_map_sg(domain, dma_addr, sgt.sgl, sgt.orig_nents, prot)
 			< size)
 		goto out_free_sg;

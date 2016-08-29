@@ -1164,6 +1164,7 @@ u32 hfi_process_msg_packet(struct hfi_device *hfi, struct hfi_pkt_hdr *hdr)
 	unsigned int i;
 	bool found = false;
 
+	printk(KERN_ALERT"\n hfi_process_msg_packet %x", hdr->pkt_type);
 	for (i = 0; i < ARRAY_SIZE(handlers); i++) {
 		handler = &handlers[i];
 

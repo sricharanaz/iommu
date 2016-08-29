@@ -1043,6 +1043,7 @@ static void venus_process_msg_sys_error(struct venus_hfi_device *hdev,
 {
 	struct hfi_msg_event_notify_pkt *event_pkt = packet;
 
+	printk("\n venus_process_msg_sys_error %d", event_pkt->event_id);
 	if (event_pkt->event_id != HFI_EVENT_SYS_ERROR)
 		return;
 
@@ -1066,6 +1067,8 @@ static irqreturn_t venus_isr_thread(int irq, struct hfi_device *hfi)
 
 	if (!hdev)
 		return IRQ_NONE;
+
+	printk(KERN_ALERT"\n venus_isr_thread");
 
 	if (hdev->intr_status & VIDC_WRAPPER_INTR_STATUS_A2HWD_BMSK) {
 		disable_irq_nosync(hdev->irq);
@@ -1103,6 +1106,7 @@ static irqreturn_t venus_isr(int irq, struct hfi_device *hfi)
 	if (!hdev)
 		return IRQ_NONE;
 
+	printk(KERN_ALERT"\n venus_isr");
 	status = venus_readl(hdev, VIDC_WRAPPER_INTR_STATUS);
 
 	if (status & VIDC_WRAPPER_INTR_STATUS_A2H_BMSK ||
