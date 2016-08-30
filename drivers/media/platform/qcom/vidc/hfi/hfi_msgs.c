@@ -23,6 +23,8 @@
 
 static enum hal_error to_hal_error(u32 hfi_err)
 {
+	printk(KERN_ALERT"\n hal_err %d", hfi_err);
+
 	switch (hfi_err) {
 	case HFI_ERR_NONE:
 	case HFI_ERR_SESSION_SAME_STATE_OPERATION:
@@ -240,6 +242,8 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 	u8 *data_ptr;
 	u32 ptype;
 
+	printk(KERN_ALERT"\n hfi_sys_init_done");
+
 	error = to_hal_error(pkt->error_type);
 	if (error != HAL_ERR_NONE)
 		goto err_no_prop;
@@ -346,6 +350,8 @@ static void hfi_sys_rel_resource_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_release_resource_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\nhfi_sys_rel_resource_done ");
+
 	hfi->error = to_hal_error(pkt->error_type);
 	complete(&hfi->done);
 }
@@ -355,6 +361,7 @@ static void hfi_sys_ping_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_ping_ack_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_sys_ping_done");
 	hfi->error = HAL_ERR_NONE;
 
 	if (pkt->client_data != 0xbeef)
@@ -538,6 +545,7 @@ static void hfi_session_prop_info(struct hfi_device *hfi,
 	struct device *dev = hfi->dev;
 	union hal_get_property *hprop = &inst->hprop;
 
+	printk(KERN_ALERT"\n hfi_session_prop_info_done");
 	inst->error = HAL_ERR_NONE;
 
 	if (!pkt->num_properties) {
@@ -798,6 +806,8 @@ static void hfi_session_init_done(struct hfi_device *hfi,
 	struct hal_session_init_done *cap = &inst->caps;
 	enum hal_error error;
 
+	printk(KERN_ALERT"\n hfi_session_init_done");
+
 	error = to_hal_error(pkt->error_type);
 	if (error != HAL_ERR_NONE)
 		goto done;
@@ -832,6 +842,7 @@ static void hfi_session_load_res_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_load_resources_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_load_res_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -841,6 +852,7 @@ static void hfi_session_flush_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_flush_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\nhfi_session_flush_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -850,6 +862,8 @@ static void hfi_session_etb_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_empty_buffer_done_pkt *pkt = packet;
 	u32 flags = 0;
+
+	printk(KERN_ALERT"\nhfi_session_etb_done");
 
 	inst->error = to_hal_error(pkt->error_type);
 
@@ -873,6 +887,8 @@ static void hfi_session_ftb_done(struct hfi_device *hfi,
 	int64_t time_usec = 0;
 	unsigned int error;
 	u32 flags = 0;
+
+	printk(KERN_ALERT"\n hfi_session_ftb_done");
 
 	if (session_type == HAL_VIDEO_SESSION_TYPE_ENCODER) {
 		struct hfi_msg_session_fbd_compressed_pkt *pkt = packet;
@@ -982,6 +998,8 @@ static void hfi_session_start_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_start_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_start_done");
+
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -990,6 +1008,8 @@ static void hfi_session_stop_done(struct hfi_device *hfi,
 				  struct hfi_device_inst *inst, void *packet)
 {
 	struct hfi_msg_session_stop_done_pkt *pkt = packet;
+
+	printk(KERN_ALERT"\n hfi_session_stop_done");
 
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
@@ -1000,6 +1020,7 @@ static void hfi_session_rel_res_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_release_resources_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_rel_res_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1009,6 +1030,7 @@ static void hfi_session_rel_buf_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_release_buffers_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_rel_buf_done");
 	/*
 	 * the address of the released buffer can be extracted:
 	 * if (pkt->buffer_info) {
@@ -1025,6 +1047,7 @@ static void hfi_session_end_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_end_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_end_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1034,6 +1057,7 @@ static void hfi_session_abort_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_session_abort_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_abort_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1044,6 +1068,7 @@ static void hfi_session_get_seq_hdr_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_get_sequence_hdr_done_pkt *pkt = packet;
 
+	printk(KERN_ALERT"\n hfi_session_get_seq_hdr_done");
 	/*
 	 * output_done.packet_buffer1 = pkt->sequence_header;
 	 * output_done.filled_len1 = pkt->header_len;

@@ -80,6 +80,7 @@ int vidc_hfi_core_init(struct hfi_device *hfi)
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_core_init");
 	ret = wait_for_completion_timeout(&hfi->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -124,6 +125,7 @@ int vidc_hfi_core_deinit(struct hfi_device *hfi)
 	if (ret)
 		dev_err(dev, "core deinit failed: %d\n", ret);
 
+	printk(KERN_ALERT"\n vidc_hfi_core_deinit");
 	hfi->state = CORE_UNINIT;
 
 unlock:
@@ -133,11 +135,13 @@ unlock:
 
 int vidc_hfi_core_suspend(struct hfi_device *hfi)
 {
+	printk(KERN_ALERT"\n vidc_hfi_core_suspend");
 	return call_hfi_op(hfi, suspend, hfi);
 }
 
 int vidc_hfi_core_resume(struct hfi_device *hfi)
 {
+	printk(KERN_ALERT"\n vidc_hfi_core_resume");
 	return call_hfi_op(hfi, resume, hfi);
 }
 
@@ -145,6 +149,8 @@ int vidc_hfi_core_trigger_ssr(struct hfi_device *hfi,
 			      enum hal_ssr_trigger_type type)
 {
 	int ret;
+
+	printk(KERN_ALERT"\n vidc_hfi_core_trigger_ssr");
 
 	ret = call_hfi_op(hfi, core_trigger_ssr, hfi, type);
 	if (ret)
@@ -157,6 +163,7 @@ int vidc_hfi_core_ping(struct hfi_device *hfi)
 {
 	int ret;
 
+	printk(KERN_ALERT"\n vidc_hfi_core_ping");
 	mutex_lock(&hfi->lock);
 
 	ret = call_hfi_op(hfi, core_ping, hfi, 0xbeef);
@@ -228,6 +235,7 @@ int vidc_hfi_session_init(struct hfi_device *hfi, struct hfi_device_inst *inst,
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_init");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -291,6 +299,7 @@ int vidc_hfi_session_deinit(struct hfi_device *hfi,
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_deinit");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -334,6 +343,7 @@ int vidc_hfi_session_start(struct hfi_device *hfi, struct hfi_device_inst *inst)
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_start");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -370,6 +380,7 @@ int vidc_hfi_session_stop(struct hfi_device *hfi, struct hfi_device_inst *inst)
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_stop");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -399,6 +410,7 @@ int vidc_hfi_session_abort(struct hfi_device *hfi, struct hfi_device_inst *inst)
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_abort");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -431,6 +443,7 @@ int vidc_hfi_session_load_res(struct hfi_device *hfi,
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_load_res");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -463,6 +476,7 @@ int vidc_hfi_session_unload_res(struct hfi_device *hfi,
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_unload_res");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -488,6 +502,7 @@ int vidc_hfi_session_flush(struct hfi_device *hfi, struct hfi_device_inst *inst)
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_flush");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret)
 		ret = -ETIMEDOUT;
@@ -505,6 +520,7 @@ int vidc_hfi_session_set_buffers(struct hfi_device *hfi,
 {
 	int ret;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_set_buffers");
 	mutex_lock(&inst->lock);
 	ret = call_hfi_op(hfi, session_set_buffers, inst, bai);
 	mutex_unlock(&inst->lock);
@@ -531,6 +547,7 @@ int vidc_hfi_session_unset_buffers(struct hfi_device *hfi,
 		goto unlock;
 	}
 
+	printk(KERN_ALERT"\n vidc_hfi_session_unset_buffers");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -579,6 +596,7 @@ int vidc_hfi_session_get_property(struct hfi_device *hfi,
 	if (ret)
 		goto unlock;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_get_property");
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
 	if (!ret) {
 		ret = -ETIMEDOUT;
@@ -604,6 +622,7 @@ int vidc_hfi_session_set_property(struct hfi_device *hfi,
 {
 	int ret;
 
+	printk(KERN_ALERT"\n vidc_hfi_session_set_property");
 	mutex_lock(&inst->lock);
 
 	if (inst->state < INST_INIT || inst->state >= INST_STOP) {
@@ -623,12 +642,14 @@ unlock:
 int vidc_hfi_session_etb(struct hfi_device *hfi, struct hfi_device_inst *inst,
 			 struct hal_frame_data *fdata)
 {
+	printk(KERN_ALERT"\n vidc_hfi_session_etb");
 	return call_hfi_op(hfi, session_etb, inst, fdata);
 }
 
 int vidc_hfi_session_ftb(struct hfi_device *hfi, struct hfi_device_inst *inst,
 			 struct hal_frame_data *fdata)
 {
+	printk(KERN_ALERT"\n vidc_hfi_session_ftb");
 	return call_hfi_op(hfi, session_ftb, inst, fdata);
 }
 
@@ -636,6 +657,7 @@ irqreturn_t vidc_hfi_isr_thread(int irq, void *dev_id)
 {
 	struct hfi_device *hfi = dev_id;
 
+	printk(KERN_ALERT"\n vidc_hfi_isr_thread");
 	return call_hfi_op(hfi, isr_thread, irq, hfi);
 }
 
@@ -643,6 +665,7 @@ irqreturn_t vidc_hfi_isr(int irq, void *dev)
 {
 	struct hfi_device *hfi = dev;
 
+	printk(KERN_ALERT"\n vidc_hfi_isr");
 	return call_hfi_op(hfi, isr, irq, hfi);
 }
 
