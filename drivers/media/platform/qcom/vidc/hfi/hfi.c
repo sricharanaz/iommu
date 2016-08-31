@@ -281,6 +281,8 @@ int vidc_hfi_session_deinit(struct hfi_device *hfi,
 
 	dev_dbg(hfi->dev, "%s: enter\n", __func__);
 
+	dump_stack();
+
 	mutex_lock(&inst->lock);
 
 	if (inst->state == INST_UNINIT) {

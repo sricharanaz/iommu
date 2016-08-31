@@ -146,7 +146,7 @@ struct venus_hfi_device {
 };
 
 static bool venus_pkt_debug = 0;
-static int venus_fw_debug = 0x18;
+static int venus_fw_debug = 0x1f;
 static bool venus_sys_idle_indicator = 0;
 static bool venus_fw_low_power_mode = true;
 static int venus_hw_rsp_timeout = 1000;
@@ -972,7 +972,7 @@ static void venus_flush_debug_queue(struct venus_hfi_device *hdev)
 		if (pkt->hdr.pkt_type != HFI_MSG_SYS_COV) {
 			struct hfi_msg_sys_debug_pkt *pkt = packet;
 
-			dev_dbg(dev, "%s", pkt->msg_data);
+			dev_err(dev, "%s", pkt->msg_data);
 		}
 	}
 }
@@ -1235,6 +1235,8 @@ static int venus_hfi_session_end(struct hfi_device_inst *inst)
 	struct venus_hfi_device *hdev = inst->device;
 	struct device *dev = hdev->dev;
 
+	printk(KERN_ALERT"\nvenus_hfi_session_end");
+
 	if (venus_fw_coverage) {
 		if (venus_sys_set_coverage(hdev, venus_fw_coverage))
 			dev_warn(dev, "fw coverage msg ON failed\n");
@@ -1291,6 +1293,7 @@ static int venus_hfi_session_etb(struct hfi_device_inst *inst,
 		if (ret)
 			return ret;
 
+		printk(KERN_ALERT"\nvenus_hfi_session_etb");
 		ret = venus_iface_cmdq_write(hdev, &pkt);
 	} else if (session_type == HAL_VIDEO_SESSION_TYPE_ENCODER) {
 		struct hfi_session_empty_buffer_uncompressed_plane0_pkt pkt;
@@ -1304,6 +1307,8 @@ static int venus_hfi_session_etb(struct hfi_device_inst *inst,
 	} else {
 		ret = -EINVAL;
 	}
+
+	venus_flush_debug_queue(hdev);
 
 	return ret;
 }
@@ -1319,6 +1324,8 @@ static int venus_hfi_session_ftb(struct hfi_device_inst *inst,
 	if (ret)
 		return ret;
 
+	printk(KERN_ALERT"\n venus_hfi_session_ftb");
+	venus_flush_debug_queue(hdev);
 	return venus_iface_cmdq_write(hdev, &pkt);
 }
 
@@ -1470,6 +1477,8 @@ static int venus_hfi_suspend(struct hfi_device *hfi)
 	struct device *dev = hfi->dev;
 	u32 ctrl_status;
 	int ret;
+
+	return 0;
 
 	if (!hdev->power_enabled || hdev->suspended)
 		return 0;

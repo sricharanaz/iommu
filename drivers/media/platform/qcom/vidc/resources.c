@@ -92,6 +92,8 @@ void disable_clocks(struct vidc_core *core)
 	struct clock_info *clks = res->clks;
 	unsigned int i;
 
+	return 0;
+
 	for (i = 0; i < res->clks_num; i++) {
 		if (i == 8)
 			continue;

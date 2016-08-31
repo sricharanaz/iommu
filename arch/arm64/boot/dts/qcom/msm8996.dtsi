@@ -496,7 +496,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
-		dma-ranges = <0x70800000 0 0x70800000 0x8F800000>;
+		dma-ranges = <0x70800000 0 0x70800000 0x6d400000>;
 		vidc: qcom,vidc@c00000 {
 			compatible = "qcom,msm-vidc";
 			reg = <0xC00000 0xff000>;
