@@ -679,9 +679,10 @@ int vidc_hfi_create(struct hfi_device *hfi, struct vidc_resources *res)
 	if (!hfi->core_ops || !hfi->dev)
 		return -EINVAL;
 
-	if (hfi_version && !strcmp(hfi_version, "3xx"))
+	if (hfi_version && !strcmp(hfi_version, "3xx")) {
 		hfi->packetization_type = HFI_PACKETIZATION_3XX;
-	else
+		printk(KERN_ALERT"\nvidc_hfi_create HFI_PACKETIZATION_3XX");
+	} else
 		hfi->packetization_type = HFI_PACKETIZATION_LEGACY;
 	mutex_init(&hfi->lock);
 	INIT_LIST_HEAD(&hfi->instances);

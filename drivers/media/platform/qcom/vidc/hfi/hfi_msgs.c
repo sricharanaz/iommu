@@ -250,12 +250,15 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 
 	num_properties = pkt->num_properties;
 
+	printk(KERN_ALERT"\n hfi_sys_init_done 1");
 	if (!num_properties) {
 		error = HAL_ERR_FAIL;
 		goto err_no_prop;
 	}
 
 	rem_bytes = pkt->hdr.size - sizeof(*pkt) + sizeof(u32);
+
+	 printk(KERN_ALERT"\n hfi_sys_init_done 2");
 
 	if (!rem_bytes) {
 		/* missing property data */
@@ -265,9 +268,14 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 
 	data_ptr = (u8 *)&pkt->data[0];
 
+	printk(KERN_ALERT"\n num_properties %d data_ptr %llx rem_bytes %d", num_properties, data_ptr, rem_bytes);
 	while (num_properties && rem_bytes >= sizeof(u32)) {
+		//printk(KERN_ALERT"\n num_properties %d data_ptr %x", num_properties, data_ptr);
+
 		ptype = *((u32 *)data_ptr);
 		data_ptr += sizeof(u32);
+
+		//dev_err(hfi->dev, "%s: ptype:%x\n", __func__, ptype);
 
 		switch (ptype) {
 		case HFI_PROPERTY_PARAM_CODEC_SUPPORTED: {
@@ -279,8 +287,12 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 				error = HAL_ERR_BAD_PARAM;
 				break;
 			}
+
+			 printk(KERN_ALERT"\n hfi_sys_init_done 3");
 			dec_codecs = prop->dec_codecs;
 			enc_codecs = prop->enc_codecs;
+			read_bytes += sizeof(*prop) + sizeof(u32);
+			 printk(KERN_ALERT"\n hfi_sys_init_done 4");
 			break;
 		}
 		default:
@@ -296,13 +308,16 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 		}
 	}
 
+	printk(KERN_ALERT"\n hfi_sys_init_done 6");
 	hfi->enc_codecs = enc_codecs;
 	hfi->dec_codecs = dec_codecs;
 
+	printk(KERN_ALERT"\n hfi_sys_init_done 7");
 	if (hfi->hfi_type == VIDC_VENUS &&
 	   (hfi->dec_codecs & HAL_VIDEO_CODEC_H264))
 		hfi->dec_codecs |= HAL_VIDEO_CODEC_MVC;
 
+	printk(KERN_ALERT"\n hfi_sys_init_done 8");
 err_no_prop:
 	hfi->error = error;
 	complete(&hfi->done);

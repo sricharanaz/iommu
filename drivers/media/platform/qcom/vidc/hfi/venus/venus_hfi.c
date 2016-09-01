@@ -1586,7 +1586,7 @@ int venus_hfi_create(struct hfi_device *hfi, struct vidc_resources *res)
 
 	hdev->res = res;
 	hdev->pkt_ops = hfi->pkt_ops;
-	hdev->packetization_type = HFI_PACKETIZATION_LEGACY;
+	hdev->packetization_type = HFI_PACKETIZATION_3XX;//HFI_PACKETIZATION_LEGACY;
 	hdev->irq = res->irq;
 	hdev->base = res->base;
 	hdev->dev = hfi->dev;
