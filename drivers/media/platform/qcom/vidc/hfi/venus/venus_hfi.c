@@ -146,7 +146,7 @@ struct venus_hfi_device {
 };
 
 static bool venus_pkt_debug = 0;
-static int venus_fw_debug = 0x1f;
+static int venus_fw_debug = 0x18;
 static bool venus_sys_idle_indicator = 0;
 static bool venus_fw_low_power_mode = true;
 static int venus_hw_rsp_timeout = 1000;

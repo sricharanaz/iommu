@@ -232,96 +232,10 @@ static void hfi_event_notify(struct hfi_device *hfi,
 	}
 }
 
-static void hfi_sys_init_done(struct hfi_device *hfi,
-			      struct hfi_device_inst *inst, void *packet)
-{
-	struct hfi_msg_sys_init_done_pkt *pkt = packet;
-	u32 enc_codecs = 0, dec_codecs = 0;
-	u32 rem_bytes, read_bytes = 0, num_properties;
-	enum hal_error error;
-	u8 *data_ptr;
-	u32 ptype;
+struct hfi_max_sessions_supported {
+        u32 max_sessions;
+};
 
-	printk(KERN_ALERT"\n hfi_sys_init_done");
-
-	error = to_hal_error(pkt->error_type);
-	if (error != HAL_ERR_NONE)
-		goto err_no_prop;
-
-	num_properties = pkt->num_properties;
-
-	printk(KERN_ALERT"\n hfi_sys_init_done 1");
-	if (!num_properties) {
-		error = HAL_ERR_FAIL;
-		goto err_no_prop;
-	}
-
-	rem_bytes = pkt->hdr.size - sizeof(*pkt) + sizeof(u32);
-
-	 printk(KERN_ALERT"\n hfi_sys_init_done 2");
-
-	if (!rem_bytes) {
-		/* missing property data */
-		error = HAL_ERR_FAIL;
-		goto err_no_prop;
-	}
-
-	data_ptr = (u8 *)&pkt->data[0];
-
-	printk(KERN_ALERT"\n num_properties %d data_ptr %llx rem_bytes %d", num_properties, data_ptr, rem_bytes);
-	while (num_properties && rem_bytes >= sizeof(u32)) {
-		//printk(KERN_ALERT"\n num_properties %d data_ptr %x", num_properties, data_ptr);
-
-		ptype = *((u32 *)data_ptr);
-		data_ptr += sizeof(u32);
-
-		//dev_err(hfi->dev, "%s: ptype:%x\n", __func__, ptype);
-
-		switch (ptype) {
-		case HFI_PROPERTY_PARAM_CODEC_SUPPORTED: {
-			struct hfi_codec_supported *prop;
-
-			prop = (struct hfi_codec_supported *)data_ptr;
-
-			if (rem_bytes < sizeof(*prop)) {
-				error = HAL_ERR_BAD_PARAM;
-				break;
-			}
-
-			 printk(KERN_ALERT"\n hfi_sys_init_done 3");
-			dec_codecs = prop->dec_codecs;
-			enc_codecs = prop->enc_codecs;
-			read_bytes += sizeof(*prop) + sizeof(u32);
-			 printk(KERN_ALERT"\n hfi_sys_init_done 4");
-			break;
-		}
-		default:
-			/* bad property id */
-			error = HAL_ERR_BAD_PARAM;
-			break;
-		}
-
-		if (!error) {
-			rem_bytes -= read_bytes;
-			data_ptr += read_bytes;
-			num_properties--;
-		}
-	}
-
-	printk(KERN_ALERT"\n hfi_sys_init_done 6");
-	hfi->enc_codecs = enc_codecs;
-	hfi->dec_codecs = dec_codecs;
-
-	printk(KERN_ALERT"\n hfi_sys_init_done 7");
-	if (hfi->hfi_type == VIDC_VENUS &&
-	   (hfi->dec_codecs & HAL_VIDEO_CODEC_H264))
-		hfi->dec_codecs |= HAL_VIDEO_CODEC_MVC;
-
-	printk(KERN_ALERT"\n hfi_sys_init_done 8");
-err_no_prop:
-	hfi->error = error;
-	complete(&hfi->done);
-}
 
 static void
 sys_get_prop_image_version(struct device *dev,
@@ -590,31 +504,18 @@ done:
 
 static enum hal_error
 session_init_done_read_prop(struct device *dev,
-			    struct hfi_msg_session_init_done_pkt *pkt,
+			    u32 rem_bytes, u32 num_props, u8 *data,
 			    struct hal_session_init_done *init_done)
 {
-	u32 rem_bytes, num_props;
 	u32 ptype, next_offset = 0;
-	enum hal_error error;
+	enum hal_error error = 0;
 	u32 prop_count = 0;
-	u8 *data;
-
-	rem_bytes = pkt->shdr.hdr.size - sizeof(*pkt) + sizeof(u32);
-	if (!rem_bytes) {
-		dev_err(dev, "%s: missing property info\n", __func__);
-		return HAL_ERR_FAIL;
-	}
-
-	error = to_hal_error(pkt->error_type);
-	if (error)
-		return error;
-
-	data = (u8 *) &pkt->data[0];
-	num_props = pkt->num_properties;
 
 	while (error == HAL_ERR_NONE && num_props && rem_bytes >= sizeof(u32)) {
 		ptype = *((u32 *)data);
 		next_offset = sizeof(u32);
+
+		printk(KERN_ALERT"\nsession_init_done_read_prop 1 %d", ptype);
 
 		switch (ptype) {
 		case HFI_PROPERTY_PARAM_CAPABILITY_SUPPORTED: {
@@ -814,12 +715,136 @@ session_init_done_read_prop(struct device *dev,
 	return error;
 }
 
+static void hfi_sys_init_done(struct hfi_device *hfi,
+			      struct hfi_device_inst *inst, void *packet)
+{
+	struct hfi_msg_sys_init_done_pkt *pkt = packet;
+	u32 enc_codecs = 0, dec_codecs = 0;
+	u32 rem_bytes, read_bytes = 0, num_properties;
+	struct hal_session_init_done *cap = &inst->caps;
+	enum hal_error error;
+	u8 *data_ptr;
+	u32 ptype;
+
+	printk(KERN_ALERT"\n hfi_sys_init_done");
+
+	error = to_hal_error(pkt->error_type);
+	if (error != HAL_ERR_NONE)
+		goto err_no_prop;
+
+	num_properties = pkt->num_properties;
+
+	printk(KERN_ALERT"\n hfi_sys_init_done 1");
+	if (!num_properties) {
+		error = HAL_ERR_FAIL;
+		goto err_no_prop;
+	}
+
+	rem_bytes = pkt->hdr.size - sizeof(*pkt) + sizeof(u32);
+
+	 printk(KERN_ALERT"\n hfi_sys_init_done 2");
+
+	if (!rem_bytes) {
+		/* missing property data */
+		error = HAL_ERR_FAIL;
+		goto err_no_prop;
+	}
+
+	data_ptr = (u8 *)&pkt->data[0];
+
+	printk(KERN_ALERT"\n num_properties %d data_ptr %llx rem_bytes %d", num_properties, data_ptr, rem_bytes);
+		//printk(KERN_ALERT"\n num_properties %d data_ptr %x", num_properties, data_ptr);
+
+		ptype = *((u32 *)data_ptr);
+		data_ptr += sizeof(u32);
+
+		//dev_err(hfi->dev, "%s: ptype:%x\n", __func__, ptype);
+
+		switch (ptype) {
+		case HFI_PROPERTY_PARAM_CODEC_SUPPORTED: {
+			struct hfi_codec_supported *prop;
+
+			prop = (struct hfi_codec_supported *)data_ptr;
+
+			if (rem_bytes < sizeof(*prop)) {
+				error = HAL_ERR_BAD_PARAM;
+				break;
+			}
+
+			 printk(KERN_ALERT"\n hfi_sys_init_done 3");
+			dec_codecs = prop->dec_codecs;
+			enc_codecs = prop->enc_codecs;
+			read_bytes += sizeof(*prop) + sizeof(u32);
+			data_ptr += sizeof(*prop);
+
+			 printk(KERN_ALERT"\n hfi_sys_init_done 4");
+			break;
+		}
+		default:
+			/* bad property id */
+			error = HAL_ERR_BAD_PARAM;
+			break;
+		}
+
+	num_properties--;
+
+	ptype = *((u32 *)data_ptr);
+	if (ptype == HFI_PROPERTY_PARAM_MAX_SESSIONS_SUPPORTED) {
+                struct hfi_max_sessions_supported *prop1 =
+                        (struct hfi_max_sessions_supported *)
+                        (data_ptr + sizeof(u32));
+
+		data_ptr += sizeof(u32);
+
+		// Fill the property value here in to some variable later
+
+                read_bytes += sizeof(struct hfi_max_sessions_supported) +
+			      sizeof(u32);
+		data_ptr += sizeof(struct hfi_max_sessions_supported);
+	}
+
+	rem_bytes -= read_bytes;
+
+	printk(KERN_ALERT"\n hfi_sys_init_done 6");
+	hfi->enc_codecs = enc_codecs;
+	hfi->dec_codecs = dec_codecs;
+
+	printk(KERN_ALERT"\n hfi_sys_init_done 7");
+	if (hfi->hfi_type == VIDC_VENUS &&
+	   (hfi->dec_codecs & HAL_VIDEO_CODEC_H264))
+		hfi->dec_codecs |= HAL_VIDEO_CODEC_MVC;
+
+	goto err_no_prop;
+
+        cap = &(inst->caps);
+
+        printk(KERN_ALERT"\n hfi_session_init_done");
+
+	printk(KERN_ALERT"\ncap %llx", cap);
+
+        //memset(cap, 0, sizeof(*cap));
+	printk(KERN_ALERT"\n memset done");
+
+        error = session_init_done_read_prop(hfi->dev, rem_bytes, num_properties,
+					    data_ptr, cap);
+
+	printk(KERN_ALERT"\n hfi_sys_init_done 8");
+err_no_prop:
+	hfi->error = error;
+
+	printk(KERN_ALERT"\n hfi->error %d", hfi->error);
+
+	complete(&hfi->done);
+}
+
 static void hfi_session_init_done(struct hfi_device *hfi,
 				  struct hfi_device_inst *inst, void *packet)
 {
 	struct hfi_msg_session_init_done_pkt *pkt = packet;
 	struct hal_session_init_done *cap = &inst->caps;
 	enum hal_error error;
+	u32 rem_bytes, num_props;
+	u8 *data;
 
 	printk(KERN_ALERT"\n hfi_session_init_done");
 
@@ -829,7 +854,20 @@ static void hfi_session_init_done(struct hfi_device *hfi,
 
 	memset(cap, 0, sizeof(*cap));
 
-	error = session_init_done_read_prop(hfi->dev, pkt, cap);
+        rem_bytes = pkt->shdr.hdr.size - sizeof(*pkt) + sizeof(u32);
+        if (!rem_bytes) {
+                dev_err(hfi->dev, "%s: missing property info\n", __func__);
+                goto done;
+        }
+
+        data = (u8 *) &pkt->data[0];
+        num_props = pkt->num_properties;
+
+	printk(KERN_ALERT"\nhfi_session_init_done num %x rem %x data %llx",
+				num_props, rem_bytes, data);
+
+	error = session_init_done_read_prop(hfi->dev, rem_bytes, num_props,
+					    data, cap);
 	if (error != HAL_ERR_NONE)
 		goto done;
 

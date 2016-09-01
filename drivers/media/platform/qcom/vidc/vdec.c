@@ -662,7 +662,7 @@ static int vdec_init_session(struct vidc_inst *inst)
 	enum hal_property ptype;
 	int ret;
 
-	dev_dbg(dev, "%s: enter\n", __func__);
+	dev_err(dev, "%s: enter\n", __func__);
 
 	ret = vidc_hfi_session_init(hfi, inst->hfi_inst, pixfmt, VIDC_DECODER);
 	if (ret) {
@@ -855,8 +855,10 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		return -EINVAL;
 	}
 
-	if (!vb2_is_streaming(queue))
+	if (!vb2_is_streaming(queue)) {
+		printk(KERN_ALERT"\n vb2_is_streaming is not done");
 		return 0;
+	}
 
 	inst->in_reconfig = false;
 	inst->sequence = 0;

@@ -216,9 +216,10 @@ int vidc_hfi_session_init(struct hfi_device *hfi, struct hfi_device_inst *inst,
 	enum hal_video_codec codec;
 	int ret;
 
-	if (!hfi || !inst)
+	if (!hfi || !inst) {
+		printk(KERN_ALERT"\n vidc_hfi_session_init not sent");
 		return -EINVAL;
-
+	}
 	dev_dbg(hfi->dev, "%s: enter\n", __func__);
 
 	stype = to_session_type(type);
