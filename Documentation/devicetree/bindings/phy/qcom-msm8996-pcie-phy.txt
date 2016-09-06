@@ -1,0 +1,62 @@
+Qualcomm msm8996 pcie PHY
+------------------------
+
+Required properties:
+- compatible: compatible list, contains "qcom,msm8996-pcie-phy".
+- reg: offset and length of the pcie PHY register set;
+- #phy-cells: must be one
+- clocks: a list of phandles and clock-specifier pairs, one for each entry in
+  clock-names.
+- clock-names: must be "cfg" for phy config clock,
+	"aux" for phy aux clock,
+	"ref_clk" for 19.2 MHz ref clk and
+	"ref_clk_src" reference clock source.
+
+
+- resets: a list of phandles and reset controller specifier pairs, one for
+  each entry in reset-names.
+- reset-names: must be "phy" for reset of pcie phy block and "common" for
+  phy common reset.
+
+Required properties: (Child node)
+- reg: lane numer of the pcie phy.
+- resets: a list of phandles and reset controller specifier pairs, one for
+  each entry in reset-names.
+- reset-names: must be "phy" for reset of pcie phy lane.
+
+Example:
+
+	pcie_phy: qcom,pciephy@34000 {
+		compatible = "qcom,msm8996-pcie-phy";
+		reg = <0x00034000 0x4000>;
+		#phy-cells = <1>;
+		clocks = <&gcc GCC_PCIE_PHY_CFG_AHB_CLK>,
+			<&gcc GCC_PCIE_PHY_AUX_CLK>,
+			<&gcc GCC_PCIE_CLKREF_CLK>,
+			<&rpmcc MSM8996_RPM_SMD_LN_BB_CLK>;
+		clock-names = "cfg", "aux", "ref_clk", "ref_clk_src";
+
+		resets = <&gcc GCC_PCIE_PHY_BCR>,
+			<&gcc GCC_PCIE_PHY_COM_BCR>;
+		reset-names = "phy",  "common";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pcie_phy@0{
+			reg = <0>;
+			resets = <&gcc GCC_PCIE_0_PHY_BCR>;
+			reset-names = "phy";
+		};
+
+		pcie_phy@1{
+			reg = <1>;
+			resets = <&gcc GCC_PCIE_1_PHY_BCR>;
+			reset-names = "phy";
+		};
+
+		pcie_phy@2{
+			reg = <2>;
+			resets = <&gcc GCC_PCIE_2_PHY_BCR>;
+			reset-names = "phy";
+		};
+	};
