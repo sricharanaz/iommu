@@ -135,6 +135,7 @@ struct vidc_inst {
 	const struct vidc_format *fmt_cap;
 	unsigned int num_input_bufs;
 	unsigned int num_output_bufs;
+	unsigned int output_buf_size;
 	bool in_reconfig;
 	u32 reconfig_width;
 	u32 reconfig_height;

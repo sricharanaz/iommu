@@ -49,11 +49,12 @@ static int session_set_buf(struct vb2_buffer *vb)
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST || !fdata.filled_len)
 			fdata.flags |= HAL_BUFFERFLAG_EOS;
 
+		//TEST
+//		fdata.mark_data = fdata.mark_target = 0xdeadbeef;
+
 		ret = vidc_hfi_session_etb(hfi, inst->hfi_inst, &fdata);
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		fdata.buffer_type = HAL_BUFFER_OUTPUT;
-		fdata.filled_len = 0;
-		fdata.offset = 0;
 
 		ret = vidc_hfi_session_ftb(hfi, inst->hfi_inst, &fdata);
 	} else {
@@ -65,7 +66,7 @@ static int session_set_buf(struct vb2_buffer *vb)
 		return ret;
 	}
 
-	dev_dbg(dev, "%s: type:%d, addr:%x, alloc_len:%u, filled_len:%u, offset:%u\n",
+	dev_dbg(dev, "%s: type:%02d, addr:%x, alloc_len:%u, filled_len:%u, offset:%u\n",
 		__func__, q->type, fdata.device_addr, fdata.alloc_len,
 		fdata.filled_len, fdata.offset);
 
@@ -79,6 +80,9 @@ static int session_unregister_bufs(struct vidc_inst *inst)
 	struct hal_buffer_addr_info *bai;
 	struct buffer_info *bi, *tmp;
 	int ret = 0;
+
+	if (hfi->def_properties == HAL_VIDEO_DYNAMIC_BUF_MODE)
+		return 0;
 
 	mutex_lock(&inst->registeredbufs.lock);
 	list_for_each_entry_safe(bi, tmp, &inst->registeredbufs.list, list) {
@@ -104,6 +108,9 @@ static int session_register_bufs(struct vidc_inst *inst)
 	struct hal_buffer_addr_info *bai;
 	struct buffer_info *bi, *tmp;
 	int ret = 0;
+
+	if (hfi->def_properties == HAL_VIDEO_DYNAMIC_BUF_MODE)
+		return 0;
 
 	mutex_lock(&inst->registeredbufs.lock);
 	list_for_each_entry_safe(bi, tmp, &inst->registeredbufs.list, list) {
@@ -135,19 +142,22 @@ int vidc_get_bufreqs(struct vidc_inst *inst)
 
 	memcpy(hfi_inst->bufreq, hprop.bufreq, sizeof(hfi_inst->bufreq));
 
-	for (i = 0; i < HAL_BUFFER_MAX; i++)
-		dev_dbg(dev,
-			"buftype: %03x, actual count: %02d, size: %d, "
+	for (i = 0; i < HAL_BUFFER_MAX; i++) {
+		if (!hfi_inst->bufreq[i].type)
+			continue;
+		dev_err(dev,
+			"buftype: %03x, size: %d, actual count: %02d, "
 			"count min: %d, hold count: %d, region size: %d "
 			"contiguous: %u, alignment: %u\n",
 			hfi_inst->bufreq[i].type,
-			hfi_inst->bufreq[i].count_actual,
 			hfi_inst->bufreq[i].size,
+			hfi_inst->bufreq[i].count_actual,
 			hfi_inst->bufreq[i].count_min,
 			hfi_inst->bufreq[i].hold_count,
 			hfi_inst->bufreq[i].region_size,
 			hfi_inst->bufreq[i].contiguous,
 			hfi_inst->bufreq[i].alignment);
+	}
 
 	return 0;
 }
@@ -194,11 +204,11 @@ int vidc_bufrequirements(struct vidc_inst *inst, enum hal_buffer_type type,
 		break;
 	}
 
-	dev_dbg(dev, "buftype: %03x, actual count: %02d, size: %d, "
+	dev_err(dev, "buftype: %03x, size: %d, actual count: %02d, "
 		     "count min: %d, hold count: %d, region size: %d\n",
 		out->type,
-		out->count_actual,
 		out->size,
+		out->count_actual,
 		out->count_min,
 		out->hold_count,
 		out->region_size);

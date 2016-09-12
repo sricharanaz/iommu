@@ -218,6 +218,9 @@ enum hal_property {
 	HAL_PARAM_VENC_HIER_B_MAX_ENH_LAYERS			= 0x04000061,
 	HAL_PARAM_VDEC_NON_SECURE_OUTPUT2			= 0x04000062,
 	HAL_PARAM_VENC_HIER_P_HYBRID_MODE			= 0x04000063,
+
+	HAL_CONFIG_VDEC_ENTROPY					= 0x04000064,
+	HAL_PARAM_BUFFER_SIZE_MINIMUM				= 0x04000065,
 };
 
 enum hal_session_type {
@@ -584,6 +587,11 @@ struct hal_buffer_count_actual {
 };
 
 struct hal_buffer_size_actual {
+	enum hal_buffer_type type;
+	u32 size;
+};
+
+struct hal_buffer_size_minimum {
 	enum hal_buffer_type type;
 	u32 size;
 };
@@ -1293,6 +1301,7 @@ struct hfi_device {
 
 	/* core capabilities */
 	enum hal_core_capabilities core_caps;
+	enum hal_default_properties def_properties;
 
 	/* internal hfi operations */
 	void *priv;
@@ -1343,6 +1352,8 @@ struct hfi_ops {
 	/* interrupt operations */
 	irqreturn_t (*isr)(int irq, struct hfi_device *hfi);
 	irqreturn_t (*isr_thread)(int irq, struct hfi_device *hfi);
+
+	int (*session_continue)(struct hfi_device_inst *inst);
 };
 
 static inline void *to_hfi_priv(struct hfi_device *hfi)
@@ -1398,6 +1409,8 @@ int vidc_hfi_session_etb(struct hfi_device *hfi, struct hfi_device_inst *inst,
 			 struct hal_frame_data *fdata);
 int vidc_hfi_session_ftb(struct hfi_device *hfi, struct hfi_device_inst *inst,
 			 struct hal_frame_data *fdata);
+int vidc_hfi_session_continue(struct hfi_device *hfi,
+			      struct hfi_device_inst *inst);
 irqreturn_t vidc_hfi_isr_thread(int irq, void *dev_id);
 irqreturn_t vidc_hfi_isr(int irq, void *dev);
 

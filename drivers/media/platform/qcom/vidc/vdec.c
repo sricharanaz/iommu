@@ -47,7 +47,7 @@ static u32 get_framesize_nv12(int plane, u32 height, u32 width)
 
 static u32 get_framesize_compressed(u32 mbs_per_frame)
 {
-	return ((mbs_per_frame * MACROBLOCKS_PER_PIXEL * 3 / 2) / 2) + 128;
+	return 708608;//706560;//((mbs_per_frame * MACROBLOCKS_PER_PIXEL * 3 / 2) / 2) + 128;
 }
 
 static const struct vidc_format vdec_formats[] = {
@@ -141,21 +141,39 @@ static int vdec_set_properties(struct vidc_inst *inst)
 	enum hal_property ptype;
 	int ret;
 
-	ptype = HAL_PARAM_VDEC_CONTINUE_DATA_TRANSFER;
-	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype, &en);
-	if (ret) {
-		dev_err(dev, "set cont data transfer failed (%d)\n", ret);
-		return ret;
+//	ptype = HAL_PARAM_VDEC_CONTINUE_DATA_TRANSFER;
+//	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype, &en);
+//	if (ret) {
+//		dev_err(dev, "set cont data transfer failed (%d)\n", ret);
+//		return ret;
+//	}
+
+	if (hfi->def_properties == HAL_VIDEO_DYNAMIC_BUF_MODE) {
+		struct hal_buffer_alloc_mode alloc_mode;
+
+		ptype = HAL_PARAM_BUFFER_ALLOC_MODE;
+		alloc_mode.type = HAL_BUFFER_OUTPUT;
+		alloc_mode.mode = HAL_BUFFER_MODE_DYNAMIC;
+
+		ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype,
+						    &alloc_mode);
+		if (ret) {
+			dev_err(dev, "set alloc mode failed (%d)\n", ret);
+			return ret;
+		}
 	}
 
-	ptype = HAL_CONFIG_FRAME_RATE;
-	frate.buffer_type = HAL_BUFFER_INPUT;
-	frate.framerate = inst->fps * (1 << 16);
+	if (inst->session_type == VIDC_ENCODER) {
+		ptype = HAL_CONFIG_FRAME_RATE;
+		frate.buffer_type = HAL_BUFFER_INPUT;
+		frate.framerate = inst->fps * (1 << 16);
 
-	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype, &frate);
-	if (ret) {
-		dev_err(dev, "set framerate failed (%d)\n", ret);
-		return ret;
+		ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype,
+						    &frate);
+		if (ret) {
+			dev_err(dev, "set framerate failed (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	if (ctr->post_loop_deb_mode) {
@@ -675,25 +693,25 @@ static int vdec_init_session(struct vidc_inst *inst)
 	fs.width = inst->out_width;
 	fs.height = inst->out_height;
 
-	dev_dbg(dev, "input resolution %ux%u\n", fs.width, fs.height);
+	dev_err(dev, "input resolution %ux%u\n", fs.width, fs.height);
 
 	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype, &fs);
 	if (ret)
 		goto err;
-
+#if 0
 	fs.buffer_type = HAL_BUFFER_OUTPUT;
 	fs.width = inst->width;
 	fs.height = inst->height;
 
-	dev_dbg(dev, "output resolution %ux%u\n", fs.width, fs.height);
+	dev_err(dev, "output resolution %ux%u\n", fs.width, fs.height);
 
 	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype, &fs);
 	if (ret)
 		goto err;
-
+#endif
 	pixfmt = inst->fmt_cap->pixfmt;
 
-	dev_dbg(dev, "set color format %08x\n", pixfmt);
+	dev_err(dev, "set color format %08x\n", pixfmt);
 
 	ret = vidc_set_color_format(inst, HAL_BUFFER_OUTPUT, pixfmt);
 	if (ret)
@@ -754,7 +772,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		*num_planes = inst->fmt_out->num_planes;
 
-		*num_buffers = clamp_val(*num_buffers, 4, VIDEO_MAX_FRAME);
+		*num_buffers = clamp_val(*num_buffers, 6, VIDEO_MAX_FRAME);
 
 		mbs = inst->out_width * inst->out_height /
 				MACROBLOCKS_PER_PIXEL;
@@ -784,6 +802,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
 		}
 
 		inst->num_output_bufs = *num_buffers;
+		inst->output_buf_size = sizes[0];
 
 		dev_dbg(dev, "%s: type:%d, num_bufs:%u, size:%u\n", __func__,
 			q->type, *num_buffers, sizes[0]);
@@ -836,8 +855,9 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct vidc_inst *inst = vb2_get_drv_priv(q);
 	struct hfi_device *hfi = &inst->core->hfi;
 	struct device *dev = inst->core->dev;
-	struct hal_buffer_requirements bufreq;
 	struct hal_buffer_count_actual buf_count;
+	struct hal_buffer_size_minimum buf_sz_min;
+	struct hal_enable_picture enable_picture;
 	enum hal_property ptype;
 	struct vb2_queue *queue;
 	int ret;
@@ -855,10 +875,8 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		return -EINVAL;
 	}
 
-	if (!vb2_is_streaming(queue)) {
-		printk(KERN_ALERT"\n vb2_is_streaming is not done");
+	if (!vb2_is_streaming(queue))
 		return 0;
-	}
 
 	inst->in_reconfig = false;
 	inst->sequence = 0;
@@ -877,9 +895,17 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (ret)
 		goto deinit_sess;
 
-	ret = vdec_check_configuration(inst);
-	if (ret)
+	ptype = HAL_PARAM_BUFFER_SIZE_MINIMUM;
+	buf_sz_min.type = HAL_BUFFER_OUTPUT;
+	buf_sz_min.size = inst->output_buf_size;
+
+	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype,
+					    &buf_sz_min);
+	if (ret) {
+		dev_err(dev, "set buffer size min %d failed (%d)\n",
+			buf_sz_min.size, ret);
 		goto deinit_sess;
+	}
 
 	ptype = HAL_PARAM_BUFFER_COUNT_ACTUAL;
 	buf_count.type = HAL_BUFFER_INPUT;
@@ -893,10 +919,6 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto deinit_sess;
 	}
 
-	ret = vidc_bufrequirements(inst, HAL_BUFFER_OUTPUT, &bufreq);
-	if (ret)
-		goto deinit_sess;
-
 	ptype = HAL_PARAM_BUFFER_COUNT_ACTUAL;
 	buf_count.type = HAL_BUFFER_OUTPUT;
 	buf_count.count_actual = inst->num_output_bufs;
@@ -907,29 +929,29 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		dev_err(dev, "set buf count failed (%d)", ret);
 		goto deinit_sess;
 	}
+#if 0
+	ptype = HAL_PARAM_VDEC_PICTURE_TYPE_DECODE;
+	enable_picture.picture_type = HAL_PICTURE_I | HAL_PICTURE_P |
+				      HAL_PICTURE_B | HAL_PICTURE_IDR;
 
-	if (inst->num_output_bufs != bufreq.count_actual) {
-		struct hal_buffer_display_hold_count_actual display;
-
-		ptype = HAL_PARAM_BUFFER_DISPLAY_HOLD_COUNT_ACTUAL;
-		display.buffer_type = HAL_BUFFER_OUTPUT;
-		display.hold_count = inst->num_output_bufs -
-				     bufreq.count_actual;
-
-		ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst,
-						    ptype, &display);
-		if (ret) {
-			dev_err(dev, "display hold count failed (%d)",
-				ret);
-			goto deinit_sess;
-		}
+	ret = vidc_hfi_session_set_property(hfi, inst->hfi_inst, ptype,
+					    &enable_picture);
+	if (ret) {
+		dev_err(dev, "set enable picture type failed (%d)", ret);
+		goto deinit_sess;
 	}
+#endif
+	ret = vdec_check_configuration(inst);
+	if (ret)
+		goto deinit_sess;
 
 	ret = vidc_vb2_start_streaming(inst);
 	if (ret) {
 		dev_err(dev, "start streaming fail (%d)\n", ret);
 		goto deinit_sess;
 	}
+
+//	vidc_hfi_session_continue(hfi, inst->hfi_inst);
 
 	return 0;
 

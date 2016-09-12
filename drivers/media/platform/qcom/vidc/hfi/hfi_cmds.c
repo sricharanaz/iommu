@@ -214,9 +214,9 @@ static void pkt_sys_coverage_config(struct hfi_sys_set_property_pkt *pkt,
 
 static int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt,
 				struct hal_resource_hdr *resource_hdr,
-				void *resource_value)
+				u32 res_addr)
 {
-	if (!pkt || !resource_hdr || !resource_value)
+	if (!pkt || !resource_hdr)
 		return -EINVAL;
 
 	pkt->hdr.size = sizeof(*pkt);
@@ -230,7 +230,7 @@ static int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt,
 			(struct hfi_resource_ocmem *) &pkt->resource_data[0];
 
 		res->size = resource_hdr->size;
-		res->mem = (unsigned long)resource_value;
+		res->mem = res_addr;
 		pkt->resource_type = HFI_RESOURCE_OCMEM;
 		pkt->hdr.size += sizeof(*res) - sizeof(u32);
 		break;
@@ -1608,8 +1608,49 @@ pkt_session_set_property_3xx(struct hfi_session_set_property_pkt *pkt,
 		pkt->shdr.hdr.size += sizeof(u32) + sizeof(*hfi);
 		break;
 	}
+	case HAL_PARAM_VDEC_CONTINUE_DATA_TRANSFER: {
+		ret = -ENOTSUPP;
+		break;
+	}
+	case HAL_PARAM_BUFFER_SIZE_MINIMUM: {
+		struct hal_buffer_size_minimum *hal = pdata;
+		struct hfi_buffer_size_minimum *hfi = prop_data;
+
+		pkt->data[0] = HFI_PROPERTY_PARAM_BUFFER_SIZE_MINIMUM;
+		hfi->size = hal->size;
+		hfi->type = to_hfi_buffer(hal->type);
+		pkt->shdr.hdr.size += sizeof(u32) + sizeof(*hfi);
+		break;
+	}
 	default:
 		ret = pkt_session_set_property(pkt, inst, ptype, pdata);
+		break;
+	}
+
+	return ret;
+}
+
+static int
+pkt_session_get_property_3xx(struct hfi_session_get_property_pkt *pkt,
+			     struct hfi_device_inst *inst,
+			     enum hal_property ptype)
+{
+	int ret = 0;
+
+	if (!pkt || !inst)
+		return -EINVAL;
+
+	pkt->shdr.hdr.size = sizeof(struct hfi_session_get_property_pkt);
+	pkt->shdr.hdr.pkt_type = HFI_CMD_SESSION_GET_PROPERTY;
+	pkt->shdr.session_id = hash32_ptr(inst);
+	pkt->num_properties = 1;
+
+	switch (ptype) {
+	case HAL_CONFIG_VDEC_ENTROPY:
+		pkt->data[0] = HFI_PROPERTY_CONFIG_VDEC_ENTROPY;
+		break;
+	default:
+		ret = pkt_session_get_property(pkt, inst, ptype);
 		break;
 	}
 
@@ -1680,6 +1721,7 @@ static const struct hfi_packetization_ops *get_3xx_ops(void)
 
 	hfi_3xx = hfi_default;
 	hfi_3xx.session_set_property = pkt_session_set_property_3xx;
+	hfi_3xx.session_get_property = pkt_session_get_property_3xx;
 
 	return &hfi_3xx;
 }

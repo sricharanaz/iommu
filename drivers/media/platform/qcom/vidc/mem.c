@@ -40,11 +40,9 @@ static int alloc_dma_mem(struct device *dev, size_t size, u32 align,
 
 	mem->iommu_dev = dev;
 
-	printk("\n alloc_dma_mem 1");
 	if (IS_ERR(mem->iommu_dev))
 		return PTR_ERR(mem->iommu_dev);
 
-	printk("\n alloc_dma_mem 2");
 	init_dma_attrs(&mem->attrs);
 
 	if (!map_kernel)
@@ -55,20 +53,19 @@ static int alloc_dma_mem(struct device *dev, size_t size, u32 align,
 	if (!mem->kvaddr)
 		return -ENOMEM;
 
-	printk("\n alloc_dma_mem 3");
 	mem->sgt = kmalloc(sizeof(*mem->sgt), GFP_KERNEL);
 	if (!mem->sgt) {
 		ret = -ENOMEM;
 		goto error_sgt;
 	}
 
-	printk("\n alloc_dma_mem 4");
 	ret = dma_get_sgtable_attrs(mem->iommu_dev, mem->sgt, mem->kvaddr,
 				    mem->da, mem->size, &mem->attrs);
 	if (ret)
 		goto error;
 
-	printk("\n alloc_dma_mem 5");
+	dev_info(dev, "%s: va:%p, da:%pa\n", __func__, mem->kvaddr, &mem->da);
+
 	return 0;
 error:
 	kfree(mem->sgt);
@@ -113,7 +110,6 @@ struct smem *smem_alloc(struct device *dev, size_t size, u32 align,
 	struct smem *mem;
 	int ret;
 
-	printk("\n v1.1.1.1");
 	if (!size)
 		return ERR_PTR(-EINVAL);
 
@@ -121,14 +117,12 @@ struct smem *smem_alloc(struct device *dev, size_t size, u32 align,
 	if (!mem)
 		return ERR_PTR(-ENOMEM);
 
-	printk("\n v1.1.1.2");
 	ret = alloc_dma_mem(dev, size, align, mem, map_kernel);
 	if (ret) {
 		kfree(mem);
 		return ERR_PTR(ret);
 	}
 
-	printk("\n v1.1.1.3");
 	return mem;
 }
 

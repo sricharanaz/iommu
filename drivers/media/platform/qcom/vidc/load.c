@@ -78,6 +78,22 @@ set_freq:
 		return ret;
 	}
 
+	clk = core->res.clks[1].clk;
+
+	ret = clk_set_rate(clk, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
+		return ret;
+	}
+
+	clk = core->res.clks[2].clk;
+
+	ret = clk_set_rate(clk, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
+		return ret;
+	}
+
 	return 0;
 }
 

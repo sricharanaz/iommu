@@ -20,9 +20,14 @@
 #include "resources.h"
 
 static const struct freq_tbl freq_table_8916[] = {
-	{ 352800, 228570000 },	/* 1920x1088 @ 30 + 1280x720 @ 30 */
-	{ 244800, 160000000 },	/* 1920x1088 @ 30 */
-	{ 108000, 100000000 },	/* 1280x720 @ 30 */
+//	{ 352800, 228570000 },	/* 1920x1088 @ 30 + 1280x720 @ 30 */
+//	{ 244800, 160000000 },	/* 1920x1088 @ 30 */
+//	{ 108000, 100000000 },	/* 1280x720 @ 30 */
+
+	{ 1944000, 490000000 },	/* 4k UHD @ 60 */
+	{  972000, 320000000 },	/* 4k UHD @ 30 */
+	{  489600, 150000000 },	/* 1080p @ 60 */
+	{  244800,  75000000 },	/* 1080p @ 30 */
 };
 
 static const struct reg_val reg_preset_8916[] = {
@@ -32,21 +37,22 @@ static const struct reg_val reg_preset_8916[] = {
 };
 
 static struct clock_info clks_8916[] = {
+	{ .name = "core_clk", },
+	{ .name = "core0_clk" },
+	{ .name = "core1_clk" },
+
 	{ .name = "rpm_mmaxi_clk", },
 	{ .name = "mmagic_ahb_clk", },
 	{ .name = "smmu_ahb_clk", },
 	{ .name = "smmu_axi_clk", },
 	{ .name = "mmagic_video_axi_clk" },
-	{ .name = "core_clk", },
 	{ .name = "iface_clk", },
 	{ .name = "bus_clk", },
-	{ .name  = "mmagic_video_noc_cfg_ahb_clk", },
+	{ .name = "mmagic_video_noc_cfg_ahb_clk", },
 	{ .name = "maxi_clk", },
-	{ .name = "core0_clk" },
-	{ .name = "core1_clk" },
 };
 
-static const u32 max_load_8916 = 352800; /* 720p@30 + 1080p@30 */
+static const u32 max_load_8916 = 2563200; /* 720p@30 + 1080p@30 */
 
 static int get_clks(struct device *dev, struct vidc_resources *res)
 {
@@ -71,12 +77,9 @@ int enable_clocks(struct vidc_core *core)
 
 	for (i = 0; i < res->clks_num; i++) {
 		ret = clk_prepare_enable(clks[i].clk);
-		printk(KERN_ALERT"\n vidc_clk_enable for %d is %d", i, ret);
 		if (ret)
 			goto err;
 	}
-
-	venus_enable_clock_config(core);
 
 	return 0;
 err:
@@ -92,7 +95,7 @@ void disable_clocks(struct vidc_core *core)
 	struct clock_info *clks = res->clks;
 	unsigned int i;
 
-	return 0;
+	return;
 
 	for (i = 0; i < res->clks_num; i++) {
 		if (i == 8)
@@ -141,7 +144,6 @@ int get_platform_resources(struct vidc_core *core)
 		return ret;
 	}
 
-	printk("\n vidc: get_platform_resources updated preset array");
 	return 0;
 }
 

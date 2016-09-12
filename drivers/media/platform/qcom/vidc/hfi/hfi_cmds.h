@@ -66,6 +66,8 @@
 					(HFI_CMD_SESSION_OX_START + 0xb)
 #define HFI_CMD_SESSION_RELEASE_RESOURCES	\
 					(HFI_CMD_SESSION_OX_START + 0xc)
+#define HFI_CMD_SESSION_CONTINUE	(HFI_CMD_SESSION_OX_START + 0xd)
+#define HFI_CMD_SESSION_SYNC		(HFI_CMD_SESSION_OX_START + 0xe)
 
 /* command packets */
 struct hfi_sys_init_pkt {
@@ -288,7 +290,7 @@ struct hfi_packetization_ops {
 				  u32 enable);
 	int (*sys_set_resource)(struct hfi_sys_set_resource_pkt *pkt,
 				struct hal_resource_hdr *resource_hdr,
-				void *resource_value);
+				u32 res_addr);
 	int (*sys_release_resource)(struct hfi_sys_release_resource_pkt *pkt,
 				    struct hal_resource_hdr *resource_hdr);
 	void (*sys_debug_config)(struct hfi_sys_set_property_pkt *pkt, u32 mode,

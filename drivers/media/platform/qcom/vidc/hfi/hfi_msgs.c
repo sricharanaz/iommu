@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
  *
  */
+#define DEBUG
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -23,8 +24,6 @@
 
 static enum hal_error to_hal_error(u32 hfi_err)
 {
-	printk(KERN_ALERT"\n hal_err %d", hfi_err);
-
 	switch (hfi_err) {
 	case HFI_ERR_NONE:
 	case HFI_ERR_SESSION_SAME_STATE_OPERATION:
@@ -178,7 +177,7 @@ static void event_session_error(struct hfi_device *hfi,
 {
 	struct device *dev = hfi->dev;
 
-	dev_dbg(dev, "session error: event id:%x, session id:%x\n",
+	dev_err(dev, "session error: event id:%x, session id:%x\n",
 		pkt->event_data1, pkt->shdr.session_id);
 
 	if (!inst)
@@ -211,6 +210,8 @@ static void hfi_event_notify(struct hfi_device *hfi,
 		dev_err(hfi->dev, "invalid packet\n");
 		return;
 	}
+
+	dev_err(hfi->dev, "%s: recv event id %x\n", __func__, pkt->event_id);
 
 	switch (pkt->event_id) {
 	case HFI_EVENT_SYS_ERROR:
@@ -249,7 +250,7 @@ sys_get_prop_image_version(struct device *dev,
 		/* bad packet */
 		return;
 
-	dev_dbg(dev, "F/W version: %s\n", (u8 *)&pkt->data[1]);
+	dev_err(dev, "F/W version: %s\n", (u8 *)&pkt->data[1]);
 }
 
 static void hfi_sys_property_info(struct hfi_device *hfi,
@@ -279,8 +280,6 @@ static void hfi_sys_rel_resource_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_release_resource_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\nhfi_sys_rel_resource_done ");
-
 	hfi->error = to_hal_error(pkt->error_type);
 	complete(&hfi->done);
 }
@@ -290,7 +289,6 @@ static void hfi_sys_ping_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_ping_ack_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_sys_ping_done");
 	hfi->error = HAL_ERR_NONE;
 
 	if (pkt->client_data != 0xbeef)
@@ -467,14 +465,29 @@ session_get_prop_buf_req(struct device *dev,
 	}
 }
 
+static void
+session_get_prop_vdec_entropy(struct hfi_msg_session_property_info_pkt *pkt,
+			      u32 *entropy)
+{
+	u32 req_bytes;
+
+	req_bytes = pkt->shdr.hdr.size - sizeof(*pkt);
+
+	if (!req_bytes || req_bytes % sizeof(*entropy) || !pkt->data[1])
+		/* bad packet */
+		return;
+
+	*entropy = pkt->data[1];
+}
+
 static void hfi_session_prop_info(struct hfi_device *hfi,
 				  struct hfi_device_inst *inst, void *packet)
 {
 	struct hfi_msg_session_property_info_pkt *pkt = packet;
 	struct device *dev = hfi->dev;
 	union hal_get_property *hprop = &inst->hprop;
+	u32 dec_entropy;
 
-	printk(KERN_ALERT"\n hfi_session_prop_info_done");
 	inst->error = HAL_ERR_NONE;
 
 	if (!pkt->num_properties) {
@@ -491,6 +504,9 @@ static void hfi_session_prop_info(struct hfi_device *hfi,
 	case HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT:
 		memset(&hprop->profile_level, 0, sizeof(hprop->profile_level));
 		session_get_prop_profile_level(pkt, &hprop->profile_level);
+		break;
+	case HFI_PROPERTY_CONFIG_VDEC_ENTROPY:
+		session_get_prop_vdec_entropy(pkt, &dec_entropy);
 		break;
 	default:
 		dev_dbg(dev, "%s: unknown property id:%x\n", __func__,
@@ -514,8 +530,6 @@ session_init_done_read_prop(struct device *dev,
 	while (error == HAL_ERR_NONE && num_props && rem_bytes >= sizeof(u32)) {
 		ptype = *((u32 *)data);
 		next_offset = sizeof(u32);
-
-		printk(KERN_ALERT"\nsession_init_done_read_prop 1 %d", ptype);
 
 		switch (ptype) {
 		case HFI_PROPERTY_PARAM_CAPABILITY_SUPPORTED: {
@@ -726,24 +740,19 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 	u8 *data_ptr;
 	u32 ptype;
 
-	printk(KERN_ALERT"\n hfi_sys_init_done");
+	dev_err(hfi->dev, "%s: enter\n", __func__);
 
 	error = to_hal_error(pkt->error_type);
 	if (error != HAL_ERR_NONE)
 		goto err_no_prop;
 
 	num_properties = pkt->num_properties;
-
-	printk(KERN_ALERT"\n hfi_sys_init_done 1");
 	if (!num_properties) {
 		error = HAL_ERR_FAIL;
 		goto err_no_prop;
 	}
 
 	rem_bytes = pkt->hdr.size - sizeof(*pkt) + sizeof(u32);
-
-	 printk(KERN_ALERT"\n hfi_sys_init_done 2");
-
 	if (!rem_bytes) {
 		/* missing property data */
 		error = HAL_ERR_FAIL;
@@ -752,88 +761,69 @@ static void hfi_sys_init_done(struct hfi_device *hfi,
 
 	data_ptr = (u8 *)&pkt->data[0];
 
-	printk(KERN_ALERT"\n num_properties %d data_ptr %llx rem_bytes %d", num_properties, data_ptr, rem_bytes);
-		//printk(KERN_ALERT"\n num_properties %d data_ptr %x", num_properties, data_ptr);
+	ptype = *((u32 *)data_ptr);
+	data_ptr += sizeof(u32);
 
-		ptype = *((u32 *)data_ptr);
-		data_ptr += sizeof(u32);
+	dev_err(hfi->dev, "%s: ptype:%x, num_properties: %d\n", __func__,
+		ptype, num_properties);
 
-		//dev_err(hfi->dev, "%s: ptype:%x\n", __func__, ptype);
+	switch (ptype) {
+	case HFI_PROPERTY_PARAM_CODEC_SUPPORTED: {
+		struct hfi_codec_supported *prop;
 
-		switch (ptype) {
-		case HFI_PROPERTY_PARAM_CODEC_SUPPORTED: {
-			struct hfi_codec_supported *prop;
+		prop = (struct hfi_codec_supported *)data_ptr;
 
-			prop = (struct hfi_codec_supported *)data_ptr;
-
-			if (rem_bytes < sizeof(*prop)) {
-				error = HAL_ERR_BAD_PARAM;
-				break;
-			}
-
-			 printk(KERN_ALERT"\n hfi_sys_init_done 3");
-			dec_codecs = prop->dec_codecs;
-			enc_codecs = prop->enc_codecs;
-			read_bytes += sizeof(*prop) + sizeof(u32);
-			data_ptr += sizeof(*prop);
-
-			 printk(KERN_ALERT"\n hfi_sys_init_done 4");
-			break;
-		}
-		default:
-			/* bad property id */
+		if (rem_bytes < sizeof(*prop)) {
 			error = HAL_ERR_BAD_PARAM;
 			break;
 		}
 
-	num_properties--;
+		dec_codecs = prop->dec_codecs;
+		enc_codecs = prop->enc_codecs;
+		read_bytes += sizeof(*prop) + sizeof(u32);
+		data_ptr += sizeof(*prop);
+
+		break;
+	}
+	default:
+		/* bad property id */
+		error = HAL_ERR_BAD_PARAM;
+		break;
+	}
 
 	ptype = *((u32 *)data_ptr);
+
 	if (ptype == HFI_PROPERTY_PARAM_MAX_SESSIONS_SUPPORTED) {
-                struct hfi_max_sessions_supported *prop1 =
-                        (struct hfi_max_sessions_supported *)
-                        (data_ptr + sizeof(u32));
+		struct hfi_max_sessions_supported *prop1 =
+			(struct hfi_max_sessions_supported *)
+			(data_ptr + sizeof(u32));
 
 		data_ptr += sizeof(u32);
 
 		// Fill the property value here in to some variable later
-
                 read_bytes += sizeof(struct hfi_max_sessions_supported) +
-			      sizeof(u32);
+				sizeof(u32);
 		data_ptr += sizeof(struct hfi_max_sessions_supported);
 	}
 
+	num_properties--;
 	rem_bytes -= read_bytes;
 
-	printk(KERN_ALERT"\n hfi_sys_init_done 6");
 	hfi->enc_codecs = enc_codecs;
 	hfi->dec_codecs = dec_codecs;
 
-	printk(KERN_ALERT"\n hfi_sys_init_done 7");
 	if (hfi->hfi_type == VIDC_VENUS &&
 	   (hfi->dec_codecs & HAL_VIDEO_CODEC_H264))
 		hfi->dec_codecs |= HAL_VIDEO_CODEC_MVC;
 
 	goto err_no_prop;
 
-        cap = &(inst->caps);
-
-        printk(KERN_ALERT"\n hfi_session_init_done");
-
-	printk(KERN_ALERT"\ncap %llx", cap);
-
-        //memset(cap, 0, sizeof(*cap));
-	printk(KERN_ALERT"\n memset done");
-
-        error = session_init_done_read_prop(hfi->dev, rem_bytes, num_properties,
+	error = session_init_done_read_prop(hfi->dev, rem_bytes, num_properties,
 					    data_ptr, cap);
 
-	printk(KERN_ALERT"\n hfi_sys_init_done 8");
 err_no_prop:
+	dev_err(hfi->dev, "%s: exit (error: %x)\n", __func__, error);
 	hfi->error = error;
-
-	printk(KERN_ALERT"\n hfi->error %d", hfi->error);
-
 	complete(&hfi->done);
 }
 
@@ -845,8 +835,6 @@ static void hfi_session_init_done(struct hfi_device *hfi,
 	enum hal_error error;
 	u32 rem_bytes, num_props;
 	u8 *data;
-
-	printk(KERN_ALERT"\n hfi_session_init_done");
 
 	error = to_hal_error(pkt->error_type);
 	if (error != HAL_ERR_NONE)
@@ -863,22 +851,21 @@ static void hfi_session_init_done(struct hfi_device *hfi,
         data = (u8 *) &pkt->data[0];
         num_props = pkt->num_properties;
 
-	printk(KERN_ALERT"\nhfi_session_init_done num %x rem %x data %llx",
-				num_props, rem_bytes, data);
+	dev_dbg(hfi->dev, "%s: num_props %d\n", __func__, num_props);
 
 	error = session_init_done_read_prop(hfi->dev, rem_bytes, num_props,
 					    data, cap);
 	if (error != HAL_ERR_NONE)
 		goto done;
 
-	dev_dbg(hfi->dev,
+	dev_err(hfi->dev,
 		"width %u-%u (%u), height %u-%d (%u), framerate %u-%u (%u)\n",
 		cap->width.min, cap->width.max, cap->width.step_size,
 		cap->height.min, cap->height.max, cap->height.step_size,
 		cap->frame_rate.min, cap->frame_rate.max,
 		cap->frame_rate.step_size);
 
-	dev_dbg(hfi->dev,
+	dev_err(hfi->dev,
 		"scalex %u-%u (%u), scaley %u-%d (%u), mbsperframe %u-%u (%u)\n",
 		cap->scale_x.min, cap->scale_x.max, cap->scale_x.step_size,
 		cap->scale_y.min, cap->scale_y.max, cap->scale_y.step_size,
@@ -895,7 +882,6 @@ static void hfi_session_load_res_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_load_resources_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_load_res_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -905,7 +891,6 @@ static void hfi_session_flush_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_flush_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\nhfi_session_flush_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -915,8 +900,6 @@ static void hfi_session_etb_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_empty_buffer_done_pkt *pkt = packet;
 	u32 flags = 0;
-
-	printk(KERN_ALERT"\nhfi_session_etb_done");
 
 	inst->error = to_hal_error(pkt->error_type);
 
@@ -940,8 +923,6 @@ static void hfi_session_ftb_done(struct hfi_device *hfi,
 	int64_t time_usec = 0;
 	unsigned int error;
 	u32 flags = 0;
-
-	printk(KERN_ALERT"\n hfi_session_ftb_done");
 
 	if (session_type == HAL_VIDEO_SESSION_TYPE_ENCODER) {
 		struct hfi_msg_session_fbd_compressed_pkt *pkt = packet;
@@ -1051,8 +1032,6 @@ static void hfi_session_start_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_start_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_start_done");
-
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1061,8 +1040,6 @@ static void hfi_session_stop_done(struct hfi_device *hfi,
 				  struct hfi_device_inst *inst, void *packet)
 {
 	struct hfi_msg_session_stop_done_pkt *pkt = packet;
-
-	printk(KERN_ALERT"\n hfi_session_stop_done");
 
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
@@ -1073,7 +1050,6 @@ static void hfi_session_rel_res_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_release_resources_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_rel_res_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1083,7 +1059,6 @@ static void hfi_session_rel_buf_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_release_buffers_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_rel_buf_done");
 	/*
 	 * the address of the released buffer can be extracted:
 	 * if (pkt->buffer_info) {
@@ -1100,7 +1075,6 @@ static void hfi_session_end_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_end_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_end_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1110,7 +1084,6 @@ static void hfi_session_abort_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_sys_session_abort_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_abort_done");
 	inst->error = to_hal_error(pkt->error_type);
 	complete(&inst->done);
 }
@@ -1121,7 +1094,6 @@ static void hfi_session_get_seq_hdr_done(struct hfi_device *hfi,
 {
 	struct hfi_msg_session_get_sequence_hdr_done_pkt *pkt = packet;
 
-	printk(KERN_ALERT"\n hfi_session_get_seq_hdr_done");
 	/*
 	 * output_done.packet_buffer1 = pkt->sequence_header;
 	 * output_done.filled_len1 = pkt->header_len;
@@ -1242,7 +1214,6 @@ u32 hfi_process_msg_packet(struct hfi_device *hfi, struct hfi_pkt_hdr *hdr)
 	unsigned int i;
 	bool found = false;
 
-	printk(KERN_ALERT"\n hfi_process_msg_packet %x", hdr->pkt_type);
 	for (i = 0; i < ARRAY_SIZE(handlers); i++) {
 		handler = &handlers[i];
 

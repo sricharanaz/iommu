@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
  *
  */
+#define DEBUG
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/list.h>
@@ -330,9 +331,9 @@ static int vidc_probe(struct platform_device *pdev)
 	struct resource *r;
 	u64 dma_mask;
 	int ret;
-	volatile int loop = 1;
-	
-	printk(KERN_ALERT"\n 1.1");
+
+	dev_dbg(dev, "%s: enter\n", __func__);
+
 	dma_mask = 0xddc00000 - 1;
 	ret = dma_set_mask_and_coherent(dev, dma_mask);
 	if (ret) {
@@ -340,7 +341,6 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	printk(KERN_ALERT"\n 1");
 	if (!vidc_driver) {
 		vidc_driver = kzalloc(sizeof(*vidc_driver), GFP_KERNEL);
 		if (!vidc_driver)
@@ -350,7 +350,6 @@ static int vidc_probe(struct platform_device *pdev)
 		mutex_init(&vidc_driver->lock);
 	}
 
-	printk(KERN_ALERT"\n 2");
 	mutex_lock(&vidc_driver->lock);
 	if (vidc_driver->num_cores + 1 > VIDC_CORES_MAX) {
 		mutex_unlock(&vidc_driver->lock);
@@ -360,12 +359,10 @@ static int vidc_probe(struct platform_device *pdev)
 	vidc_driver->num_cores++;
 	mutex_unlock(&vidc_driver->lock);
 
-	printk(KERN_ALERT"\n 3");
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
 		return -ENOMEM;
 
-	printk(KERN_ALERT"\n 4");
 	core->dev = dev;
 	platform_set_drvdata(pdev, core);
 
@@ -375,18 +372,13 @@ static int vidc_probe(struct platform_device *pdev)
 		return PTR_ERR(rproc);
 	}
 
-	printk(KERN_ALERT"\n 5");
-
 	core->rproc = rproc_get_by_phandle(rproc->phandle);
-
-	printk(KERN_ALERT"\n core->rproc %x", core->rproc);
 
 	if (IS_ERR(core->rproc))
 		return PTR_ERR(core->rproc);
 	else if (!core->rproc)
 		return -EPROBE_DEFER;
 
-	printk(KERN_ALERT"\n 6");
 	res = &core->res;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -394,20 +386,19 @@ static int vidc_probe(struct platform_device *pdev)
 	if (IS_ERR(res->base))
 		return PTR_ERR(res->base);
 
-	printk(KERN_ALERT"\n 7");
 	res->irq = platform_get_irq(pdev, 0);
 	if (res->irq < 0)
 		return res->irq;
 
-	printk(KERN_ALERT"\n 8");
 
 	ret = get_platform_resources(core);
 	if (ret)
 		return ret;
 
-	printk(KERN_ALERT"\n 9");
 	INIT_LIST_HEAD(&core->instances);
 	mutex_init(&core->lock);
+
+	dev_err(dev, "%s: irq %d\n", __func__, res->irq);
 
 	ret = devm_request_threaded_irq(dev, res->irq, vidc_isr,
 					vidc_isr_thread,
@@ -420,7 +411,6 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	printk(KERN_ALERT"\n 10");
 	core->hfi.core_ops = &vidc_core_ops;
 	core->hfi.hfi_type = core->hfi_type;
 	core->hfi.dev = dev;
@@ -433,7 +423,6 @@ static int vidc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	printk(KERN_ALERT"\n 11");
 	ret = enable_clocks(core);
 	if (ret) {
 		dev_err(dev, "%s: cannot enable clocks\n", __func__);
@@ -447,7 +436,6 @@ static int vidc_probe(struct platform_device *pdev)
 		goto err_hfi_destroy;
 	}
 
-	printk(KERN_ALERT"\n 12");
 	pm_runtime_enable(dev);
 
 	ret = pm_runtime_get_sync(dev);
@@ -459,14 +447,11 @@ static int vidc_probe(struct platform_device *pdev)
 	dev_dbg(dev, "pm_runtime_get_sync (%d) is_suspended:%d\n", ret,
 		pm_runtime_suspended(dev));
 
-	printk(KERN_ALERT"\n pm_runtime_get_sync done");
 	ret = vidc_hfi_core_init(&core->hfi);
 	if (ret) {
 		dev_err(dev, "core: init failed (%d)\n", ret);
 		goto err_rproc_shutdown;
 	}
-
-	printk("\n vidc_hfi_core_init done");
 
 	//ret = pm_runtime_put_sync(dev);
 	if (ret) {
@@ -474,26 +459,20 @@ static int vidc_probe(struct platform_device *pdev)
 		goto err_core_deinit;
 	}
 
-	printk("\n pm_runtime_put_sync done");
 	//disable_clocks(core);
-
-	printk("\n disable_clocks done");
 
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
 		goto err_core_deinit;
 
-	printk("\n v4l2_device_register done");
 	ret = vdec_init(core, &core->vdev_dec);
 	if (ret)
 		goto err_dev_unregister;
 
-	printk("\n vdec_init done");
 	ret = venc_init(core, &core->vdev_enc);
 	if (ret)
 		goto err_vdec_deinit;
 
-	printk("\n venc_init done");
 	mutex_lock(&vidc_driver->lock);
 	list_add_tail(&core->list, &vidc_driver->cores);
 	mutex_unlock(&vidc_driver->lock);
@@ -626,50 +605,7 @@ static struct platform_driver qcom_vidc_driver = {
 	},
 };
 
-static struct kobject *example_kobject;
-static int foo;
-
-static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
-                      char *buf)
-{
-}
-
-static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
-                      char *buf, size_t count)
-{
-        return platform_driver_register(&qcom_vidc_driver);
-}
-
-static struct kobj_attribute foo_attribute =__ATTR(foo, 0660, foo_show,
-                                                   foo_store);
-
-static int __init mymodule_init (void)
-{
-        int error = 0;
-
-        pr_debug("VIDC Module initialized successfully \n");
-
-        example_kobject = kobject_create_and_add("kobject_example",
-                                                 kernel_kobj);
-        if(!example_kobject)
-                return -ENOMEM;
-
-        error = sysfs_create_file(example_kobject, &foo_attribute.attr);
-        if (error) {
-                pr_debug("failed to create the foo file in /sys/kernel/kobject_example \n");
-        }
-
-        return error;
-}
-module_init(mymodule_init);
-
-static void __exit mymodule_exit (void)
-{
-        pr_debug ("VIDC Module un initialized successfully \n");
-        platform_driver_unregister(&qcom_vidc_driver);
-        kobject_put(example_kobject);
-}
-module_exit(mymodule_exit);
+module_platform_driver(qcom_vidc_driver);
 
 MODULE_ALIAS("platform:qcom-vidc");
 MODULE_DESCRIPTION("Qualcomm video encoder and decoder driver");
