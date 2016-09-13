@@ -27,6 +27,7 @@
 #include "venus_hfi.h"
 #include "venus_hfi_io.h"
 #include "core.h"
+#include "../../vmem.h"
 
 #define HFI_MASK_QHDR_TX_TYPE		0xff000000
 #define HFI_MASK_QHDR_RX_TYPE		0x00ff0000
@@ -1135,20 +1136,23 @@ static irqreturn_t venus_isr_thread(int irq, struct hfi_device *hfi)
 			venus_set_threshold_regs(hdev);
 			break;
 		case HFI_MSG_SYS_INIT: {
-#if 0
 			struct hal_resource_hdr res;
 			int ret;
-
+			unsigned long size = 524288;
+			phys_addr_t vmem_buffer = 0;
+		
+			vmem_allocate(size, &vmem_buffer);
+			dev_err(hdev->dev, "\n vmem_allocate %x", vmem_buffer);
 			res.resource_id = VIDC_RESOURCE_VMEM;
 			res.resource_handle = hdev;
 			res.size = 524288;
-			ret = venus_hfi_core_set_resource(hdev, &res, 0x6800000);
+			ret = venus_hfi_core_set_resource(hdev, &res, vmem_buffer);
 			if (ret)
 				dev_err(hdev->dev, "set resource fail (%d)\n",
 					ret);
 			else
 				dev_err(hdev->dev, "set vmem resource\n");
-#endif
+
 			break;
 		}
 		case HFI_MSG_SESSION_START:

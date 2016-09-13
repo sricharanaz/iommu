@@ -5,3 +5,7 @@ menuconfig QCOM_VIDC_V4L2
 	depends on IOMMU_DMA
 	select VIDEOBUF2_DMA_SG
 	select QCOM_SCM
+
+menuconfig MSM_VIDC_VMEM
+        bool "Qualcomm Technologies Inc MSM VMEM driver"
+        depends on ARCH_QCOM && QCOM_VIDC_V4L2

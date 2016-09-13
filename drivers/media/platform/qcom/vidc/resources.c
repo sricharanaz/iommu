@@ -50,6 +50,7 @@ static struct clock_info clks_8916[] = {
 	{ .name = "bus_clk", },
 	{ .name = "mmagic_video_noc_cfg_ahb_clk", },
 	{ .name = "maxi_clk", },
+	{ .name = "mmss_mmagic_maxi_clk", },
 };
 
 static const u32 max_load_8916 = 2563200; /* 720p@30 + 1080p@30 */
@@ -61,8 +62,10 @@ static int get_clks(struct device *dev, struct vidc_resources *res)
 
 	for (i = 0; i < res->clks_num; i++) {
 		clks[i].clk = devm_clk_get(dev, clks[i].name);
-		if (IS_ERR(clks[i].clk))
+		if (IS_ERR(clks[i].clk)) {
+			dev_err(dev, "get_clks failed for %s", clks[i].name);
 			return PTR_ERR(clks[i].clk);
+		}
 	}
 
 	return 0;
@@ -77,8 +80,10 @@ int enable_clocks(struct vidc_core *core)
 
 	for (i = 0; i < res->clks_num; i++) {
 		ret = clk_prepare_enable(clks[i].clk);
-		if (ret)
+		if (ret) {
+			dev_err(core->dev, "enable_clocks failed for %s", clks[i].name);
 			goto err;
+		}
 	}
 
 	return 0;

@@ -515,7 +515,8 @@
 				 <&mmcc MMAGIC_VIDEO_NOC_CFG_AHB_CLK>,
 				 <&mmcc VIDEO_MAXI_CLK>,
 				 <&mmcc VIDEO_SUBCORE0_CLK>,
-				 <&mmcc VIDEO_SUBCORE1_CLK>;
+				 <&mmcc VIDEO_SUBCORE1_CLK>,
+				 <&mmcc MMSS_MMAGIC_MAXI_CLK>;
 
 			clock-names = "rpm_mmaxi_clk", "rpm_mmaxi_a_clk",
 				      "mmagic_ahb_clk",
@@ -523,7 +524,8 @@
 				      "mmagic_video_axi_clk",
 				      "core_clk", "iface_clk", "bus_clk",
 				      "mmagic_video_noc_cfg_ahb_clk",
-				      "maxi_clk", "core0_clk", "core1_clk";
+				      "maxi_clk", "core0_clk", "core1_clk",
+				      "mmss_mmagic_maxi_clk";
 
 			qcom,hfi = "venus";
 			rproc = <&vidc_rproc>;
@@ -560,9 +562,10 @@
 	                reg-names = "reg-base", "mem-base";
 
 			power-domains = <&mmcc MMAGIC_VIDEO_GDSC>;
-	                clocks = <&mmcc VMEM_MAXI_CLK>,
-                	         <&mmcc VMEM_AHB_CLK>;
-	                clock-names = "maxi", "ahb";
+	                clocks = <&mmcc VMEM_AHB_CLK>,
+				 <&mmcc MMSS_MMAGIC_MAXI_CLK>,
+				 <&mmcc VMEM_MAXI_CLK>;
+	                clock-names = "ahb", "mmss_mmagic_maxi_clk", "vmem_maxi_clk";
 	                qcom,bank-size = <131072>; /* 128 kB */
 	        };
 	};
