@@ -19,10 +19,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/msm-bus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "vmem.h"
@@ -106,16 +104,11 @@ struct vmem {
 		struct resource *resource;
 		void __iomem *base;
 	} reg, mem;
-	struct regulator *vdd;
 	struct {
 		const char *name;
 		struct clk *clk;
 	} *clocks;
 	int num_clocks;
-	struct {
-		struct msm_bus_scale_pdata *pdata;
-		uint32_t priv;
-	} bus;
 	atomic_t alloc_count;
 	struct dentry *debugfs_root;
 };
@@ -170,20 +163,6 @@ static inline int __power_on(struct vmem *v)
 {
 	int rc = 0, c = 0;
 
-	rc = msm_bus_scale_client_update_request(v->bus.priv, 1);
-	if (rc) {
-		pr_err("Failed to vote for buses (%d)\n", rc);
-		goto exit;
-	}
-	pr_debug("Voted for buses\n");
-
-	rc = regulator_enable(v->vdd);
-	if (rc) {
-		pr_err("Failed to power on gdsc (%d)", rc);
-		goto unvote_bus;
-	}
-	pr_debug("Enabled regulator vdd\n");
-
 	for (c = 0; c < v->num_clocks; ++c) {
 		rc = clk_prepare_enable(v->clocks[c].clk);
 		if (rc) {
@@ -199,9 +178,6 @@ static inline int __power_on(struct vmem *v)
 disable_clocks:
 	for (--c; c >= 0; c--)
 		clk_disable_unprepare(v->clocks[c].clk);
-	regulator_disable(v->vdd);
-unvote_bus:
-	msm_bus_scale_client_update_request(v->bus.priv, 0);
 exit:
 	return rc;
 }
@@ -214,12 +190,6 @@ static inline int __power_off(struct vmem *v)
 		clk_disable_unprepare(v->clocks[c].clk);
 		pr_debug("Disabled clock %s\n", v->clocks[c].name);
 	}
-
-	regulator_disable(v->vdd);
-	pr_debug("Disabled regulator vdd\n");
-
-	msm_bus_scale_client_update_request(v->bus.priv, 0);
-	pr_debug("Unvoted for buses\n");
 
 	return 0;
 }
@@ -520,27 +490,6 @@ static inline int __init_resources(struct vmem *v,
 		v->clocks[c].name = name;
 	}
 
-	v->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR_OR_NULL(v->vdd)) {
-		rc = PTR_ERR(v->vdd) ?: -ENOENT;
-		pr_err("Failed to find regulator (vdd) (%d)\n", rc);
-		goto exit;
-	}
-
-	v->bus.pdata = msm_bus_cl_get_pdata(pdev);
-	if (IS_ERR_OR_NULL(v->bus.pdata)) {
-		rc = PTR_ERR(v->bus.pdata) ?: -ENOENT;
-		pr_err("Failed to find bus vectors (%d)\n", rc);
-		goto exit;
-	}
-
-	v->bus.priv = msm_bus_scale_register_client(v->bus.pdata);
-	if (!v->bus.priv) {
-		rc = -EBADHANDLE;
-		pr_err("Failed to register bus client\n");
-		goto free_pdata;
-	}
-
 	/* Misc. */
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,bank-size",
 			&v->bank_size);
@@ -558,7 +507,6 @@ static inline int __init_resources(struct vmem *v,
 
 	return 0;
 free_pdata:
-	msm_bus_cl_clear_pdata(v->bus.pdata);
 exit:
 	return rc;
 }
@@ -568,9 +516,6 @@ static inline void __uninit_resources(struct vmem *v,
 {
 	int c = 0;
 
-	msm_bus_cl_clear_pdata(v->bus.pdata);
-	v->bus.pdata = NULL;
-	v->bus.priv = 0;
 
 	for (c = 0; c < v->num_clocks; ++c) {
 		v->clocks[c].clk = NULL;
