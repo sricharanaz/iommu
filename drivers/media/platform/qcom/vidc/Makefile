@@ -16,5 +16,6 @@ vidc-objs += \
 		hfi/hfi_msgs.o \
 		hfi/hfi_cmds.o \
 		hfi/hfi.o \
+		vmem.o \
 
 obj-$(CONFIG_QCOM_VIDC_V4L2) += vidc.o

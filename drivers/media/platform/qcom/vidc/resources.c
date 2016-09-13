@@ -40,8 +40,8 @@ static struct clock_info clks_8916[] = {
 	{ .name = "core_clk", },
 	{ .name = "core0_clk" },
 	{ .name = "core1_clk" },
-
 	{ .name = "rpm_mmaxi_clk", },
+	{ .name = "rpm_mmaxi_a_clk", },
 	{ .name = "mmagic_ahb_clk", },
 	{ .name = "smmu_ahb_clk", },
 	{ .name = "smmu_axi_clk", },
