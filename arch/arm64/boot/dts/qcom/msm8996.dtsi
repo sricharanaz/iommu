@@ -40,7 +40,7 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			clocks = <&kryocc 0>;
+//			clocks = <&kryocc 0>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 			      compatible = "cache";
@@ -53,7 +53,7 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			clocks = <&kryocc 0>;
+//			clocks = <&kryocc 0>;
 			next-level-cache = <&L2_0>;
 		};
 
@@ -63,7 +63,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 
-			clocks = <&kryocc 1>;
+//			clocks = <&kryocc 1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
 			      compatible = "cache";
@@ -76,7 +76,7 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
-			clocks = <&kryocc 1>;
+//			clocks = <&kryocc 1>;
 			next-level-cache = <&L2_1>;
 		};
 
@@ -163,8 +163,73 @@
 			reg = <0x9a20000 0x10000>;
 		};
 
+		anoc0_smmu: arm,smmu-anoc0@1640000 {
+			compatible = "arm,smmu-v2";
+			reg = <0x1640000 0x10000>;
+			power-domains = <&gcc AGGRE0_NOC_GDSC>;
+			status = "okay";
+
+			#global-interrupts = <1>;
+			interrupts = <0 362 0>,
+				     <0 355 0>,
+				     <0 356 0>,
+				     <0 357 0>,
+				     <0 358 0>,
+				     <0 359 0>,
+				     <0 360 0>;
+			#iommu-cells = <0>;
+			#clock-cells = <1>;
+
+			clocks = <&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
+				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>;
+			clock-names = "smmu_aggre0_axi_clk",
+				      "smmu_aggre0_ahb_clk";
+#if 0
+			qcom,skip-init;
+			qcom,register-save;
+			attach-impl-defs = <0x6000 0x70>,
+				<0x6060 0x1055>,
+				<0x6070 0x8>,
+				<0x6074 0x30>,
+				<0x6078 0x40>,
+				<0x6170 0x0>,
+				<0x6174 0x3>,
+				<0x6178 0x5>,
+				<0x6270 0x0>,
+				<0x6274 0x0>,
+				<0x6278 0x0>,
+				<0x6470 0x0>,
+				<0x6474 0x2>,
+				<0x6478 0x4>,
+				<0x6570 0x6>,
+				<0x6574 0x12>,
+				<0x6578 0x1c>,
+				<0x6670 0x26>,
+				<0x6674 0x30>,
+				<0x6678 0x40>,
+				<0x67a0 0x0>,
+				<0x67a4 0x58>,
+				<0x67a8 0x60>,
+				<0x67b0 0x0>,
+				<0x67b4 0x6>,
+				<0x67b8 0x86>,
+				<0x67d0 0x0>,
+				<0x67dc 0x4>,
+				<0x67e0 0x4>,
+				<0x6800 0x0>,
+				<0x6804 0x1>,
+				<0x6808 0x2>,
+				<0x680c 0x0>,
+				<0x6a00 0x6>,
+				<0x6b00 0x3ff>,
+				<0x6d30 0x41bd>,
+				<0x6784 0x0>,
+				<0x678c 0x10>;
+#endif
+		};
+
 		kryocc: clock-controller@6400000 {
-			compatible = "qcom,cpu-clk-msm8996";
+			compatible = "qcom,cpu-clk-msm8hhh996";
 			reg = <0x6400000 0x90000>;
 			#clock-cells = <1>;
 			qcom,cbf = <&cbfcc>;
@@ -468,7 +533,7 @@
 		};
 
 		mdp_smmu: arm,smmu@d00000 {
-			compatible = "arm,smmu-v2";
+			compatible = "arm,smmu-vd2";
 			reg = <0xd00000 0x10000>;
 
 			#global-interrupts = <1>;
@@ -496,102 +561,41 @@
 			status = "okay";
 		};
 
-		anoc0_smmu: arm,smmu-anoc0@1640000 {
-			compatible = "arm,smmu-v2";
-			reg = <0x1640000 0x10000>;
-			power-domains = <&gcc AGGRE0_NOC_GDSC>;
-			status = "okay";
 
-			#global-interrupts = <1>;
-			interrupts = <0 362 0>,
-				     <0 355 0>,
-				     <0 356 0>,
-				     <0 357 0>,
-				     <0 358 0>,
-				     <0 359 0>,
-				     <0 360 0>;
-			#iommu-cells = <0>;
-			#clock-cells = <1>;
+	pcie_phy: qcom,pciephy@34000 {
+		compatible = "qcom,msm8996-pcie-phy";
+		reg = <0x00034000 0x4000>;
+		#phy-cells = <1>;
+		clocks = <&gcc GCC_PCIE_PHY_CFG_AHB_CLK>,
+			<&gcc GCC_PCIE_PHY_AUX_CLK>,
+			<&gcc GCC_PCIE_CLKREF_CLK>,
+			<&rpmcc MSM8996_RPM_SMD_LN_BB_CLK>;
+		clock-names = "cfg", "aux", "ref_clk", "ref_clk_src";
 
-			clocks = <&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
-				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>;
-			clock-names = "smmu_aggre0_axi_clk",
-				      "smmu_aggre0_ahb_clk";
-			qcom,skip-init;
-			qcom,register-save;
-			attach-impl-defs = <0x6000 0x70>,
-				<0x6060 0x1055>,
-				<0x6070 0x8>,
-				<0x6074 0x30>,
-				<0x6078 0x40>,
-				<0x6170 0x0>,
-				<0x6174 0x3>,
-				<0x6178 0x5>,
-				<0x6270 0x0>,
-				<0x6274 0x0>,
-				<0x6278 0x0>,
-				<0x6470 0x0>,
-				<0x6474 0x2>,
-				<0x6478 0x4>,
-				<0x6570 0x6>,
-				<0x6574 0x12>,
-				<0x6578 0x1c>,
-				<0x6670 0x26>,
-				<0x6674 0x30>,
-				<0x6678 0x40>,
-				<0x67a0 0x0>,
-				<0x67a4 0x58>,
-				<0x67a8 0x60>,
-				<0x67b0 0x0>,
-				<0x67b4 0x6>,
-				<0x67b8 0x86>,
-				<0x67d0 0x0>,
-				<0x67dc 0x4>,
-				<0x67e0 0x4>,
-				<0x6800 0x0>,
-				<0x6804 0x1>,
-				<0x6808 0x2>,
-				<0x680c 0x0>,
-				<0x6a00 0x6>,
-				<0x6b00 0x3ff>,
-				<0x6d30 0x41bd>,
-				<0x6784 0x0>,
-				<0x678c 0x10>;
+		resets = <&gcc GCC_PCIE_PHY_BCR>,
+			<&gcc GCC_PCIE_PHY_COM_BCR>;
+		reset-names = "phy",  "common";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pcie_phy@0{
+			reg = <0>;
+			resets = <&gcc GCC_PCIE_0_PHY_BCR>;
+			reset-names = "phy";
 		};
 
-		pcie_phy: qcom,pciephy@34000 {
-			compatible = "qcom,msm8996-pcie-phy";
-			#phy-cells = <1>;
-			reg = <0x00034000 0x4000>;
-			resets = <&gcc GCC_PCIE_PHY_BCR>,
-				<&gcc GCC_PCIE_PHY_COM_BCR>,
-				<&gcc GCC_PCIE_PHY_COM_NOCSR_BCR>;
-			reset-names = "phy_com",  "phy_com2", "phy_cfg";
-
-			clocks = <&gcc GCC_PCIE_PHY_CFG_AHB_CLK>,
-				<&gcc GCC_PCIE_PHY_AUX_CLK>;
-			clock-names = "cfg", "aux";
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-			pcie_phy@0{
-				reg = <0>;
-				resets = <&gcc GCC_PCIE_0_PHY_BCR>;
-				reset-names = "phy";
-			};
-
-			pcie_phy1{
-				reg = <1>;
-				resets = <&gcc GCC_PCIE_1_PHY_BCR>;
-				reset-names = "phy";
-			};
-
-			pcie_phy@2{
-				reg = <2>;
-				resets = <&gcc GCC_PCIE_2_PHY_BCR>;
-				reset-names = "phy";
-			};
+		pcie_phy@1{
+			reg = <1>;
+			resets = <&gcc GCC_PCIE_1_PHY_BCR>;
+			reset-names = "phy";
 		};
+
+		pcie_phy@2{
+			reg = <2>;
+			resets = <&gcc GCC_PCIE_2_PHY_BCR>;
+			reset-names = "phy";
+		};
+	};
 
 		pcie0: qcom,pcie@00600000 {
 			compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
@@ -631,7 +635,6 @@
 			vreg-1.8-supply = <&pm8994_l12>;
 			vreg-0.9-supply = <&pm8994_l28>;
 
-			iommus = <&anoc0_smmu>;
 			linux,pci-domain = <0>;
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>,
@@ -695,29 +698,33 @@
 
 			vreg-1.8-supply = <&pm8994_l12>;
 			vreg-0.9-supply = <&pm8994_l28>;
-			iommus = <&anoc0_smmu>;
 
 			linux,pci-domain = <1>;
+			iommu-map = <0 &anoc0_smmu 17 0x1>,
+				<0x100 &anoc0_smmu 18 14>;
+			iommu-map-mask = <0xfff8>;
+
 
 			clocks = <&gcc GCC_PCIE_1_PIPE_CLK>,
-				<&rpmcc MSM8996_RPM_SMD_LN_BB_CLK>,
 				<&gcc GCC_PCIE_1_AUX_CLK>,
 				<&gcc GCC_PCIE_1_CFG_AHB_CLK>,
 				<&gcc GCC_PCIE_1_MSTR_AXI_CLK>,
 				<&gcc GCC_PCIE_1_SLV_AXI_CLK>,
-				<&gcc GCC_PCIE_CLKREF_CLK>,
+				<&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
+				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>,
 				<&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
 				<&gcc GCC_AGGRE0_CNOC_AHB_CLK>;
 
-			clock-names =  "pipe",
-					"bus",
-					"aux",
-					"cfg",
-					"master",
-					"slave",
-					"ref",
-					"axi",
-					"ahb";
+
+		clock-names =  "pipe",
+				"aux",
+				"cfg",
+				"bus_master",
+				"bus_slave",
+				"smmu_axi",
+				"smmu_ahb",
+				"snoc_axi",
+				"cnoc_ahb";
 
 		};
 
@@ -759,28 +766,32 @@
 
 			vreg-1.8-supply = <&pm8994_l12>;
 			vreg-0.9-supply = <&pm8994_l28>;
-			iommus = <&anoc0_smmu>;
+			iommu-map = <0 &anoc0_smmu 33 0x1>,
+				<0x100 &anoc0_smmu 34 14>;
+			//iommu-map-mask = <0xff>;
+			iommu-map-mask = <0xfff8>;
 
 			linux,pci-domain = <2>;
 			clocks = <&gcc GCC_PCIE_2_PIPE_CLK>,
-				<&rpmcc MSM8996_RPM_SMD_LN_BB_CLK>,
 				<&gcc GCC_PCIE_2_AUX_CLK>,
 				<&gcc GCC_PCIE_2_CFG_AHB_CLK>,
 				<&gcc GCC_PCIE_2_MSTR_AXI_CLK>,
 				<&gcc GCC_PCIE_2_SLV_AXI_CLK>,
-				<&gcc GCC_PCIE_CLKREF_CLK>,
+				<&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
+				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>,
 				<&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
 				<&gcc GCC_AGGRE0_CNOC_AHB_CLK>;
 
-			clock-names =  "pipe",
-					"bus",
-					"aux",
-					"cfg",
-					"master",
-					"slave",
-					"ref",
-					"axi",
-					"ahb";
+		clock-names =  "pipe",
+				"aux",
+				"cfg",
+				"bus_master",
+				"bus_slave",
+				"smmu_axi",
+				"smmu_ahb",
+				"snoc_axi",
+				"cnoc_ahb";
+
 		};
 
 		mdss: mdss@900000 {

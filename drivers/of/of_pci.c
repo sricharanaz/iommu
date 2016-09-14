@@ -203,7 +203,7 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 	if (err)
 		goto parse_failed;
 
-	pr_debug("Parsing ranges property...\n");
+	pr_err("Parsing ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
 		/* Read next ranges element */
 		if ((range.flags & IORESOURCE_TYPE_BITS) == IORESOURCE_IO)
@@ -372,6 +372,10 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
 		u32 out_base = be32_to_cpup(map + 2);
 		u32 rid_len = be32_to_cpup(map + 3);
 
+		pr_err("%s: %s translation - %s-mask (0x%x)  rid-base (0x%x)\n",
+				np->full_name, map_name, map_name,
+				map_mask, rid_base);
+
 		if (rid_base & ~map_mask) {
 			pr_err("%s: Invalid %s translation - %s-mask (0x%x) ignores rid-base (0x%x)\n",
 				np->full_name, map_name, map_name,
@@ -399,7 +403,7 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
 		if (id_out)
 			*id_out = masked_rid - rid_base + out_base;
 
-		pr_debug("%s: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
+		pr_err("%s: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
 			np->full_name, map_name, map_mask, rid_base, out_base,
 			rid_len, rid, *id_out);
 		return 0;

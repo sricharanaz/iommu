@@ -93,11 +93,10 @@
 		};
 
 		qcom,pcie@00608000 {
-			status = "okay";
 			perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
 		};
 
-		qcom,pcie@00610000 { 
+		qcom,pcie@00610000 {
 			status = "okay";
 			perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 		};

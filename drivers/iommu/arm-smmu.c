@@ -543,6 +543,8 @@ static int arm_smmu_register_legacy_master(struct device *dev,
 		/* "mmu-masters" assumes Stream ID == Requester ID */
 		pci_for_each_dma_alias(to_pci_dev(dev), __arm_smmu_get_pci_sid,
 				       &pci_sid);
+
+		dev_err(dev, "Attaching device....... %s \n", __func__);
 		it.cur = &pci_sid;
 		it.cur_count = 1;
 	}
@@ -703,6 +705,7 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *cb_base;
 
+	dev_emerg("Unexpected... fault... %s \n", __func__);
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 	fsr = readl_relaxed(cb_base + ARM_SMMU_CB_FSR);
 
@@ -730,6 +733,11 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 	gfsynr0 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR0);
 	gfsynr1 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR1);
 	gfsynr2 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR2);
+
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
 
 	if (!gfsr)
 		return IRQ_NONE;
@@ -1270,6 +1278,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
+dev_err(dev, "Attaching device....... %s \n", __func__);
 	if (!fwspec || fwspec->ops != &arm_smmu_ops) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
@@ -1303,9 +1312,10 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long flags;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
-
 	if (!ops)
 		return -ENODEV;
+	//pr_emerg(":DEBUG::::::::::::::::::::: %s %p %x \n", __func__, paddr, size);
+	//dump_stack();
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
@@ -1443,10 +1453,13 @@ static int arm_smmu_add_device(struct device *dev)
 		return -ENODEV;
 	}
 
+dev_err(dev, "%s::: \n", __func__);
 	ret = -EINVAL;
 	for (i = 0; i < fwspec->num_ids; i++) {
 		u16 sid = fwspec->ids[i];
 		u16 mask = fwspec->ids[i] >> SMR_MASK_SHIFT;
+
+		dev_err(dev, "sid 0x%x mask(0x%x)\n", sid, mask);
 
 		if (sid & ~smmu->streamid_mask) {
 			dev_err(dev, "stream ID 0x%x out of range for SMMU (0x%x)\n",
@@ -2004,7 +2017,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
 	bool legacy_binding;
-
+pr_emerg("DEBUG:::::::::::::::::::::::::::::::::::::: %s \n", __func__);
+dump_stack();
 	legacy_binding = of_find_property(dev->of_node, "mmu-masters", NULL);
 	if (legacy_binding && !using_generic_binding) {
 		pr_notice("deprecated \"mmu-masters\" DT property in use; DMA API support unavailable\n");
@@ -2130,6 +2144,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
 	}
 #endif
+	pr_emerg("DEBUG DONE>>>.::::::::::::::::::::::%s --- \n", __func__);
 	return 0;
 out_free_irqs:
         while (i--)
@@ -2177,7 +2192,9 @@ static int __init arm_smmu_init(void)
 	static bool registered;
 	int ret = 0;
 
+		pr_emerg("DEBUG >>>.:::....:::::::::::::::::::%s --- \n", __func__);
 	if (!registered) {
+		pr_emerg("DEBUG >>>.:::....:::::::::::::::::::%s --- \n", __func__);
 		ret = platform_driver_register(&arm_smmu_driver);
 		registered = !ret;
 	}
@@ -2189,18 +2206,19 @@ static void __exit arm_smmu_exit(void)
 	return platform_driver_unregister(&arm_smmu_driver);
 }
 
-subsys_initcall(arm_smmu_init);
+core_initcall(arm_smmu_init);
 module_exit(arm_smmu_exit);
 
 static int __init arm_smmu_of_init(struct device_node *np)
 {
+	pr_emerg("DEBUG >>>.::::::::::::::::::::::%s --- \n", __func__);
+	dump_stack();
 	int ret = arm_smmu_init();
-
 	if (ret)
 		return ret;
 
-	if (!of_platform_device_create(np, NULL, platform_bus_type.dev_root))
-		return -ENODEV;
+//	if (!of_platform_device_create(np, NULL, platform_bus_type.dev_root))
+//		return -ENODEV;
 
 	return 0;
 }

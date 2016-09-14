@@ -78,6 +78,8 @@ struct qcom_pcie_resources_v1 {
 
 struct qcom_pcie_resources_msm8996 {
 	struct clk *aux_clk;
+	struct clk *smmu_axi_clk;
+	struct clk *smmu_ahb_clk;
 	struct clk *master_clk;
 	struct clk *slave_clk;
 	struct clk *cfg_clk;
@@ -471,6 +473,14 @@ static int qcom_pcie_get_resources_msm8996(struct qcom_pcie *pcie)
 	if (IS_ERR(res->vdda))
 		return PTR_ERR(res->vdda);
 
+	res->smmu_axi_clk = devm_clk_get(dev, "smmu_axi");
+	if (IS_ERR(res->smmu_axi_clk))
+		return PTR_ERR(res->smmu_axi_clk);
+
+	res->smmu_ahb_clk = devm_clk_get(dev, "smmu_ahb");
+	if (IS_ERR(res->smmu_ahb_clk))
+		return PTR_ERR(res->smmu_ahb_clk);
+
 	res->axi_clk = devm_clk_get(dev, "snoc_axi");
 	if (IS_ERR(res->axi_clk))
 		return PTR_ERR(res->axi_clk);
@@ -521,17 +531,9 @@ static int qcom_pcie_init_msm8996(struct qcom_pcie *pcie)
 		goto err_vdda;
 	}
 
-	ret = clk_prepare_enable(res->axi_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable axi clock\n");
-		goto err_axi_clk;
-	}
 
-	ret = clk_prepare_enable(res->ahb_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable ahb clock\n");
-		goto err_ahb_clk;
-	}
+	ret = clk_prepare_enable(res->smmu_ahb_clk);
+	ret = clk_prepare_enable(res->smmu_axi_clk);
 
 	ret = clk_prepare_enable(res->aux_clk);
 	if (ret) {
@@ -557,6 +559,16 @@ static int qcom_pcie_init_msm8996(struct qcom_pcie *pcie)
 		goto err_slave_clk;
 	}
 
+	ret = clk_prepare_enable(res->ahb_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable ahb clock\n");
+		goto err_ahb_clk;
+	}
+	ret = clk_prepare_enable(res->axi_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable axi clock\n");
+		goto err_axi_clk;
+	}
 	/* enable PCIe clocks and resets */
 	val = readl(pcie->parf + PCIE20_PARF_PHY_CTRL);
 	val &= ~BIT(0);
@@ -612,6 +624,10 @@ static int qcom_pcie_post_init_msm8996(struct qcom_pcie *pcie)
 	/* SMMU specific registers */
 	writel(0, pcie->parf + PCIE20_PARF_BDF_TRANSLATE_CFG);
 	writel(0, pcie->parf +	PCIE20_PARF_SID_OFFSET);
+#define PCIE20_PARF_BDF_TRANSLATE_N	0x250
+	writel(0, pcie->parf +	0x254);
+	writel(0x100, pcie->parf +	0x258);
+
 
 	return 0;
 }

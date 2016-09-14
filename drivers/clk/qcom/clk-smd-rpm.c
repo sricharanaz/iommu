@@ -634,6 +634,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	struct qcom_smd_rpm *rpm;
 	struct clk_smd_rpm **rpm_smd_clks;
 	const struct rpm_smd_clk_desc *desc;
+pr_emerg("DEBUG::::::::::::::::::::::::::::::smd clk... probe... %s \n", __func__);
 
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
@@ -694,6 +695,8 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 				  data);
 	if (ret)
 		goto err;
+
+pr_emerg("DEBUG::::::::::::::::::::::::::::::smd clk...DONE>>.. probe... %s \n", __func__);
 
 	return 0;
 err:

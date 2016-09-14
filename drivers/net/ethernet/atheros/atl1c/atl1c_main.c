@@ -1590,6 +1590,7 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 	int handled = IRQ_NONE;
 	u32 status;
 	u32 reg_data;
+	pr_emerg("DEBUG:: %s\n", __func__);
 
 	do {
 		AT_READ_REG(hw, REG_ISR, &reg_data);
@@ -1698,7 +1699,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
 	u16 rfd_next_to_use, next_next;
 	struct atl1c_rx_free_desc *rfd_desc;
 	dma_addr_t mapping;
-
+	pr_emerg("DEBUG:::: %s \n", __func__);
 	next_next = rfd_next_to_use = rfd_ring->next_to_use;
 	if (++next_next == rfd_ring->count)
 		next_next = 0;
@@ -1711,7 +1712,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
 		skb = atl1c_alloc_skb(adapter);
 		if (unlikely(!skb)) {
 			if (netif_msg_rx_err(adapter))
-				dev_warn(&pdev->dev, "alloc rx buffer failed\n");
+				dev_err(&pdev->dev, "alloc rx buffer failed\n");
 			break;
 		}
 
@@ -1755,6 +1756,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter)
 			rfd_ring->next_to_use & MB_RFDX_PROD_IDX_MASK);
 	}
 
+	pr_emerg("DEBUG:::: %s num_alloc %d \n", __func__, num_alloc);
 	return num_alloc;
 }
 
@@ -2322,15 +2324,18 @@ static int atl1c_up(struct atl1c_adapter *adapter)
 	if (unlikely(err))
 		goto err_up;
 
+	pr_emerg("DEBUG::::Configure ...DONE  %s \n", __func__);
 	err = atl1c_request_irq(adapter);
 	if (unlikely(err))
 		goto err_up;
 
+	pr_emerg("DEBUG::::Configure ...IRQ  %s \n", __func__);
 	atl1c_check_link_status(adapter);
 	clear_bit(__AT_DOWN, &adapter->flags);
 	napi_enable(&adapter->napi);
 	atl1c_irq_enable(adapter);
 	netif_start_queue(netdev);
+	pr_emerg("DEBUG::::DONE...IRQ  %s \n", __func__);
 	return err;
 
 err_up:
