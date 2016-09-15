@@ -202,12 +202,12 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 			goto err_put_node;
 		}
 
-		if (ops->add_device)
-			ops = ops->add_device(dev) ? NULL : ops;
-
 		of_node_put(np);
 		idx++;
 	}
+
+	if (ops && ops->add_device)
+		ops = ops->add_device(dev) ? NULL : ops;
 
 	return ops;
 
