@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
+#include "hfi/hfi_helper.h"
 #include <media/videobuf2-dma-sg.h>
 
 #include "helpers.h"
@@ -51,6 +52,11 @@ static int session_set_buf(struct vb2_buffer *vb)
 
 		//TEST
 //		fdata.mark_data = fdata.mark_target = 0xdeadbeef;
+
+		if (inst->etb == 0 && inst->session_type == VIDC_DECODER)
+			fdata.flags |= HFI_BUFFERFLAG_CODECCONFIG;
+
+			inst->etb++;
 
 		ret = vidc_hfi_session_etb(hfi, inst->hfi_inst, &fdata);
 	} else if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {

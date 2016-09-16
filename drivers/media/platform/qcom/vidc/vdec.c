@@ -1045,6 +1045,7 @@ static int vdec_event_notify(struct hfi_device_inst *hfi_inst, u32 event,
 	struct vidc_inst *inst = hfi_inst->ops_priv;
 	struct device *dev = inst->core->dev;
 	const struct v4l2_event ev = { .type = V4L2_EVENT_SOURCE_CHANGE };
+	int ret;
 
 	switch (event) {
 	case EVT_SESSION_ERROR:
@@ -1060,6 +1061,9 @@ static int vdec_event_notify(struct hfi_device_inst *hfi_inst, u32 event,
 		switch (data->event_type) {
 		case HAL_EVENT_SEQ_CHANGED_SUFFICIENT_RESOURCES:
 			dev_dbg(dev, "event sufficient resources\n");
+			ret = vidc_hfi_session_continue(&inst->core->hfi, hfi_inst);
+			if (ret)
+				dev_err(dev, "session continue failed (%d) \n", ret);
 			break;
 		case HAL_EVENT_SEQ_CHANGED_INSUFFICIENT_RESOURCES:
 			inst->reconfig_height = data->height;

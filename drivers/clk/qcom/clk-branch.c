@@ -95,7 +95,7 @@ static int clk_branch_wait(const struct clk_branch *br, bool enabling,
 		}
 		WARN(1, "%s status stuck at 'o%s'", name,
 				enabling ? "ff" : "n");
-		return -EBUSY;
+		//return -EBUSY;
 	}
 	return 0;
 }

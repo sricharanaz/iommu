@@ -901,6 +901,7 @@ static void hfi_session_etb_done(struct hfi_device *hfi,
 	struct hfi_msg_session_empty_buffer_done_pkt *pkt = packet;
 	u32 flags = 0;
 
+	printk(KERN_ALERT "\n hfi_session_etb_done");
 	inst->error = to_hal_error(pkt->error_type);
 
 	if (inst->error == HAL_ERR_NOT_SUPPORTED)
@@ -924,6 +925,7 @@ static void hfi_session_ftb_done(struct hfi_device *hfi,
 	unsigned int error;
 	u32 flags = 0;
 
+	printk(KERN_ALERT "\n hfi_session_ftb_done");
 	if (session_type == HAL_VIDEO_SESSION_TYPE_ENCODER) {
 		struct hfi_msg_session_fbd_compressed_pkt *pkt = packet;
 

@@ -184,6 +184,7 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
+	int val;
 
 	printk("\n gdsc_enable %s", domain->name);
 
@@ -207,9 +208,18 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
+	printk(KERN_ALERT"\n gdsc sc->flags %x", sc->flags);
+
 	/* Turn on HW trigger mode if supported */
-	if (sc->flags & HW_CTRL)
+	if (sc->flags & HW_CTRL) {
 		gdsc_hwctrl(sc, true);
+               ret = regmap_read(sc->regmap, sc->gdscr, &val);
+               printk(KERN_ALERT"\n %s%d", __func__, ret);
+               if (val & HW_CONTROL_MASK)
+                       printk(KERN_ALERT"\n gdsc_hw_trigger failed");
+               else
+                       printk(KERN_ALERT"\n gdsc_hw_trigger success");
+	}		
 
 	return 0;
 }

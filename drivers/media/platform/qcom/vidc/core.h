@@ -140,6 +140,7 @@ struct vidc_inst {
 	u32 reconfig_width;
 	u32 reconfig_height;
 	u64 sequence;
+	u64 etb;
 };
 
 #define ctrl_to_inst(ctrl)	\
