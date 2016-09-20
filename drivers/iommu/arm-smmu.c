@@ -1315,9 +1315,10 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long flags;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
+
 	if (!ops)
 		return -ENODEV;
-	//pr_emerg(":DEBUG::::::::::::::::::::: %s %p %x \n", __func__, paddr, size);
+	//pr_emerg("%s %llx %p %x \n", __func__, iova, paddr, size);
 	//dump_stack();
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);

@@ -16,6 +16,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	qcom,msm-id = <291 0x30001>;
 	aliases {
 		serial0 = &blsp2_uart1;
 		serial1 = &blsp2_uart2;

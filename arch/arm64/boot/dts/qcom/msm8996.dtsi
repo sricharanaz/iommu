@@ -19,6 +19,7 @@
 	model = "Qualcomm Technologies, Inc. MSM8996";
 
 	interrupt-parent = <&intc>;
+	qcom,msm-id = <291 0x30001>;
 
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -737,7 +738,10 @@
 			reg = <0x00610000 0x2000>,
 			      <0x0e000000 0xf1d>,
 			      <0x0e000f20 0xa8>,
-			      <0x0e100000 0x100000>;
+			      <0x0e100000 0x100000>,
+			      <0x0e200000 0x100000>,
+			      <0x0e300000 0x1d00000>;
+
 
 			reg-names = "parf", "dbi", "elbi","config";
 
@@ -747,7 +751,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			ranges = <0x01000000 0x0 0x0e200000 0x0e200000 0x0 0x100000>,
-				<0x02000000 0x0 0x0e300000 0x0e300000 0x0 0x1d00000>;
+				 <0x02000000 0x0 0x0e300000 0x0e300000 0x0 0x1d00000>;
 
 			device_type = "pci";
 
