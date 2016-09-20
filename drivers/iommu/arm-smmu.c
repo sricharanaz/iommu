@@ -1100,6 +1100,8 @@ static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 
 	if (smr->valid)
 		reg |= SMR_VALID;
+
+	dev_err(smmu->dev, "arm_smmu_write_smr %x", reg);
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
 }
 
@@ -1110,6 +1112,7 @@ static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 		  (s2cr->cbndx & S2CR_CBNDX_MASK) << S2CR_CBNDX_SHIFT |
 		  (s2cr->privcfg & S2CR_PRIVCFG_MASK) << S2CR_PRIVCFG_SHIFT;
 
+	dev_err(smmu->dev, "arm_smmu_write_s2cr %x", reg);
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx));
 }
 
@@ -1278,7 +1281,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-dev_err(dev, "Attaching device....... %s \n", __func__);
+	dev_err(dev, "Attaching device....... %s \n", __func__);
 	if (!fwspec || fwspec->ops != &arm_smmu_ops) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
@@ -1453,7 +1456,7 @@ static int arm_smmu_add_device(struct device *dev)
 		return -ENODEV;
 	}
 
-dev_err(dev, "%s::: \n", __func__);
+	dev_err(dev, "%s::: \n", __func__);
 	ret = -EINVAL;
 	for (i = 0; i < fwspec->num_ids; i++) {
 		u16 sid = fwspec->ids[i];
