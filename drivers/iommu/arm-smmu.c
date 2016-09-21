@@ -279,6 +279,25 @@ enum arm_smmu_s2cr_privcfg {
 
 #define FSYNR0_WNR			(1 << 4)
 
+/* Definitions for implementation-defined registers */
+#define ACTLR_QCOM_OSH_SHIFT            28
+#define ACTLR_QCOM_OSH                  1
+
+#define ACTLR_QCOM_ISH_SHIFT            29
+#define ACTLR_QCOM_ISH                  1
+
+#define ACTLR_QCOM_NSH_SHIFT            30
+#define ACTLR_QCOM_NSH                  1
+
+#define ARM_SMMU_IMPL_DEF0(smmu) \
+        ((smmu)->base + (2 * (1 << (smmu)->pgshift)))
+#define ARM_SMMU_IMPL_DEF1(smmu) \
+        ((smmu)->base + (6 * (1 << (smmu)->pgshift)))
+#define IMPL_DEF1_MICRO_MMU_CTRL        0
+#define MICRO_MMU_CTRL_LOCAL_HALT_REQ   (1 << 2)
+#define MICRO_MMU_CTRL_IDLE             (1 << 3)
+
+
 static int force_stage;
 module_param(force_stage, int, S_IRUGO);
 MODULE_PARM_DESC(force_stage,
@@ -298,6 +317,11 @@ enum arm_smmu_implementation {
 	GENERIC_SMMU,
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
+};
+
+struct arm_smmu_impl_def_reg {
+        u32 offset;
+        u32 value;
 };
 
 struct arm_smmu_s2cr {
@@ -379,6 +403,8 @@ struct arm_smmu_device {
 	int				num_clocks;
 	struct clk			**clocks;
 	struct regulator		*regulator;
+        struct arm_smmu_impl_def_reg    *impl_def_attach_registers;
+        unsigned int                    num_impl_def_attach_registers;
 };
 
 enum arm_smmu_context_fmt {
@@ -433,6 +459,68 @@ static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
 }
+
+static int arm_smmu_wait_for_halt(struct arm_smmu_device *smmu)
+{
+        void __iomem *impl_def1_base = ARM_SMMU_IMPL_DEF1(smmu);
+        u32 tmp;
+
+        if (readl_poll_timeout_atomic(impl_def1_base + IMPL_DEF1_MICRO_MMU_CTRL,
+                                      tmp, (tmp & MICRO_MMU_CTRL_IDLE),
+                                      0, 30000)) {
+                dev_err(smmu->dev, "Couldn't halt SMMU!\n");
+                return -EBUSY;
+        }
+
+        return 0;
+}
+
+static int __arm_smmu_halt(struct arm_smmu_device *smmu, bool wait)
+{
+        u32 reg;
+        void __iomem *impl_def1_base = ARM_SMMU_IMPL_DEF1(smmu);
+
+        reg = readl_relaxed(impl_def1_base + IMPL_DEF1_MICRO_MMU_CTRL);
+        reg |= MICRO_MMU_CTRL_LOCAL_HALT_REQ;
+
+       writel_relaxed(reg, impl_def1_base + IMPL_DEF1_MICRO_MMU_CTRL);
+
+        return wait ? arm_smmu_wait_for_halt(smmu) : 0;
+}
+
+static int arm_smmu_halt(struct arm_smmu_device *smmu)
+{
+        return __arm_smmu_halt(smmu, true);
+}
+
+static int arm_smmu_halt_nowait(struct arm_smmu_device *smmu)
+{
+        return __arm_smmu_halt(smmu, false);
+}
+
+static void arm_smmu_resume(struct arm_smmu_device *smmu)
+{
+        void __iomem *impl_def1_base = ARM_SMMU_IMPL_DEF1(smmu);
+        u32 reg;
+
+        reg = readl_relaxed(impl_def1_base + IMPL_DEF1_MICRO_MMU_CTRL);
+        reg &= ~MICRO_MMU_CTRL_LOCAL_HALT_REQ;
+
+       writel_relaxed(reg, impl_def1_base + IMPL_DEF1_MICRO_MMU_CTRL);
+}
+
+static void arm_smmu_impl_def_programming(struct arm_smmu_device *smmu)
+{
+        int i;
+        struct arm_smmu_impl_def_reg *regs = smmu->impl_def_attach_registers;
+
+        arm_smmu_halt(smmu);
+        for (i = 0; i < smmu->num_impl_def_attach_registers; ++i)
+                writel_relaxed(regs[i].value,
+                        ARM_SMMU_GR0(smmu) + regs[i].offset);
+        arm_smmu_resume(smmu);
+}
+
 
 static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
 {
@@ -860,6 +948,12 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		writel_relaxed(reg2, cb_base + ARM_SMMU_CB_S1_MAIR1);
 	}
 
+                reg = ACTLR_QCOM_ISH << ACTLR_QCOM_ISH_SHIFT |
+                        ACTLR_QCOM_OSH << ACTLR_QCOM_OSH_SHIFT |
+                        ACTLR_QCOM_NSH << ACTLR_QCOM_NSH_SHIFT;
+                writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
+
+
 	/* SCTLR */
 	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE | SCTLR_M;
 	if (stage1)
@@ -1117,8 +1211,11 @@ static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 	if (smr->valid)
 		reg |= SMR_VALID;
 
-	dev_err(smmu->dev, "arm_smmu_write_smr %x", reg);
-	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+	dev_err(smmu->dev, "arm_smmu_write_smr %x idx %d VA = %llx", reg, idx, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+
+	writel(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+
+	dev_err(smmu->dev, "arm_smmu_write_smr val = %x", readl(ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx)));
 }
 
 static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
@@ -1128,8 +1225,9 @@ static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 		  (s2cr->cbndx & S2CR_CBNDX_MASK) << S2CR_CBNDX_SHIFT |
 		  (s2cr->privcfg & S2CR_PRIVCFG_MASK) << S2CR_PRIVCFG_SHIFT;
 
-	dev_err(smmu->dev, "arm_smmu_write_s2cr %x", reg);
+	dev_err(smmu->dev, "arm_smmu_write_s2cr %x idx %d %llx", reg, idx, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx));
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx));
+	dev_err(smmu->dev, "arm_smmu_write_s2cr val = %x", readl_relaxed(ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx)));
 }
 
 static void arm_smmu_write_sme(struct arm_smmu_device *smmu, int idx)
@@ -1243,6 +1341,7 @@ static int arm_smmu_master_alloc_smes(struct device *dev)
 	}
 
 	mutex_unlock(&smmu->stream_map_mutex);
+	wmb();
 	return 0;
 
 out_err:
@@ -1259,6 +1358,8 @@ static void arm_smmu_master_free_smes(struct iommu_fwspec *fwspec)
 	struct arm_smmu_device *smmu = fwspec_smmu(fwspec);
 	struct arm_smmu_master_cfg *cfg = fwspec->iommu_priv;
 	int i, idx;
+
+	printk(KERN_ALERT"\narm_smmu_master_free_smes");
 
 	mutex_lock(&smmu->stream_map_mutex);
 	for_each_cfg_sme(fwspec, i, idx) {
@@ -1304,6 +1405,9 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	}
 
 	smmu = fwspec_smmu(fwspec);
+
+	arm_smmu_impl_def_programming(smmu);
+
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
 	if (ret < 0)
@@ -1787,6 +1891,52 @@ static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
        return 0;
 }
 
+static int arm_smmu_parse_impl_def_registers(struct arm_smmu_device *smmu)
+{
+        struct device *dev = smmu->dev;
+        int i, ntuples, ret;
+        u32 *tuples;
+        struct arm_smmu_impl_def_reg *regs, *regit;
+
+        if (!of_find_property(dev->of_node, "attach-impl-defs", &ntuples))
+                return 0;
+
+        ntuples /= sizeof(u32);
+        if (ntuples % 2) {
+                dev_err(dev,
+                        "Invalid number of attach-impl-defs registers: %d\n",
+                        ntuples);
+                return -EINVAL;
+        }
+
+        regs = devm_kmalloc(
+                dev, sizeof(*smmu->impl_def_attach_registers) * ntuples,
+                GFP_KERNEL);
+        if (!regs)
+                return -ENOMEM;
+
+        tuples = devm_kmalloc(dev, sizeof(u32) * ntuples * 2, GFP_KERNEL);
+        if (!tuples)
+                return -ENOMEM;
+
+        ret = of_property_read_u32_array(dev->of_node, "attach-impl-defs",
+                                        tuples, ntuples);
+        if (ret)
+                return ret;
+
+        for (i = 0, regit = regs; i < ntuples; i += 2, ++regit) {
+                regit->offset = tuples[i];
+                regit->value = tuples[i + 1];
+        }
+
+        devm_kfree(dev, tuples);
+
+        smmu->impl_def_attach_registers = regs;
+        smmu->num_impl_def_attach_registers = ntuples / 2;
+
+        return 0;
+}
+
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
 	unsigned long size;
@@ -2104,6 +2254,10 @@ dump_stack();
 		}
 		smmu->irqs[i] = irq;
 	}
+
+        err = arm_smmu_parse_impl_def_registers(smmu);
+        if (err)
+                goto out;
 
        err = arm_smmu_init_regulators(smmu);
        if (err)
