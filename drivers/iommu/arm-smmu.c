@@ -455,6 +455,8 @@ static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
 {
        int i;
 
+	return 0;
+
        for (i = 0; i < smmu->num_clocks; ++i)
                clk_disable_unprepare(smmu->clocks[i]);
 }
@@ -706,6 +708,10 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	void __iomem *cb_base;
 
 	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 	fsr = readl_relaxed(cb_base + ARM_SMMU_CB_FSR);
 
@@ -728,6 +734,11 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 	u32 gfsr, gfsynr0, gfsynr1, gfsynr2;
 	struct arm_smmu_device *smmu = dev;
 	void __iomem *gr0_base = ARM_SMMU_GR0_NS(smmu);
+
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
+	dev_emerg("Unexpected... fault... %s \n", __func__);
 
 	gfsr = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSR);
 	gfsynr0 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR0);
@@ -970,6 +981,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		goto out_unlock;
 
 	cfg->cbndx = ret;
+
+	printk(KERN_ALERT"\n %s cfg->fmt %d cfg->cbndx %d", __func__, fmt, cfg->cbndx);
+
 	if (smmu->version < ARM_SMMU_V2) {
 		cfg->irptndx = atomic_inc_return(&smmu->irptndx);
 		cfg->irptndx %= smmu->num_context_irqs;
@@ -1017,6 +1031,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	/* Publish page table ops for map/unmap */
 	smmu_domain->pgtbl_ops = pgtbl_ops;
+
+	printk(KERN_ALERT"\n arm_smmu_init_domain_context");
 	return 0;
 
 out_clear_smmu:
@@ -1320,6 +1336,8 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 		return -ENODEV;
 	//pr_emerg("%s %llx %p %x \n", __func__, iova, paddr, size);
 	//dump_stack();
+
+	printk(KERN_ALERT"\n %s iova %x", __func__, iova);
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);

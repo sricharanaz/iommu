@@ -171,13 +171,14 @@
 			status = "okay";
 
 			#global-interrupts = <1>;
-			interrupts = <0 362 0>,
-				     <0 355 0>,
-				     <0 356 0>,
-				     <0 357 0>,
-				     <0 358 0>,
-				     <0 359 0>,
-				     <0 360 0>;
+			interrupts = <0 362 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 355 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 356 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 357 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 358 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 359 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 360 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 468 IRQ_TYPE_LEVEL_HIGH>;
 			#iommu-cells = <0>;
 			#clock-cells = <1>;
 
@@ -597,137 +598,6 @@
 			reset-names = "phy";
 		};
 	};
-
-		pcie0: qcom,pcie@00600000 {
-			compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
-			status = "disabled";
-			power-domains = <&gcc PCIE0_GDSC>;
-			bus-range = <0x00 0xff>;
-			num-lanes = <1>;
-
-			reg = <0x00600000 0x2000>,
-			      <0x0c000000 0xf1d>,
-			      <0x0c000f20 0xa8>,
-			      <0x0c100000 0x100000>;
-			reg-names = "parf", "dbi", "elbi","config";
-
-			phys = <&pcie_phy 0>;
-			phy-names = "pciephy";
-
-			#address-cells = <3>;
-			#size-cells = <2>;
-			ranges = <0x01000000 0x0 0x0c200000 0x0c200000 0x0 0x100000>,
-				<0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
-
-			interrupts = <GIC_SPI 405 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 244 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-					<0 0 0 2 &intc 0 245 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-					<0 0 0 3 &intc 0 247 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-					<0 0 0 4 &intc 0 248 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&pcie0_clkreq_default &pcie0_perst_default &pcie0_wake_default>;
-			pinctrl-1 = <&pcie0_clkreq_sleep &pcie0_perst_default &pcie0_wake_sleep>;
-
-
-			vreg-1.8-supply = <&pm8994_l12>;
-			vreg-0.9-supply = <&pm8994_l28>;
-
-			linux,pci-domain = <0>;
-
-			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>,
-				<&rpmcc MSM8996_RPM_SMD_LN_BB_CLK>,
-				<&gcc GCC_PCIE_0_AUX_CLK>,
-				<&gcc GCC_PCIE_0_CFG_AHB_CLK>,
-				<&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
-				<&gcc GCC_PCIE_0_SLV_AXI_CLK>,
-				<&gcc GCC_PCIE_CLKREF_CLK>,
-				<&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
-				<&gcc GCC_AGGRE0_CNOC_AHB_CLK>;
-
-			clock-names =  "pipe",
-					"bus",
-					"aux",
-					"cfg",
-					"master",
-					"slave",
-					"ref",
-					"axi",
-					"ahb";
-		};
-
-
-		pcie1: qcom,pcie@00608000 {
-			compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
-			power-domains = <&gcc PCIE1_GDSC>;
-			bus-range = <0x00 0xff>;
-			num-lanes = <1>;
-
-			status  = "disabled";
-
-			reg = <0x00608000 0x2000>,
-			      <0x0d000000 0xf1d>,
-			      <0x0d000f20 0xa8>,
-			      <0x0d100000 0x100000>;
-
-			reg-names = "parf", "dbi", "elbi","config";
-
-			phys = <&pcie_phy 1>;
-			phy-names = "pciephy";
-
-			#address-cells = <3>;
-			#size-cells = <2>;
-			ranges = <0x01000000 0x0 0x0d200000 0x0d200000 0x0 0x100000>,
-				<0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
-
-			interrupts = <GIC_SPI 413 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 272 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-					<0 0 0 2 &intc 0 273 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-					<0 0 0 3 &intc 0 274 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-					<0 0 0 4 &intc 0 275 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
-
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&pcie1_clkreq_default &pcie1_perst_default &pcie1_wake_default>;
-			pinctrl-1 = <&pcie1_clkreq_sleep &pcie1_perst_default &pcie1_wake_sleep>;
-
-
-			vreg-1.8-supply = <&pm8994_l12>;
-			vreg-0.9-supply = <&pm8994_l28>;
-
-			linux,pci-domain = <1>;
-			iommu-map = <0 &anoc0_smmu 17 0x1>,
-				<0x100 &anoc0_smmu 18 14>;
-			iommu-map-mask = <0xfff8>;
-
-
-			clocks = <&gcc GCC_PCIE_1_PIPE_CLK>,
-				<&gcc GCC_PCIE_1_AUX_CLK>,
-				<&gcc GCC_PCIE_1_CFG_AHB_CLK>,
-				<&gcc GCC_PCIE_1_MSTR_AXI_CLK>,
-				<&gcc GCC_PCIE_1_SLV_AXI_CLK>,
-				<&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
-				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>,
-				<&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
-				<&gcc GCC_AGGRE0_CNOC_AHB_CLK>;
-
-
-		clock-names =  "pipe",
-				"aux",
-				"cfg",
-				"bus_master",
-				"bus_slave",
-				"smmu_axi",
-				"smmu_ahb",
-				"snoc_axi",
-				"cnoc_ahb";
-
-		};
 
 		pcie2: qcom,pcie@00610000 {
 			compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
