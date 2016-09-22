@@ -252,7 +252,7 @@ static void __arm_lpae_free_pages(void *pages, size_t size,
 static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
 			       struct io_pgtable_cfg *cfg)
 {
-	*ptep = pte;
+	//*ptep = pte;
 
 	//printk(KERN_ALERT"\n PTE %llx", pte);
 

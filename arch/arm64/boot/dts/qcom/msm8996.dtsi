@@ -186,7 +186,7 @@
 				 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>;
 			clock-names = "smmu_aggre0_axi_clk",
 				      "smmu_aggre0_ahb_clk";
-#if 0
+
 			qcom,skip-init;
 			qcom,register-save;
 			attach-impl-defs = <0x6000 0x70>,
@@ -227,7 +227,6 @@
 				<0x6d30 0x41bd>,
 				<0x6784 0x0>,
 				<0x678c 0x10>;
-#endif
 		};
 
 		kryocc: clock-controller@6400000 {
@@ -641,7 +640,7 @@
 			vreg-1.8-supply = <&pm8994_l12>;
 			vreg-0.9-supply = <&pm8994_l28>;
 			iommu-map = <0 &anoc0_smmu 33 0x1>,
-				<0x100 &anoc0_smmu 34 14>;
+				<0x100 &anoc0_smmu 32 14>;
 			//iommu-map-mask = <0xff>;
 			iommu-map-mask = <0xfff8>;
 
