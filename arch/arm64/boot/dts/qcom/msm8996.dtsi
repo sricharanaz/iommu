@@ -234,14 +234,6 @@
 		method = "smc";
 	};
 
-	firmware {
-		scm {
-			compatible = "qcom,scm";
-			clocks = <&rpmcc RPM_CE1_CLK>;
-			clock-names = "core";
-		};
-	};
-
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -399,6 +391,14 @@
 					       <960000000>,
 					       <825000000>;
 		};
+
+    firmware {
+                scm {
+                        compatible = "qcom,scm";
+                        clocks = <&mmcc VIDEO_CORE_CLK>, <&mmcc VIDEO_AHB_CLK>, <&mmcc VIDEO_AXI_CLK>;
+                        clock-names = "core", "bus", "iface";
+                };
+        };
 
 		ufsphy1: ufsphy@627000 {
 			compatible = "qcom,ufs-phy-qmp-14nm";

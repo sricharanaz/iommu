@@ -282,7 +282,8 @@ static int qproc_load(struct rproc *rproc, const struct firmware *fw)
 			max_addr = round_up(phdr->p_paddr + phdr->p_memsz, SZ_4K);
 	}
 
-	ret = qcom_scm_pas_init_image(qproc->dev,
+	printk(KERN_ALERT"\n rproc_load");
+	ret = qcom_scm_pas_init_image(
 				qproc->pas_id, fw->data, fw->size);
 	if (ret) {
 		dev_err(qproc->dev, "Invalid firmware metadata\n");
@@ -356,11 +357,14 @@ static int qproc_start(struct rproc *rproc)
 		return ret;
 	}
 #endif
+
+	printk(KERN_ALERT"\n qproc_start");
+
 	ret = qproc_scm_clk_enable(qproc);
 	if (ret)
 		goto disable_regulator;
 
-	printk("\n Calling qcom_scm_pas_auth_and_reset for %d", qproc->pas_id);
+	printk(KERN_ALERT"\n Calling qcom_scm_pas_auth_and_reset for %d", qproc->pas_id);
 
 	ret = qcom_scm_pas_auth_and_reset(qproc->pas_id);
 	if (ret) {
@@ -368,7 +372,7 @@ static int qproc_start(struct rproc *rproc)
 				"failed to authenticate image and release reset\n");
 		goto unroll_clocks;
 	} else {
-		printk("\n auth_and_reset passed");
+		printk(KERN_ALERT"\n auth_and_reset passed");
 	}
 
 	/* if ready irq not provided skip waiting */
@@ -388,7 +392,7 @@ disable_regulator:
 	//regulator_disable(qproc->pll);
 
 	if (!ret)
-		dev_dbg(qproc->dev, "start successful\n");
+		dev_err(qproc->dev, "start successful\n");
 
 	return ret;
 }

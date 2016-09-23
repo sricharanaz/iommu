@@ -325,6 +325,8 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	struct qcom_scm *scm;
 	int ret;
 
+	printk(KERN_ALERT"\n %s", __func__);
+
 	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
 	if (!scm)
 		return -ENOMEM;
@@ -367,6 +369,8 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	__scm->dev = &pdev->dev;
 
 	__qcom_scm_init();
+
+	printk(KERN_ALERT" \n qcom_scm_probe done\n");
 
 	return 0;
 }

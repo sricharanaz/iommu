@@ -135,8 +135,12 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 			arm_smccc_smc(cmd, desc->arginfo, desc->args[0],
 				      desc->args[1], desc->args[2], x5, 0, 0,
 				      res);
+
+			printk(KERN_ALERT"\n arm_smccc_smc");
+
 		} while (res->a0 == QCOM_SCM_INTERRUPTED);
 
+		printk(KERN_ALERT"\n arm_smccc_smc 1");
 		mutex_unlock(&qcom_scm_lock);
 
 		if (res->a0 == QCOM_SCM_V2_EBUSY) {
