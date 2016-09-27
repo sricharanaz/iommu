@@ -131,12 +131,14 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 					 qcom_smccc_convention,
 					 ARM_SMCCC_OWNER_SIP, fn_id);
 
+		res->a6 = 0;
+
 		do {
 			arm_smccc_smc(cmd, desc->arginfo, desc->args[0],
-				      desc->args[1], desc->args[2], x5, 0, 0,
+				      desc->args[1], desc->args[2], x5, res->a6, 0,
 				      res);
 
-			printk(KERN_ALERT"\n arm_smccc_smc");
+			printk(KERN_ALERT"\n arm_smccc_smc res->a0 %d", res->a0);
 
 		} while (res->a0 == QCOM_SCM_INTERRUPTED);
 
