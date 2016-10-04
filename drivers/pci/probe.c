@@ -1724,13 +1724,14 @@ static void pci_set_msi_domain(struct pci_dev *dev)
  * Function to update PCI devices's DMA configuration using the same
  * info from the OF node or ACPI node of host bridge's parent (if any).
  */
-void pci_dma_configure(struct device *dev)
+int pci_dma_configure(struct device *dev)
 {
 	struct device *bridge = pci_get_host_bridge_device(to_pci_dev(dev));
+	int ret = 0;
 
 	if (IS_ENABLED(CONFIG_OF) &&
 		bridge->parent && bridge->parent->of_node) {
-			of_dma_configure(dev, bridge->parent->of_node);
+			ret = of_dma_configure(dev, bridge->parent->of_node);
 	} else if (has_acpi_companion(bridge)) {
 		struct acpi_device *adev = to_acpi_device_node(bridge->fwnode);
 		enum dev_dma_attr attr = acpi_get_dma_attr(adev);
@@ -1742,6 +1743,7 @@ void pci_dma_configure(struct device *dev)
 	}
 
 	pci_put_host_bridge_device(bridge);
+	return ret;
 }
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
