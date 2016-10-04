@@ -351,9 +351,9 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 int dma_configure(struct device *dev)
 {
 	if (dev_is_pci(dev))
-		pci_dma_configure(dev);
+		return pci_dma_configure(dev);
 	else if (dev->of_node)
-		of_dma_configure(dev, dev->of_node);
+		return of_dma_configure(dev, dev->of_node);
 	return 0;
 }
 
