@@ -300,7 +300,7 @@ const struct clk_ops clk_rcg2_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_rcg2_ops);
 
-static int clk_rcg2_shared_force_enable(struct clk_hw *hw, unsigned long rate)
+static int clk_rcg2_force_enable(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	const char *name = clk_hw_get_name(hw);
@@ -316,20 +316,39 @@ static int clk_rcg2_shared_force_enable(struct clk_hw *hw, unsigned long rate)
 	for (count = 500; count > 0; count--) {
 		ret = clk_rcg2_is_enabled(hw);
 		if (ret)
-			break;
+			return 0;
 		udelay(1);
 	}
 	if (!count)
 		pr_err("%s: RCG did not turn on\n", name);
+
+	return -ETIMEDOUT;
+}
+
+static void clk_rcg2_force_disable(struct clk_hw *hw)
+{
+	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+
+	/* clear force enable RCG */
+	regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG,
+			   CMD_ROOT_EN, 0);
+}
+
+static int clk_rcg2_shared_force_enable(struct clk_hw *hw, unsigned long rate)
+{
+	int ret;
+
+	ret = clk_rcg2_force_enable(hw);
+	if (ret)
+		return ret;
 
 	/* set clock rate */
 	ret = __clk_rcg2_set_rate(hw, rate);
 	if (ret)
 		return ret;
 
-	/* clear force enable RCG */
-	return regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG,
-				 CMD_ROOT_EN, 0);
+	clk_rcg2_force_disable(hw);
+	return 0;
 }
 
 static int clk_rcg2_shared_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -801,6 +820,8 @@ static int clk_gfx3d_set_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 const struct clk_ops clk_gfx3d_ops = {
+	.enable = clk_rcg2_force_enable,
+	.disable = clk_rcg2_force_disable,
 	.is_enabled = clk_rcg2_is_enabled,
 	.get_parent = clk_rcg2_get_parent,
 	.set_parent = clk_rcg2_set_parent,
