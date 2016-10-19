@@ -47,6 +47,7 @@
 #include <linux/of_iommu.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -377,6 +378,8 @@ struct arm_smmu_device {
 	u32				num_global_irqs;
 	u32				num_context_irqs;
 	unsigned int			*irqs;
+	int                             num_clocks;
+	struct clk                      **clocks;
 
 	u32				cavium_id_base; /* Specific to Cavium */
 };
@@ -432,6 +435,39 @@ static struct arm_smmu_option_prop arm_smmu_options[] = {
 static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
+}
+
+static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < smmu->num_clocks; ++i) {
+		ret = clk_enable(smmu->clocks[i]);
+		if (ret) {
+			dev_err(smmu->dev, "Couldn't enable clock #%d\n", i);
+			while (i--)
+				clk_disable(smmu->clocks[i]);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
+{
+	int i;
+
+	for (i = smmu->num_clocks; i <= 0; --i)
+		clk_disable(smmu->clocks[i]);
+}
+
+static void arm_smmu_unprepare_clocks(struct arm_smmu_device *smmu)
+{
+	int i;
+
+	for (i = 0; i < smmu->num_clocks; ++i)
+		clk_unprepare(smmu->clocks[i]);
 }
 
 static void parse_driver_options(struct arm_smmu_device *smmu)
@@ -1191,11 +1227,13 @@ static void arm_smmu_master_free_smes(struct iommu_fwspec *fwspec)
 	int i, idx;
 
 	mutex_lock(&smmu->stream_map_mutex);
+	pm_runtime_get_sync(smmu->dev);
 	for_each_cfg_sme(fwspec, i, idx) {
 		if (arm_smmu_free_sme(smmu, idx))
 			arm_smmu_write_sme(smmu, idx);
 		cfg->smendx[i] = INVALID_SMENDX;
 	}
+	pm_runtime_put_sync(smmu->dev);
 	mutex_unlock(&smmu->stream_map_mutex);
 }
 
@@ -1243,6 +1281,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENODEV;
 
 	smmu = fwspec_smmu(fwspec);
+	pm_runtime_get_sync(smmu->dev);
+
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
 	if (ret < 0)
@@ -1260,7 +1300,10 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	}
 
 	/* Looks ok, so add the device to the domain */
-	return arm_smmu_domain_add_master(smmu_domain, fwspec);
+	ret = arm_smmu_domain_add_master(smmu_domain, fwspec);
+	pm_runtime_put_sync(smmu->dev);
+
+	return ret;
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1665,6 +1708,54 @@ static int arm_smmu_id_size_to_bits(int size)
 	}
 }
 
+static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
+{
+	const char *cname;
+	struct property *prop;
+	int i, ret;
+	struct device *dev = smmu->dev;
+
+	smmu->num_clocks =
+		of_property_count_strings(dev->of_node, "clock-names");
+
+	if (smmu->num_clocks < 1)
+		return 0;
+
+	smmu->clocks = devm_kzalloc(dev,
+				    sizeof(*smmu->clocks) * smmu->num_clocks,
+				    GFP_KERNEL);
+
+	if (!smmu->clocks) {
+		dev_err(dev, "Failed to allocate memory for clocks\n");
+		return -ENODEV;
+	}
+
+	i = 0;
+	of_property_for_each_string(dev->of_node, "clock-names", prop, cname) {
+		struct clk *c = devm_clk_get(dev, cname);
+
+		if (IS_ERR(c)) {
+			dev_err(dev, "Couldn't get clock: %s", cname);
+			return -EPROBE_DEFER;
+		}
+
+		/*
+		 * clks are prepared early as the runtime callbacks to enable
+		 * the clocks can be called from the master in atomic contexts.
+		 */
+		ret = clk_prepare(c);
+		if (ret) {
+			dev_err(dev, "Couldn't clk_prepare for %s", cname);
+			return ret;
+		}
+
+		smmu->clocks[i] = c;
+		++i;
+       }
+
+       return 0;
+}
+
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
 	unsigned long size;
@@ -2059,6 +2150,12 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+       err = arm_smmu_init_clocks(smmu);
+       if (err)
+               return err;
+
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
@@ -2087,6 +2184,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
 	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
+	pm_runtime_put_sync(dev);
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))
@@ -2116,8 +2214,38 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+
+	pm_runtime_force_suspend(smmu->dev);
+	arm_smmu_unprepare_clocks(smmu);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int arm_smmu_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
+
+	return arm_smmu_enable_clocks(smmu);
+}
+
+static int arm_smmu_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
+
+	arm_smmu_disable_clocks(smmu);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops arm_smmu_pm_ops = {
+	SET_RUNTIME_PM_OPS(arm_smmu_suspend, arm_smmu_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
 
 static struct platform_driver arm_smmu_driver = {
 	.driver	= {
