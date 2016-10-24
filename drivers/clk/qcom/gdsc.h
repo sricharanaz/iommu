@@ -50,6 +50,7 @@ struct gdsc {
 #define PWRSTS_RET_ON		(PWRSTS_RET | PWRSTS_ON)
 	const u8			flags;
 #define VOTABLE		BIT(0)
+#define HW_CTRL		BIT(1)
 	struct reset_controller_dev	*rcdev;
 	unsigned int			*resets;
 	unsigned int			reset_count;
