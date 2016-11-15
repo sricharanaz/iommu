@@ -271,7 +271,7 @@ void msm_hdmi_connector_irq(struct drm_connector *connector)
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL,
 			HDMI_HPD_INT_CTRL_INT_ACK);
 
-		DBG("status=%04x, ctrl=%04x", hpd_int_status, hpd_int_ctrl);
+		printk(KERN_ERR "status=%04x, ctrl=%04x\n", hpd_int_status, hpd_int_ctrl);
 
 		/* detect disconnect if we are connected or visa versa: */
 		hpd_int_ctrl = HDMI_HPD_INT_CTRL_INT_EN;
@@ -286,6 +286,9 @@ void msm_hdmi_connector_irq(struct drm_connector *connector)
 static enum drm_connector_status detect_reg(struct hdmi *hdmi)
 {
 	uint32_t hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
+
+	printk(KERN_ERR "hpd_int_status %x\n", hpd_int_status);
+
 	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
 			connector_status_connected : connector_status_disconnected;
 }
@@ -399,6 +402,9 @@ static int msm_hdmi_connector_mode_valid(struct drm_connector *connector,
 		actual = clk_round_rate(hdmi->pwr_clks[0], actual);
 
 	DBG("requested=%ld, actual=%ld", requested, actual);
+
+	if (mode->hdisplay > 2560)
+		return MODE_VIRTUAL_X;
 
 	if (actual != requested)
 		return MODE_CLOCK_RANGE;

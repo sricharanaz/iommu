@@ -550,8 +550,11 @@ static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev)
 	static struct mdp5_cfg_platform config = {};
 
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-	config.iommu->geometry.aperture_start = 0x1000;
-	config.iommu->geometry.aperture_end = 0xffffffff;
+
+	if (config.iommu) {
+		config.iommu->geometry.aperture_start = 0x1000;
+		config.iommu->geometry.aperture_end = 0xffffffff;
+	}
 
 	return &config;
 }

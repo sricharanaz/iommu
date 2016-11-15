@@ -182,7 +182,7 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	msm_hdmi_phy_resource_disable(phy);
+	//msm_hdmi_phy_resource_disable(phy);
 
 	platform_set_drvdata(pdev, phy);
 
