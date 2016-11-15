@@ -19,6 +19,7 @@
 
 #include "msm_drv.h"
 #include "mdp5_kms.h"
+#include "../../hdmi/hdmi.xml.h"
 
 /*
  * If needed, this can become more specific: something like struct mdp5_mdss,
@@ -45,6 +46,16 @@ static inline void mdss_write(struct msm_mdss *mdss, u32 reg, u32 data)
 static inline u32 mdss_read(struct msm_mdss *mdss, u32 reg)
 {
 	return msm_readl(mdss->mmio + reg);
+}
+
+static void clear_hdmi_interrupts(struct msm_mdss *mdss)
+{
+	void __iomem *hdmi_base = ioremap(0x9a0000, SZ_8K);
+
+	msm_writel(HDMI_DDC_INT_CTRL_SW_DONE_ACK, hdmi_base + REG_HDMI_DDC_INT_CTRL);
+	msm_writel(HDMI_HPD_INT_CTRL_INT_ACK, hdmi_base + REG_HDMI_HPD_INT_CTRL);
+
+	iounmap(hdmi_base);
 }
 
 static irqreturn_t mdss_irq(int irq, void *arg)
@@ -203,6 +214,8 @@ int msm_mdss_init(struct drm_device *dev)
 			ret);
 		goto fail;
 	}
+
+	clear_hdmi_interrupts(mdss);
 
 	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
 			       mdss_irq, 0, "mdss_isr", mdss);

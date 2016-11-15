@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 
@@ -3316,6 +3317,18 @@ static const struct of_device_id mmcc_msm8996_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mmcc_msm8996_match_table);
 
+static void mmcc_change_hdmi_extp_src(struct regmap *regmap)
+{
+	/* extpclk_clk */
+	/* regmap_update_bits(regmap, 0x2324, BIT(0), 0); */
+
+	/* change source to xo (extpclk RCG) */
+	regmap_update_bits(regmap, 0x2064, BIT(8), 0);
+
+	/* update RCG configuration */
+	regmap_update_bits(regmap, 0x2060, BIT(0), 1);
+}
+
 static int mmcc_msm8996_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -3330,6 +3343,8 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x50d8, BIT(31), 0);
 	/* Disable the NoC FSM for mmss_mmagic_cfg_ahb_clk */
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
+
+	mmcc_change_hdmi_extp_src(regmap);
 
 	for (i = 0; i < ARRAY_SIZE(mmcc_msm8996_hws); i++) {
 		ret = devm_clk_hw_register(dev, mmcc_msm8996_hws[i]);

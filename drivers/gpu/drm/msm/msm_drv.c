@@ -942,6 +942,7 @@ static int add_display_components(struct device *dev,
 	struct device *mdp_dev;
 	int ret;
 
+	pm_runtime_enable(dev);
 	/*
 	 * MDP5 based devices don't have a flat hierarchy. There is a top level
 	 * parent: MDSS, and children: MDP5, DSI, HDMI, eDP etc. Populate the

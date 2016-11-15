@@ -835,7 +835,7 @@
 					      "mmagic_mdss_bus_clk",
 					      "rpm_mmaxi_clk";
 
-				iommus = <&mdp_smmu 0>;
+				//iommus = <&mdp_smmu 0>;
 
 				ports {
 					#address-cells = <1>;
