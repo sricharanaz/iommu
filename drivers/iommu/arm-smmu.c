@@ -1488,13 +1488,14 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 
 static int arm_smmu_match_node(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->fwnode == data;
 }
 
-static struct arm_smmu_device *arm_smmu_get_by_node(struct device_node *np)
+static
+struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
 {
 	struct device *dev = driver_find_device(&arm_smmu_driver.driver, NULL,
-						np, arm_smmu_match_node);
+						fwnode, arm_smmu_match_node);
 	put_device(dev);
 	return dev ? dev_get_drvdata(dev) : NULL;
 }
@@ -1511,8 +1512,8 @@ static int arm_smmu_add_device(struct device *dev)
 		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
-	} else if (fwspec) {
-		smmu = arm_smmu_get_by_node(to_of_node(fwspec->iommu_fwnode));
+	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
+		smmu = arm_smmu_get_by_fwnode(fwspec->iommu_fwnode);
 	} else {
 		return -ENODEV;
 	}
@@ -2176,7 +2177,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		}
 	}
 
-	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
+	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
+	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 	pm_runtime_put_sync(dev);
 
