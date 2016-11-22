@@ -611,8 +611,8 @@ static void qcom_pcie_host_init(struct pcie_port *pp)
 	qcom_ep_reset_deassert(pcie);
 
 	ret = qcom_pcie_establish_link(pcie);
-	if (ret)
-		goto err;
+//	if (ret)
+//		goto err;
 
 	return;
 err:

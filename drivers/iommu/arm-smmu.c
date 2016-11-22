@@ -456,7 +456,8 @@ static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
 			while (i--)
 				clk_disable_unprepare(smmu->clocks[i]);
 			break;
-		}
+		} else
+			dev_err(smmu->dev, "clock enable succeeded for #%d", i); 
 	}
 
 	return ret;
@@ -1617,15 +1618,17 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 
+	dev_err(smmu->dev, "d r 1");
 	/*
 	 * Reset stream mapping groups: Initial values mark all SMRn as
 	 * invalid and all S2CRn as bypass unless overridden.
 	 */
+#if 0
 	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
 		for (i = 0; i < smmu->num_mapping_groups; ++i)
 			arm_smmu_write_sme(smmu, i);
 	}
-
+#endif
 	/*
 	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
 	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
@@ -1634,11 +1637,14 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
 	major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
 	if ((smmu->model == ARM_MMU500) && (major >= 2)) {
+		dev_err(smmu->dev, "d r 1.1");
 		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
 		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
+	dev_err(smmu->dev, "d r 2");
+#if 0
 	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
 		/* Make sure all context banks are disabled and clear CB_FSR  */
 		for (i = 0; i < smmu->num_context_banks; ++i) {
@@ -1656,13 +1662,15 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 			}
 		}
 	}
-
+#endif
+	//asm("loop:"); asm("b loop");
 	/* Invalidate the TLB, just in case */
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLH);
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLNSNH);
 
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 
+	dev_err(smmu->dev, "\n d r 3");
 	/* Enable fault reporting */
 	reg |= (sCR0_GFRE | sCR0_GFIE | sCR0_GCFGFRE | sCR0_GCFGFIE);
 
@@ -1687,7 +1695,11 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	/* Push the button */
 	__arm_smmu_tlb_sync(smmu);
+
+	dev_err(smmu->dev, "\n d r 4");
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+
+	dev_err(smmu->dev, "\n d r 5");
 }
 
 static int arm_smmu_id_size_to_bits(int size)
@@ -2157,8 +2169,9 @@ static int arm_smmu_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	arm_smmu_device_reset(smmu);
+	//arm_smmu_device_reset(smmu);
 
+	printk("\n arm_smmu_device_reset done");
 	/* Restore the smes and the context banks */
 	for (idx = 0; idx < smmu->num_mapping_groups; ++idx) {
 		mutex_lock(&smmu->stream_map_mutex);
@@ -2167,6 +2180,7 @@ static int arm_smmu_resume(struct device *dev)
 			continue;
 		}
 
+		dev_err(smmu->dev, "\n smr valid for %d", idx);
 		arm_smmu_write_sme(smmu, idx);
 		cb = smmu->s2crs[idx].cbndx;
 		mutex_unlock(&smmu->stream_map_mutex);
@@ -2176,6 +2190,7 @@ static int arm_smmu_resume(struct device *dev)
 			pgtbl_cfg = &smmu->cb_saved_ctx[cb].pgtbl_cfg;
 
 			if (domain) {
+				dev_err(smmu->dev, "\n domain valid for idx %d", idx);
 				mutex_lock(&domain->init_mutex);
 				arm_smmu_init_context_bank(domain, pgtbl_cfg);
 				mutex_unlock(&domain->init_mutex);

@@ -207,6 +207,7 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	if (sc->flags & HW_CTRL)
 		gdsc_hwctrl(sc, true);
 
+	printk(KERN_ALERT"\n gdsc_enable for %s", domain->name); 
 	return 0;
 }
 

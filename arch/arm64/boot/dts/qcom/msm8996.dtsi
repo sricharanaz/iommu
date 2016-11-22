@@ -760,7 +760,7 @@
 		mdp_smmu: arm,smmu@d00000 {
 			compatible = "arm,smmu-v2";
 			reg = <0xd00000 0x10000>;
-
+			power-domains = <&mmcc MDSS_GDSC>;
 			#global-interrupts = <1>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
@@ -772,13 +772,16 @@
 				 <&mmcc SMMU_MDP_AHB_CLK>,
 				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
-				 <&mmcc MMSS_MISC_AHB_CLK>;
+				 <&mmcc MMSS_MISC_AHB_CLK>,
+				 <&rpmcc MSM8996_RPM_SMD_MMAXI_CLK>;
+
 			clock-names = "mmagic_iface_clk",
 				"mmagic_cfg_iface_clk",
 				"smmu_iface_clk",
 				"smmu_bus_clk",
 				"mmagic_mdss_bus_clk",
-				"mmss_misc_bus_clk";
+				"mmss_misc_bus_clk",
+				"rpm_mmaxi_clk";
 
 			qcom,skip-init;
 			qcom,no-smr-check;
