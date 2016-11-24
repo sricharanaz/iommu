@@ -1663,7 +1663,6 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		}
 	}
 #endif
-	//asm("loop:"); asm("b loop");
 	/* Invalidate the TLB, just in case */
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLH);
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLNSNH);
@@ -2119,7 +2118,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
 	arm_smmu_device_reset(smmu);
-	pm_runtime_put_sync(dev);
+	//pm_runtime_put_sync(dev);
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))
@@ -2208,7 +2207,7 @@ static int arm_smmu_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 
-	arm_smmu_disable_clocks(smmu);
+	//arm_smmu_disable_clocks(smmu);
 
 	return 0;
 }

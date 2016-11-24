@@ -786,7 +786,7 @@
 			qcom,skip-init;
 			qcom,no-smr-check;
 
-			status = "okay";
+			status = "disabled";
 		};
 
 		mdss: mdss@900000 {
@@ -998,3 +998,4 @@
 	};
 };
 #include "msm8996-pins.dtsi"
+#include "msm-arm-smmu-8996.dtsi"
