@@ -786,7 +786,7 @@
 			qcom,skip-init;
 			qcom,no-smr-check;
 
-			status = "disabled";
+			status = "ok";
 		};
 
 		mdss: mdss@900000 {
@@ -839,7 +839,7 @@
 					      "mmagic_mdss_bus_clk",
 					      "rpm_mmaxi_clk";
 
-				//iommus = <&mdp_smmu 0>;
+				iommus = <&mdp_smmu 0>;
 
 				ports {
 					#address-cells = <1>;
@@ -998,4 +998,3 @@
 	};
 };
 #include "msm8996-pins.dtsi"
-#include "msm-arm-smmu-8996.dtsi"
