@@ -167,16 +167,6 @@ void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 }
 EXPORT_SYMBOL(dmam_free_noncoherent);
 
-int dma_configure(struct device *dev)
-{
-	return of_dma_configure(dev, dev->of_node);
-}
-
-void dma_deconfigure(struct device *dev)
-{
-	of_dma_deconfigure(dev);
-}
-
 #ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 
 static void dmam_coherent_decl_release(struct device *dev, void *res)
