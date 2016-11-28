@@ -800,26 +800,6 @@ static struct dma_map_ops iommu_dma_ops = {
 	.mapping_error = iommu_dma_mapping_error,
 };
 
-static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
-			   u64 dma_base, u64 size)
-{
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-
-	/*
-	 * If the IOMMU driver has the DMA domain support that we require,
-	 * then the IOMMU core will have already configured a group for this
-	 * device, and allocated the default domain for that group.
-	 */
-	if (!domain || iommu_dma_init_domain(domain, dma_base, size, dev)) {
-		pr_warn("Failed to set up IOMMU for device %s; retaining platform DMA ops\n",
-			dev_name(dev));
-		return false;
-	}
-
-	dev->archdata.dma_ops = &iommu_dma_ops;
-	return true;
-}
-
 static int __init __iommu_dma_init(void)
 {
 	return iommu_dma_init();
@@ -829,33 +809,27 @@ arch_initcall(__iommu_dma_init);
 static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 				  const struct iommu_ops *ops)
 {
-	struct iommu_group *group;
+	struct iommu_domain *domain;
 
 	if (!ops)
 		return;
 
-	group = iommu_group_get(dev);
-
-	if (group) {
-		do_iommu_attach(dev, ops, dma_base, size);
-		iommu_group_put(group);
+	/*
+	 * The IOMMU core code allocates the default DMA domain, which the
+	 * underlying IOMMU driver needs to support via the dma-iommu layer.
+	 */
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain || iommu_dma_init_domain(domain, dma_base, size, dev)) {
+		pr_warn("Failed to set up IOMMU for device %s; retaining platform DMA ops\n",
+			dev_name(dev));
+		return;
 	}
+
+	dev->archdata.dma_ops = &iommu_dma_ops;
 }
 
 void arch_teardown_dma_ops(struct device *dev)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	const struct iommu_ops *ops;
-
-	if (dev->iommu_fwspec) {
-		ops = dev->iommu_fwspec->ops;
-		if (ops->remove_device)
-			ops->remove_device(dev);
-	}
-
-	if (WARN_ON(domain))
-		iommu_detach_device(domain, dev);
-
 	dev->archdata.dma_ops = NULL;
 }
 
