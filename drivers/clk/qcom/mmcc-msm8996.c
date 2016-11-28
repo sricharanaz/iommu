@@ -2902,6 +2902,7 @@ static struct gdsc mmagic_video_gdsc = {
 	.pd = {
 		.name = "mmagic_video",
 	},
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
@@ -2912,6 +2913,7 @@ static struct gdsc mmagic_mdss_gdsc = {
 	.pd = {
 		.name = "mmagic_mdss",
 	},
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
@@ -2922,6 +2924,7 @@ static struct gdsc mmagic_camss_gdsc = {
 	.pd = {
 		.name = "mmagic_camss",
 	},
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
