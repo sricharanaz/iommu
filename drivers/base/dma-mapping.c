@@ -357,17 +357,29 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
  * Common configuration to enable DMA API use for a device
  */
 #include <linux/pci.h>
+#include <linux/acpi.h>
 
 int dma_configure(struct device *dev)
 {
+	struct acpi_device *adev;
+	enum dev_dma_attr attr;
+
 	if (dev_is_pci(dev))
 		return pci_dma_configure(dev);
 	else if (dev->of_node)
 		return of_dma_configure(dev, dev->of_node);
+	else if (has_acpi_companion(dev)) {
+		adev = to_acpi_device_node(dev->fwnode);
+		attr = acpi_get_dma_attr(adev);
+		if (attr != DEV_DMA_NOT_SUPPORTED)
+			return acpi_dma_configure(dev, attr);
+	}
+
 	return 0;
 }
 
 void dma_deconfigure(struct device *dev)
 {
 	of_dma_deconfigure(dev);
+	acpi_dma_deconfigure(dev);
 }
