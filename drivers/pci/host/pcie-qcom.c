@@ -672,7 +672,15 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	struct qcom_pcie *pcie;
 	struct pcie_port *pp;
 	int ret;
+	static int i = 0;
 
+	printk(KERN_ALERT"qcom_pcie_probe");
+
+	if (!i) {
+		printk(KERN_ALERT"qcom_pcie_probe request pd");
+		i++;
+		return -EPROBE_DEFER;
+	}
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)

@@ -1268,7 +1268,9 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-	printk(KERN_ALERT"arm_smmu_attach_dev %s \n", dev->of_node->name);
+	if (dev->of_node)
+		printk(KERN_ALERT"arm_smmu_attach_dev %s \n", dev->of_node->name);
+
 	if (!fwspec || fwspec->ops != &arm_smmu_ops) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
@@ -2271,7 +2273,19 @@ static struct platform_driver arm_smmu_driver = {
 	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,
 };
-module_platform_driver(arm_smmu_driver);
+
+static int __init arm_smmu_init(void)
+{
+       static bool registered;
+       int ret = 0;
+
+       if (!registered) {
+               ret = platform_driver_register(&arm_smmu_driver);
+               registered = !ret;
+       }
+       return ret;
+}
+late_initcall(arm_smmu_init);
 
 IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1", NULL);
 IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2", NULL);
