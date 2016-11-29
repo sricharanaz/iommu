@@ -201,9 +201,10 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		return NULL;
 
 	if (fwspec) {
-		if (fwspec->ops)
+		if (fwspec->ops) {
+			printk(KERN_ALERT"returning preset iommu ops\n");
 			return fwspec->ops;
-
+		}
 		/* In the deferred case, start again from scratch */
 		iommu_fwspec_free(dev);
 	}

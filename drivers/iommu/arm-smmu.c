@@ -1274,6 +1274,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
+	dump_stack();
 	/*
 	 * FIXME: The arch/arm DMA API code tries to attach devices to its own
 	 * domains between of_xlate() and add_device() - we have no way to cope
@@ -1324,7 +1325,7 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return -ENODEV;
 
-	printk(KERN_ALERT"\n arm_smmu_map iova %x", iova);
+	//printk(KERN_ALERT"\n arm_smmu_map iova %x", iova);
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
@@ -1512,6 +1513,7 @@ static void arm_smmu_remove_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 
+	printk(KERN_ALERT"\n arm_smmu_remove_device");
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
 

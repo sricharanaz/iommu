@@ -978,6 +978,13 @@ static const struct component_ops mdp5_ops = {
 
 static int mdp5_dev_probe(struct platform_device *pdev)
 {
+	static int i = 0;
+
+	if (!i) {
+		++i;
+		return -EPROBE_DEFER;
+	}
+
 	DBG("");
 	return component_add(&pdev->dev, &mdp5_ops);
 }
