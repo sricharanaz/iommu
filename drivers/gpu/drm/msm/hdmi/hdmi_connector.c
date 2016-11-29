@@ -287,6 +287,8 @@ static enum drm_connector_status detect_reg(struct hdmi *hdmi)
 {
 	uint32_t hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
 
+	return connector_status_connected;
+
 	printk(KERN_ERR "hpd_int_status %x\n", hpd_int_status);
 
 	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?

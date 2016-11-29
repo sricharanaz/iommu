@@ -1576,14 +1576,14 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	/* clear global FSR */
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
-
+#if 0
 	/*
 	 * Reset stream mapping groups: Initial values mark all SMRn as
 	 * invalid and all S2CRn as bypass unless overridden.
 	 */
 	for (i = 0; i < smmu->num_mapping_groups; ++i)
 		arm_smmu_write_sme(smmu, i);
-
+#endif
 	/*
 	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
 	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
@@ -1596,7 +1596,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
-
+#if 0
 	/* Make sure all context banks are disabled and clear CB_FSR  */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
 		cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, i);
@@ -1612,7 +1612,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 			writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
 		}
 	}
-
+#endif
 	/* Invalidate the TLB, just in case */
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLH);
 	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_TLBIALLNSNH);
