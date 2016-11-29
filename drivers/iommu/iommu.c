@@ -901,10 +901,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	 * ADD/DEL call into iommu driver ops if provided, which may
 	 * result in ADD/DEL notifiers to group->notifier
 	 */
-	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		if (ops->add_device)
-			return ops->add_device(dev);
-	} else if (action == BUS_NOTIFY_REMOVED_DEVICE) {
+	if (action == BUS_NOTIFY_REMOVED_DEVICE) {
 		if (ops->remove_device && dev->iommu_group) {
 			ops->remove_device(dev);
 			return 0;
@@ -959,11 +956,6 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 	err = bus_register_notifier(bus, nb);
 	if (err)
 		goto out_free;
-
-	err = bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
-	if (err)
-		goto out_err;
-
 
 	return 0;
 
