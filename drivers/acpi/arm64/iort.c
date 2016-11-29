@@ -537,8 +537,9 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 			return NULL;
 
 		ops = iommu_get_instance(iort_fwnode);
+		/* This means that the iommu driver is still not probed */
 		if (!ops)
-			return NULL;
+			return ERR_PTR(-EPROBE_DEFER);
 
 		ret = arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
 	}
@@ -590,10 +591,24 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 
 		while (parent) {
 			ops = iort_iommu_xlate(dev, parent, streamid);
+			if (IS_ERR_OR_NULL(ops))
+				return ops;
 
 			parent = iort_node_get_id(node, &streamid,
 						  IORT_IOMMU_TYPE, i++);
 		}
+	}
+
+	/*
+	 * If we have reason to believe the IOMMU driver missed the initial
+	 * add_device callback for dev, replay it to get things in order.
+	 */
+	if (!IS_ERR_OR_NULL(ops) && ops->add_device &&
+	    dev->bus && !dev->iommu_group) {
+		int err = ops->add_device(dev);
+
+		if (err)
+			ops = ERR_PTR(err);
 	}
 
 	return ops;
