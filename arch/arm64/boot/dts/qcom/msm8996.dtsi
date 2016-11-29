@@ -810,6 +810,8 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "ok";
+
 			ranges;
 
 			mdp: mdp@901000 {

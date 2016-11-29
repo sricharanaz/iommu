@@ -441,6 +441,7 @@ static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
 {
 	int i, ret = 0;
 
+	printk(KERN_ALERT"arm_smmu_enable_clocks \n");
 	for (i = 0; i < smmu->num_clocks; ++i) {
 		ret = clk_enable(smmu->clocks[i]);
 		if (ret) {
@@ -458,6 +459,7 @@ static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
 {
 	int i;
 
+	printk(KERN_ALERT"arm_smmu_disable_clocks \n");
 	for (i = smmu->num_clocks; i <= 0; --i)
 		clk_disable(smmu->clocks[i]);
 }
@@ -747,6 +749,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *cb_base, *gr1_base;
 
+	printk(KERN_ALERT"arm_smmu_init_context_bank \n");
 	gr1_base = ARM_SMMU_GR1(smmu);
 	stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
@@ -1265,6 +1268,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
+	printk(KERN_ALERT"arm_smmu_attach_dev %s \n", dev->of_node->name);
 	if (!fwspec || fwspec->ops != &arm_smmu_ops) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
@@ -1283,6 +1287,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	smmu = fwspec_smmu(fwspec);
 	pm_runtime_get_sync(smmu->dev);
 
+	printk(KERN_ALERT"arm_smmu_attach_dev \n");
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
 	if (ret < 0)
@@ -1299,8 +1304,10 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -EINVAL;
 	}
 
+	printk(KERN_ALERT"arm_smmu_domain_add_master 1\n");
 	/* Looks ok, so add the device to the domain */
 	ret = arm_smmu_domain_add_master(smmu_domain, fwspec);
+	printk(KERN_ALERT"arm_smmu_domain_add_master 2\n");
 	pm_runtime_put_sync(smmu->dev);
 
 	return ret;
@@ -1316,6 +1323,8 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 
 	if (!ops)
 		return -ENODEV;
+
+	printk(KERN_ALERT"\n arm_smmu_map iova %x", iova);
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
@@ -1443,6 +1452,8 @@ static int arm_smmu_add_device(struct device *dev)
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	int i, ret;
 
+	printk(KERN_ALERT"arm_smmu_add_device \n");
+
 	if (using_legacy_binding) {
 		ret = arm_smmu_register_legacy_master(dev, &smmu);
 		fwspec = dev->iommu_fwspec;
@@ -1486,6 +1497,8 @@ static int arm_smmu_add_device(struct device *dev)
 	if (ret)
 		goto out_free;
 
+	device_link_add(dev, smmu->dev, DEVICE_LINK_AVAILABLE,
+			DEVICE_LINK_PM_RUNTIME);
 	return 0;
 
 out_free:
@@ -2150,6 +2163,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+	platform_set_drvdata(pdev, smmu);
        err = arm_smmu_init_clocks(smmu);
        if (err)
                return err;
@@ -2182,7 +2196,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
-	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 	pm_runtime_put_sync(dev);
 
@@ -2251,6 +2264,7 @@ static struct platform_driver arm_smmu_driver = {
 	.driver	= {
 		.name		= "arm-smmu",
 		.of_match_table	= of_match_ptr(arm_smmu_of_match),
+		.pm = &arm_smmu_pm_ops,
 	},
 	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,

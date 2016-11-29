@@ -196,6 +196,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	const struct iommu_ops *ops;
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 
+	printk(KERN_ALERT"of_iommu_configure \n");
 	if (!master_np)
 		return NULL;
 
@@ -211,6 +212,11 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		ops = of_pci_iommu_init(to_pci_dev(dev), master_np);
 	else
 		ops = of_platform_iommu_init(dev, master_np);
+
+	printk(KERN_ALERT"of_iommu_configure ops %d \n", ops);
+
+	if (dev->of_node)
+		printk(KERN_ALERT"of_iommu_configure name %s \n", dev->of_node->name);
 	/*
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
@@ -219,6 +225,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	    dev->bus && !dev->iommu_group) {
 		int err = ops->add_device(dev);
 
+		printk(KERN_ALERT"add_device returns %d \n", err);
 		if (err)
 			ops = ERR_PTR(err);
 	}
