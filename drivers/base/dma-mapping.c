@@ -352,6 +352,7 @@ int dma_configure(struct device *dev)
 {
 	struct device *_dev = dev;
 	int is_pci = dev_is_pci(dev);
+	int ret = 0;
 
 	if (is_pci) {
 		_dev = pci_get_host_bridge_device(to_pci_dev(dev));
@@ -361,12 +362,12 @@ int dma_configure(struct device *dev)
 	}
 
 	if (_dev->of_node)
-		of_dma_configure(dev, _dev->of_node);
+		ret = of_dma_configure(dev, _dev->of_node);
 
 	if (is_pci)
 		pci_put_host_bridge_device(_dev);
 
-	return 0;
+	return ret;
 }
 
 void dma_deconfigure(struct device *dev)
