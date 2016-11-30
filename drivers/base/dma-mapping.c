@@ -371,7 +371,7 @@ int dma_configure(struct device *dev)
 		if (attr == DEV_DMA_NOT_SUPPORTED)
 			dev_warn(dev, "DMA not supported.\n");
 		else
-			acpi_dma_configure(dev, attr);
+			ret = acpi_dma_configure(dev, attr);
 	}
 
 	if (is_pci)
