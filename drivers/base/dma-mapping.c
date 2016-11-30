@@ -7,6 +7,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/acpi.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
@@ -348,6 +349,27 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
  */
 #include <linux/pci.h>
 
+static void __acpi_dma_configure(struct device *dev)
+{
+	struct device *adev = dev;
+	enum dev_dma_attr attr;
+
+	if (dev_is_pci(dev))
+		adev = pci_get_host_bridge_device(to_pci_dev(dev));
+
+	if (has_acpi_companion(adev)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(adev->fwnode));
+
+		if (attr == DEV_DMA_NOT_SUPPORTED)
+			dev_warn(dev, "DMA not supported.\n");
+		else
+			acpi_dma_configure(dev, attr);
+	}
+
+	if (dev_is_pci(dev))
+		pci_put_host_bridge_device(adev);
+}
+
 static int __of_dma_configure(struct device *dev)
 {
 	struct device *bridge = NULL;
@@ -375,6 +397,8 @@ int dma_configure(struct device *dev)
 {
 	if (IS_ENABLED(CONFIG_OF))
 		return __of_dma_configure(dev);
+	else if (IS_ENABLED(CONFIG_ACPI))
+		__acpi_dma_configure(dev);
 
 	return 0;
 }
