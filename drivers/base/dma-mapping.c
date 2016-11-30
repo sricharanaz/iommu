@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -341,3 +342,34 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 	vunmap(cpu_addr);
 }
 #endif
+
+/*
+ * Common configuration to enable DMA API use for a device
+ */
+#include <linux/pci.h>
+
+int dma_configure(struct device *dev)
+{
+	struct device *_dev = dev;
+	int is_pci = dev_is_pci(dev);
+
+	if (is_pci) {
+		_dev = pci_get_host_bridge_device(to_pci_dev(dev));
+		if (IS_ENABLED(CONFIG_OF) && _dev->parent &&
+		    _dev->parent->of_node)
+			_dev = _dev->parent;
+	}
+
+	if (_dev->of_node)
+		of_dma_configure(dev, _dev->of_node);
+
+	if (is_pci)
+		pci_put_host_bridge_device(_dev);
+
+	return 0;
+}
+
+void dma_deconfigure(struct device *dev)
+{
+	of_dma_deconfigure(dev);
+}

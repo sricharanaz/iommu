@@ -19,6 +19,7 @@
 
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
@@ -355,6 +356,10 @@ re_probe:
 	if (ret)
 		goto pinctrl_bind_failed;
 
+	ret = dma_configure(dev);
+	if (ret)
+		goto dma_failed;
+
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
 			__func__, dev_name(dev));
@@ -416,6 +421,8 @@ re_probe:
 	goto done;
 
 probe_failed:
+	dma_deconfigure(dev);
+dma_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
@@ -823,6 +830,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);
+
+		dma_deconfigure(dev);
 
 		devres_release_all(dev);
 		dev->driver = NULL;
