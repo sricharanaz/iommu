@@ -349,10 +349,11 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
  */
 #include <linux/pci.h>
 
-static void __acpi_dma_configure(struct device *dev)
+static int __acpi_dma_configure(struct device *dev)
 {
 	struct device *adev = dev;
 	enum dev_dma_attr attr;
+	int ret = 0;
 
 	if (dev_is_pci(dev))
 		adev = pci_get_host_bridge_device(to_pci_dev(dev));
@@ -363,11 +364,13 @@ static void __acpi_dma_configure(struct device *dev)
 		if (attr == DEV_DMA_NOT_SUPPORTED)
 			dev_warn(dev, "DMA not supported.\n");
 		else
-			acpi_dma_configure(dev, attr);
+			ret = acpi_dma_configure(dev, attr);
 	}
 
 	if (dev_is_pci(dev))
 		pci_put_host_bridge_device(adev);
+
+	return ret;
 }
 
 static int __of_dma_configure(struct device *dev)
@@ -398,7 +401,7 @@ int dma_configure(struct device *dev)
 	if (IS_ENABLED(CONFIG_OF))
 		return __of_dma_configure(dev);
 	else if (IS_ENABLED(CONFIG_ACPI))
-		__acpi_dma_configure(dev);
+		return __acpi_dma_configure(dev);
 
 	return 0;
 }
