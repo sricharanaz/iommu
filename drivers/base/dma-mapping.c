@@ -7,6 +7,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/acpi.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
@@ -352,6 +353,7 @@ int dma_configure(struct device *dev)
 {
 	struct device *_dev = dev;
 	int is_pci = dev_is_pci(dev);
+	enum dev_dma_attr attr;
 	int ret = 0;
 
 	if (is_pci) {
@@ -361,8 +363,16 @@ int dma_configure(struct device *dev)
 			_dev = _dev->parent;
 	}
 
-	if (_dev->of_node)
+	if (_dev->of_node) {
 		ret = of_dma_configure(dev, _dev->of_node);
+	} else if (has_acpi_companion(_dev)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(_dev->fwnode));
+
+		if (attr == DEV_DMA_NOT_SUPPORTED)
+			dev_warn(dev, "DMA not supported.\n");
+		else
+			acpi_dma_configure(dev, attr);
+	}
 
 	if (is_pci)
 		pci_put_host_bridge_device(_dev);
@@ -373,4 +383,5 @@ int dma_configure(struct device *dev)
 void dma_deconfigure(struct device *dev)
 {
 	of_dma_deconfigure(dev);
+	acpi_dma_deconfigure(dev);
 }
