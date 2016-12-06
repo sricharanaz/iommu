@@ -13,6 +13,10 @@
 
 #include "msm8996.dtsi"
 #include "pm8994.dtsi"
+<<<<<<< HEAD
+=======
+#include "apq8096-db820c-pmic-pins.dtsi"
+>>>>>>> d32b487... HACK: pcie0: add wlan power up sequence
 #include "apq8096-db820c-pins.dtsi"
 #include "apq8096-db820c-pmic-pins.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -91,6 +95,17 @@
 		agnoc@0 {
 			qcom,pcie@00600000 {
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+			};
+			qcom,pcie@00600000 {
+				status = "okay";
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&pcie0_clkreq_default &pcie0_perst_default &pcie0_wake_default &wlan_gpios>;
+				pinctrl-1 = <&pcie0_clkreq_sleep &pcie0_perst_default &pcie0_wake_sleep>;
+				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+				wlan-bootstrap-gpio = <&msmgpio 46 0>;
+				wlan-en-gpio = <&pm8994_gpios 8 0>;
+				vdd-wlan-io-supply = <&pm8994_s4>;
+
 			};
 
 			qcom,pcie@00608000 {

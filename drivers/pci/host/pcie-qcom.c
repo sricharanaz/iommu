@@ -114,6 +114,48 @@ struct qcom_pcie {
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
 
+static void wlan_get_resources(struct device *dev)
+{
+	int ret = 0;
+	int en_gpio, bootstrap_gpio;
+	struct regulator *reg;
+
+#define WLAN_VREG_IO_NAME	"vdd-wlan-io"
+#define WLAN_EN_GPIO_NAME	"wlan-en-gpio"
+#define WLAN_BOOTSTRAP_GPIO_NAME "wlan-bootstrap-gpio"
+#define WLAN_EN_HIGH		1
+#define WLAN_EN_LOW		0
+#define WLAN_BOOTSTRAP_HIGH	1
+#define WLAN_BOOTSTRAP_LOW	0
+
+#define WLAN_BOOTSTRAP_DELAY   10
+#define WLAN_ENABLE_DELAY   10
+
+	reg = regulator_get(dev, WLAN_VREG_IO_NAME);
+	if (IS_ERR(reg))
+		return;
+
+	ret = regulator_enable(reg);
+	en_gpio = of_get_named_gpio(dev->of_node,
+				WLAN_EN_GPIO_NAME, 0);
+	if (en_gpio < 0)
+		return;
+	ret = gpio_request(en_gpio, WLAN_EN_GPIO_NAME);
+	ret = gpio_direction_output(en_gpio, WLAN_EN_LOW);
+
+
+	bootstrap_gpio = of_get_named_gpio(dev->of_node,
+					WLAN_BOOTSTRAP_GPIO_NAME, 0);
+	if (bootstrap_gpio < 0)
+		return;
+	ret = gpio_request(bootstrap_gpio, WLAN_BOOTSTRAP_GPIO_NAME);
+	ret = gpio_direction_output(bootstrap_gpio, WLAN_BOOTSTRAP_HIGH);
+	msleep(WLAN_BOOTSTRAP_DELAY);
+	gpio_set_value(en_gpio, WLAN_EN_HIGH);
+	msleep(WLAN_ENABLE_DELAY);
+
+	return;
+}
 static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 {
 	gpiod_set_value(pcie->reset, 1);
@@ -522,11 +564,16 @@ static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
 
 	/* change DBI base address */
 	writel(0, pcie->parf + PCIE20_PARF_DBI_BASE_ADDR);
+<<<<<<< HEAD
 
 	/* MAC PHY_POWERDOWN MUX DISABLE  */
 	val = readl(pcie->parf + PCIE20_PARF_SYS_CTRL);
 	val &= ~BIT(29);
 	writel(val, pcie->parf + PCIE20_PARF_SYS_CTRL);
+=======
+	//FIXME should be proper
+	writel(0x365E, pcie->parf + PCIE20_PARF_SYS_CTRL);
+>>>>>>> d32b487... HACK: pcie0: add wlan power up sequence
 
 	val = readl(pcie->parf + PCIE20_PARF_MHI_CLOCK_RESET_CTRL);
 	val |= BIT(4);
@@ -608,6 +655,7 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
 
+	wlan_get_resources(pp->dev);
 	qcom_ep_reset_deassert(pcie);
 
 	ret = qcom_pcie_establish_link(pcie);

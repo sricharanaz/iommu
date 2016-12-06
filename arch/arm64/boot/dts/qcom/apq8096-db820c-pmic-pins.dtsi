@@ -9,7 +9,30 @@
 		pinconf {
 			pins = "gpio5";
 			output-low;
-			power-source = <2>; // PM8994_GPIO_S4, 1.8V
+			power-source = <PM8994_GPIO_S4>; // 1.8V
+		};
+	};
+
+	wlan_gpios: wlan_gpios {
+		pinconf {
+			pins = "gpio8", "gpio19";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			output-low;
+			power-source = <PM8994_GPIO_S4>; // 1.8V
+			qcom,drive-strength = <3>;
+			bias-pull-down;
+		};
+	};
+
+	volume_up_gpio: pm8996_gpio2 {
+		pinconf {
+			pins = "gpio2";
+			function = "normal";
+			input-enable;
+			drive-push-pull;
+			bias-pull-up;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			power-source = <PM8994_GPIO_S4>; // 1.8V
 		};
 	};
 };
