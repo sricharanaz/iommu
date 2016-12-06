@@ -525,7 +525,7 @@ void clk_unprepare(struct clk *clk)
 {
 	if (IS_ERR_OR_NULL(clk))
 		return;
-
+	return;
 	clk_core_unprepare_lock(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_unprepare);
@@ -645,7 +645,7 @@ void clk_disable(struct clk *clk)
 {
 	if (IS_ERR_OR_NULL(clk))
 		return;
-
+	return;
 	clk_core_disable_lock(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
