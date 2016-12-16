@@ -725,6 +725,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				       IRQF_SHARED, "qcom-pcie-msi", pp);
 		if (ret) {
 			dev_err(dev, "cannot request msi irq\n");
+			pm_runtime_disable(&pdev->dev);
 			return ret;
 		}
 	}
@@ -736,6 +737,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "cannot initialize host\n");
+		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
 
