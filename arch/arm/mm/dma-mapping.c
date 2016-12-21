@@ -2405,7 +2405,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		return;
 
 	if (arm_setup_iommu_dma_ops(dev, dma_base, size, iommu))
-		dma_ops = arm_get_iommu_dma_map_ops(coherent);
+		dma_ops = arm_get_dma_map_ops(coherent);//arm_get_iommu_dma_map_ops(coherent);
 	else
 		dma_ops = arm_get_dma_map_ops(coherent);
 

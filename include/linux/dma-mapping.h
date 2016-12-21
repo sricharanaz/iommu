@@ -11,6 +11,9 @@
 #include <linux/kmemcheck.h>
 #include <linux/bug.h>
 
+int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg,
+                int nents, enum dma_data_direction dir, unsigned long attrs);
+
 /**
  * List of possible attributes associated with a DMA mapping. The semantics
  * of each attribute should be defined in Documentation/DMA-attributes.txt.

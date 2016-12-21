@@ -379,6 +379,9 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct msm_priv *priv = to_msm_priv(domain);
 	struct msm_iommu_ctx_dev *master;
 
+	printk(KERN_ALERT"%s %s\n", __func__, dev_name(dev));
+	dump_stack();
+
 	priv->dev = dev;
 	msm_iommu_domain_config(priv);
 
