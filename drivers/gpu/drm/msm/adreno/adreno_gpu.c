@@ -20,6 +20,7 @@
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
+#include <linux/dma-mapping.h>
 
 #define RB_SIZE    SZ_32K
 #define RB_BLKSIZE 32
@@ -58,11 +59,19 @@ int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int ret;
+        struct msm_drm_private *priv = gpu->dev->dev_private;
+        struct platform_device *pdev = priv->gpu_pdev;
+        struct msm_gem_object *msm_obj;
 
 	DBG("%s", gpu->name);
 
+	msm_obj = to_msm_bo(gpu->rb->bo);
+	ret = dma_map_sg(&pdev->dev, msm_obj->sgt->sgl, msm_obj->sgt->nents, 0);
+        gpu->rb_iova = sg_dma_address(msm_obj->sgt->sgl);
+#if 0
 	ret = msm_gem_get_iova(gpu->rb->bo, gpu->id, &gpu->rb_iova);
-	if (ret) {
+#endif
+	if (ret <= 0) {
 		gpu->rb_iova = 0;
 		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
 		return ret;
@@ -340,6 +349,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct msm_gpu *gpu = &adreno_gpu->base;
 	struct msm_mmu *mmu;
 	int ret;
+        struct msm_gem_object *msm_obj;
 
 	adreno_gpu->funcs = funcs;
 	adreno_gpu->info = adreno_info(config->rev);
@@ -405,9 +415,15 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
+	msm_obj = to_msm_bo(adreno_gpu->memptrs_bo);
+	ret = dma_map_sg(&pdev->dev, msm_obj->sgt->sgl, msm_obj->sgt->nents, 0);
+
+	adreno_gpu->memptrs_iova = sg_dma_address(msm_obj->sgt->sgl);
+#if 0
 	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->id,
 			&adreno_gpu->memptrs_iova);
-	if (ret) {
+#endif
+	if (ret <= 0) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);
 		return ret;
 	}

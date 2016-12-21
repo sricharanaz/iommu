@@ -13,6 +13,8 @@
 
 #include <linux/pm_opp.h>
 #include "a5xx_gpu.h"
+#include <linux/dma-mapping.h>
+#include "msm_gem.h"
 
 /*
  * The GPMU data block is a block of shared registers that can be used to
@@ -259,6 +261,9 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	uint32_t dwords = 0, offset = 0, bosize;
 	unsigned int *data, *ptr, *cmds;
 	unsigned int cmds_size;
+        struct msm_drm_private *priv = gpu->dev->dev_private;
+        struct platform_device *pdev = priv->gpu_pdev;
+        struct msm_gem_object *msm_obj;
 
 	if (a5xx_gpu->gpmu_bo)
 		return;
@@ -300,9 +305,16 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 
 	if (IS_ERR(a5xx_gpu->gpmu_bo))
 		goto err;
-
+#if 0
 	if (msm_gem_get_iova(a5xx_gpu->gpmu_bo, gpu->id, &a5xx_gpu->gpmu_iova))
 		goto err;
+#endif
+
+	msm_obj = to_msm_bo(a5xx_gpu->gpmu_bo);
+	if (dma_map_sg(&pdev->dev, msm_obj->sgt->sgl, msm_obj->sgt->nents, 0) <= 0)
+		goto err;
+
+	a5xx_gpu->gpmu_iova = sg_dma_address(msm_obj->sgt->sgl);
 
 	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
 	if (!ptr)
