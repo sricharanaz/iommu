@@ -310,11 +310,21 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 		goto err;
 #endif
 
+	printk(KERN_ALERT"%s\n", __func__);
 	msm_obj = to_msm_bo(a5xx_gpu->gpmu_bo);
+
+	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
+	if (!ptr)
+		goto err;
+
+	printk(KERN_ALERT"%s msm_obj %x msm_obj->sgt %x \n", __func__, msm_obj, msm_obj->sgt);
 	if (dma_map_sg(&pdev->dev, msm_obj->sgt->sgl, msm_obj->sgt->nents, 0) <= 0)
 		goto err;
 
+	printk(KERN_ALERT"%s\n", __func__);
 	a5xx_gpu->gpmu_iova = sg_dma_address(msm_obj->sgt->sgl);
+
+	printk(KERN_ALERT"%s\n", __func__);
 
 	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
 	if (!ptr)
@@ -341,6 +351,7 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	goto out;
 
 err:
+	printk(KERN_ALERT"%s 3\n", __func__);
 	if (a5xx_gpu->gpmu_iova)
 		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
 	if (a5xx_gpu->gpmu_bo)

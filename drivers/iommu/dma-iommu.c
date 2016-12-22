@@ -74,6 +74,8 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
 	spin_lock_init(&cookie->msi_lock);
 	INIT_LIST_HEAD(&cookie->msi_page_list);
 	domain->iova_cookie = cookie;
+
+	printk(KERN_ALERT"%s cookie %x", __func__, cookie);
 	return 0;
 }
 EXPORT_SYMBOL(iommu_get_dma_cookie);
@@ -513,6 +515,8 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
 		if (s_length + s_iova_off < s_iova_len)
 			cur_len = 0;
 	}
+
+	printk(KERN_ALERT"%s 1\n", __func__);
 	return count;
 }
 
@@ -554,6 +558,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned long mask = dma_get_seg_boundary(dev);
 	int i;
 
+	printk(KERN_ALERT"%s dev %x sg %x iovad %x domain %x type %d\n", __func__, dev, sg, iovad, domain, domain->type);
 	/*
 	 * Work out how much IOVA space we need, and align the segments to
 	 * IOVA granules for the IOMMU driver to handle. With some clever
@@ -561,14 +566,24 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	 * stashing the unaligned parts in the as-yet-unused DMA fields.
 	 */
 	for_each_sg(sg, s, nents, i) {
+
+		printk(KERN_ALERT"%s 1.0 %x\n", __func__, s);
 		size_t s_iova_off = iova_offset(iovad, s->offset);
 		size_t s_length = s->length;
 		size_t pad_len = (mask - iova_len + 1) & mask;
 
+		printk(KERN_ALERT"%s 1\n", __func__);
+
 		sg_dma_address(s) = s_iova_off;
+
+		printk(KERN_ALERT"%s 2\n", __func__);
 		sg_dma_len(s) = s_length;
+
+		printk(KERN_ALERT"%s 3\n", __func__);
 		s->offset -= s_iova_off;
 		s_length = iova_align(iovad, s_length + s_iova_off);
+
+		printk(KERN_ALERT"%s 4\n", __func__);
 		s->length = s_length;
 
 		/*
@@ -597,6 +612,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	if (!iova)
 		goto out_restore_sg;
 
+	printk(KERN_ALERT"%s 5\n", __func__);
 	/*
 	 * We'll leave any physical concatenation to the IOMMU driver's
 	 * implementation - it knows better than we do.
@@ -605,6 +621,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	if (iommu_map_sg(domain, dma_addr, sg, nents, prot) < iova_len)
 		goto out_free_iova;
 
+	printk(KERN_ALERT"%s 6\n", __func__);
 	return __finalise_sg(dev, sg, nents, dma_addr);
 
 out_free_iova:

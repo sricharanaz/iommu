@@ -225,6 +225,8 @@ static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 		kmemcheck_mark_initialized(sg_virt(s), s->length);
 	BUG_ON(!valid_dma_direction(dir));
 	ents = ops->map_sg(dev, sg, nents, dir, attrs);
+
+	//printk(KERN_ALERT"%s\n", __func__);
 	BUG_ON(ents < 0);
 	debug_dma_map_sg(dev, sg, nents, ents, dir);
 
