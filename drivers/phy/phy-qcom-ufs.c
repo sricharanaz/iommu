@@ -174,7 +174,7 @@ static int ufs_qcom_phy_clk_get(struct device *dev,
 int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 {
 	int err;
-	struct ufs_qcom_phy *phy = get_ufs_qcom_phy(generic_phy);
+	struct ufs_qcom_phy *phy = phy_common;
 
 	if (of_device_is_compatible(phy_common->dev->of_node,
 				"qcom,msm8996-ufs-phy-qmp-14nm"))
@@ -542,7 +542,6 @@ out:
 /* Turn OFF M-PHY RMMI interface clocks */
 void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
 {
-	struct ufs_qcom_phy *phy = get_ufs_qcom_phy(generic_phy);
 
 	if (!phy->tx_iface_clk)
 		return;

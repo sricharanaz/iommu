@@ -121,6 +121,7 @@ static int ufs_qcom_phy_qmp_14nm_probe(struct platform_device *pdev)
 	struct ufs_qcom_phy *phy_common;
 	int err = 0;
 
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
 		err = -ENOMEM;
@@ -128,9 +129,11 @@ static int ufs_qcom_phy_qmp_14nm_probe(struct platform_device *pdev)
 	}
 	phy_common = &phy->common_cfg;
 
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 	generic_phy = ufs_qcom_phy_generic_probe(pdev, phy_common,
 				&ufs_qcom_phy_qmp_14nm_phy_ops, &phy_14nm_ops);
 
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 	if (!generic_phy) {
 		dev_err(dev, "%s: ufs_qcom_phy_generic_probe() failed\n",
 			__func__);
@@ -138,6 +141,7 @@ static int ufs_qcom_phy_qmp_14nm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 	err = ufs_qcom_phy_init_clks(phy_common);
 	if (err) {
 		dev_err(phy_common->dev,
@@ -146,6 +150,7 @@ static int ufs_qcom_phy_qmp_14nm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 	err = ufs_qcom_phy_init_vregulators(phy_common);
 	if (err) {
 		dev_err(phy_common->dev,
@@ -161,6 +166,7 @@ static int ufs_qcom_phy_qmp_14nm_probe(struct platform_device *pdev)
 	phy_set_drvdata(generic_phy, phy);
 
 	strlcpy(phy_common->name, UFS_PHY_NAME, sizeof(phy_common->name));
+pr_emerg("DEBUG::: %s:%d\n", __func__, __LINE__);
 
 out:
 	return err;
