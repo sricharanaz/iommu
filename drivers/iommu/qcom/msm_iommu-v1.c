@@ -1645,7 +1645,7 @@ int msm_iommu_init(struct device *dev)
 	static bool done = false;
 	int ret;
 
-	of_iommu_set_ops(dev->of_node, &msm_iommu_ops);
+	iommu_register_instance(dev->fwnode, &msm_iommu_ops);
 
 	if (done)
 		return 0;
