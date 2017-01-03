@@ -564,16 +564,11 @@ static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
 
 	/* change DBI base address */
 	writel(0, pcie->parf + PCIE20_PARF_DBI_BASE_ADDR);
-<<<<<<< HEAD
 
 	/* MAC PHY_POWERDOWN MUX DISABLE  */
 	val = readl(pcie->parf + PCIE20_PARF_SYS_CTRL);
 	val &= ~BIT(29);
 	writel(val, pcie->parf + PCIE20_PARF_SYS_CTRL);
-=======
-	//FIXME should be proper
-	writel(0x365E, pcie->parf + PCIE20_PARF_SYS_CTRL);
->>>>>>> d32b487... HACK: pcie0: add wlan power up sequence
 
 	val = readl(pcie->parf + PCIE20_PARF_MHI_CLOCK_RESET_CTRL);
 	val |= BIT(4);
