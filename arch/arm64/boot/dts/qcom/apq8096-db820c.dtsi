@@ -13,10 +13,6 @@
 
 #include "msm8996.dtsi"
 #include "pm8994.dtsi"
-<<<<<<< HEAD
-=======
-#include "apq8096-db820c-pmic-pins.dtsi"
->>>>>>> d32b487... HACK: pcie0: add wlan power up sequence
 #include "apq8096-db820c-pins.dtsi"
 #include "apq8096-db820c-pmic-pins.dtsi"
 #include <dt-bindings/gpio/gpio.h>
