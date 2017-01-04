@@ -88,6 +88,7 @@
 #define sCR0_GFIE			(1 << 2)
 #define sCR0_GCFGFRE			(1 << 4)
 #define sCR0_GCFGFIE			(1 << 5)
+#define sCR0_STALLD			(1 << 8)
 #define sCR0_USFCFG			(1 << 10)
 #define sCR0_VMIDPNE			(1 << 11)
 #define sCR0_PTM			(1 << 12)
@@ -298,6 +299,7 @@ enum arm_smmu_implementation {
 	GENERIC_SMMU,
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
+	QCOM_SMMUV2,
 };
 
 struct arm_smmu_s2cr {
@@ -350,6 +352,7 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
+#define ARM_SMMU_OPT_ENABLE_STALL      (1 << 1)
 	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
@@ -425,6 +428,7 @@ static bool using_legacy_binding, using_generic_binding;
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
+	{ ARM_SMMU_OPT_ENABLE_STALL,      "arm,smmu-enable-stall" },
 	{ 0, NULL},
 };
 
@@ -676,7 +680,8 @@ static struct iommu_gather_ops arm_smmu_gather_ops = {
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 {
-	u32 fsr, fsynr;
+	int flags, ret;
+	u32 fsr, fsynr, resume;
 	unsigned long iova;
 	struct iommu_domain *domain = dev;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -690,15 +695,50 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	if (!(fsr & FSR_FAULT))
 		return IRQ_NONE;
 
+	if (fsr & FSR_IGN)
+		dev_err_ratelimited(smmu->dev,
+				    "Unexpected context fault (fsr 0x%x)\n",
+				    fsr);
+
 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
+	flags = fsynr & FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
+
 	iova = readq_relaxed(cb_base + ARM_SMMU_CB_FAR);
 
-	dev_err_ratelimited(smmu->dev,
-	"Unhandled context fault: fsr=0x%x, iova=0x%08lx, fsynr=0x%x, cb=%d\n",
-			    fsr, iova, fsynr, cfg->cbndx);
+	switch (report_iommu_fault(domain, smmu->dev, iova, flags)) {
+	case 0:
+		ret = IRQ_HANDLED;
+		resume = RESUME_RETRY;
+		break;
+	case -EFAULT:
+		ret = IRQ_HANDLED;
+		resume = RESUME_TERMINATE;
+		break;
+	default:
+		dev_err_ratelimited(smmu->dev,
+		    "Unhandled context fault: iova=0x%08lx, fsynr=0x%x, cb=%d\n",
+		    iova, fsynr, cfg->cbndx);
+		ret = IRQ_NONE;
+		resume = RESUME_TERMINATE;
+		break;
+	}
 
+	/* Clear the faulting FSR */
 	writel(fsr, cb_base + ARM_SMMU_CB_FSR);
-	return IRQ_HANDLED;
+
+	printk(KERN_ALERT"%s %x \n", __func__, fsr);
+
+	/* Retry or terminate any stalled transactions */
+	if (fsr & FSR_SS) {
+		/* Should we care about ending up w/ a stalled transaction
+		 * when we didn't ask for it?  I guess for now best to call
+		 * attention to it and resume anyways.
+		 */
+		WARN_ON(!(smmu->options & ARM_SMMU_OPT_ENABLE_STALL));
+		writel_relaxed(resume, cb_base + ARM_SMMU_CB_RESUME);
+	}
+
+	return ret;
 }
 
 static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
@@ -824,6 +864,11 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 
 	/* SCTLR */
 	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE | SCTLR_M;
+	if (smmu->options & ARM_SMMU_OPT_ENABLE_STALL)
+		reg |= SCTLR_CFCFG;
+
+	reg |= SCTLR_CFCFG;
+
 	if (stage1)
 		reg |= SCTLR_S1_ASIDPNE;
 #ifdef __BIG_ENDIAN
@@ -1290,6 +1335,8 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return -ENODEV;
 
+	return 0;
+
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
 	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);
@@ -1645,8 +1692,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 
+	printk(KERN_ALERT"%s %x\n", __func__, reg);
 	/* Enable fault reporting */
-	reg |= (sCR0_GFRE | sCR0_GFIE | sCR0_GCFGFRE | sCR0_GCFGFIE);
+	reg |= (sCR0_GFRE | sCR0_GFIE | sCR0_GCFGFRE | sCR0_GCFGFIE | sCR0_STALLD);
 
 	/* Disable TLB broadcasting. */
 	reg |= (sCR0_VMIDPNE | sCR0_PTM);
@@ -1961,6 +2009,7 @@ ARM_SMMU_MATCH_DATA(smmu_generic_v2, ARM_SMMU_V2, GENERIC_SMMU);
 ARM_SMMU_MATCH_DATA(arm_mmu401, ARM_SMMU_V1_64K, GENERIC_SMMU);
 ARM_SMMU_MATCH_DATA(arm_mmu500, ARM_SMMU_V2, ARM_MMU500);
 ARM_SMMU_MATCH_DATA(cavium_smmuv2, ARM_SMMU_V2, CAVIUM_SMMUV2);
+ARM_SMMU_MATCH_DATA(qcom_smmuv2, ARM_SMMU_V2, QCOM_SMMUV2);
 
 static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v1", .data = &smmu_generic_v1 },
@@ -1969,6 +2018,7 @@ static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,mmu-401", .data = &arm_mmu401 },
 	{ .compatible = "arm,mmu-500", .data = &arm_mmu500 },
 	{ .compatible = "cavium,smmu-v2", .data = &cavium_smmuv2 },
+	{ .compatible = "qcom,smmu-v2", .data = &qcom_smmuv2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
