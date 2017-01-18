@@ -694,6 +694,30 @@
 					"lane0", "lane1", "lane2";
 		};
 
+                anoc0_smmu: arm,smmu-anoc0@1640000 {
+                        compatible = "arm,smmu-v2";
+                        reg = <0x1640000 0x10000>;
+                        power-domains = <&gcc AGGRE0_NOC_GDSC>;
+                        status = "okay";
+
+                        #global-interrupts = <1>;
+                        interrupts = <0 362 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 355 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 356 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 357 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 358 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 359 IRQ_TYPE_LEVEL_HIGH>,
+                                     <0 360 IRQ_TYPE_LEVEL_HIGH>,
+                                    <GIC_SPI 468 IRQ_TYPE_LEVEL_HIGH>;
+                        #iommu-cells = <0>;
+                        #clock-cells = <1>;
+
+                        clocks = <&gcc GCC_SMMU_AGGRE0_AXI_CLK>,
+                                 <&gcc GCC_SMMU_AGGRE0_AHB_CLK>;
+                        clock-names = "smmu_aggre0_axi_clk",
+                                      "smmu_aggre0_ahb_clk";
+                };
+
 		agnoc@0 {
 			power-domains = <&gcc AGGRE0_NOC_GDSC>;
 			compatible = "simple-pm-bus";
@@ -742,6 +766,9 @@
 
 
 				vdda-supply = <&pm8994_l28>;
+                        	iommu-map = <0 &anoc0_smmu 33 0x1>,
+                                	<0x100 &anoc0_smmu 32 14>;
+                        	iommu-map-mask = <0xfff8>;
 
 				linux,pci-domain = <0>;
 
