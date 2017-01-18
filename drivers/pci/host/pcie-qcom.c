@@ -718,6 +718,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	struct pcie_port *pp;
 	int ret;
 
+	dev_err(dev, "%s 1 \n", __func__);
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -730,6 +731,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
 	if (IS_ERR(pcie->reset))
 		return PTR_ERR(pcie->reset);
+
+        dev_err(dev, "%s 2 \n", __func__);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "parf");
 	pcie->parf = devm_ioremap_resource(dev, res);
@@ -755,6 +758,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+        dev_err(dev, "%s 3 \n", __func__);
+
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
@@ -777,12 +782,16 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+        dev_err(dev, "%s 4 \n", __func__);
+
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "cannot initialize host\n");
 		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
+
+        dev_err(dev, "%s 5 \n", __func__);
 
 	return 0;
 }

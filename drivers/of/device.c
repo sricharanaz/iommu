@@ -90,6 +90,8 @@ int of_dma_configure(struct device *dev, struct device_node *np)
 	unsigned long offset;
 	const struct iommu_ops *iommu;
 
+	dev_err(dev, "%s \n", __func__);
+
 	/*
 	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
 	 * setup the correct supported mask.
