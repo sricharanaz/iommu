@@ -109,9 +109,13 @@ static const struct iommu_ops
 	    (!ops && !of_match_node(&__iommu_of_table, iommu_spec->np)))
 		return NULL;
 
+        dev_err(dev, "%s 1 \n", __func__);
+
 	err = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
 	if (err)
 		return ERR_PTR(err);
+
+	dev_err(dev, "%s 2 \n", __func__);
 	/*
 	 * The otherwise-empty fwspec handily serves to indicate the specific
 	 * IOMMU device we're waiting for, which will be useful if we ever get
@@ -120,9 +124,13 @@ static const struct iommu_ops
 	if (!ops)
 		return ERR_PTR(-EPROBE_DEFER);
 
+        dev_err(dev, "%s 3 \n", __func__);
+
 	err = ops->of_xlate(dev, iommu_spec);
 	if (err)
 		return ERR_PTR(err);
+
+        dev_err(dev, "%s 4 \n", __func__);
 
 	return ops;
 }
@@ -161,6 +169,7 @@ static const struct iommu_ops
 	if (err)
 		return ERR_PTR(err);
 
+	dev_err(&pdev->dev, "%s \n", __func__);
 	ops = of_iommu_xlate(&pdev->dev, &iommu_spec);
 
 	of_node_put(iommu_spec.np);
@@ -197,8 +206,12 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	const struct iommu_ops *ops;
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 
+        dev_err(dev, "%s 1 \n", __func__);
+
 	if (!master_np)
 		return NULL;
+
+	dev_err(dev, "%s 2 \n", __func__);
 
 	if (fwspec) {
 		if (fwspec->ops)
@@ -216,13 +229,21 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
 	 */
+
+        dev_err(dev, "%s 4 ops %d \n", __func__, ops);
+
 	if (!IS_ERR_OR_NULL(ops) && ops->add_device &&
 	    dev->bus && !dev->iommu_group) {
 		int err = ops->add_device(dev);
 
+		dev_err(dev, "%s 3 \n", __func__);
 		if (err)
 			ops = ERR_PTR(err);
+		else
+			dev_err(dev, "add_device success \n");
 	}
+
+        dev_err(dev, "%s 5 ops %d \n", __func__, ops);
 
 	return ops;
 }
