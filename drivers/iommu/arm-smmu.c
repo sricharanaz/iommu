@@ -449,7 +449,9 @@ static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
 			while (i--)
 				clk_disable_unprepare(smmu->clocks[i]);
 			break;
-		}
+		} else
+			dev_err(smmu->dev, "clock enable succeeded for #%d\n", i);
+
 	}
 
 	return ret;
@@ -2242,7 +2244,15 @@ static struct platform_driver arm_smmu_driver = {
 	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,
 };
+#if 1
 module_platform_driver(arm_smmu_driver);
+#else
+static int __init smmu_init(void)
+{
+	platform_driver_register(&arm_smmu_driver);
+}
+late_initcall_sync(smmu_init);
+#endif
 
 IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1", NULL);
 IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2", NULL);
