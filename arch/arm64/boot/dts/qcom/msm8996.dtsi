@@ -17,6 +17,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8996";
+        qcom,msm-id = <291 0x30001>;
 
 	interrupt-parent = <&intc>;
 
