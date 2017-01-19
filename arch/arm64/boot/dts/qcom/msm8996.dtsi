@@ -572,7 +572,6 @@
 					  <&mmcc MMPLL3_PLL>,
 					  <&mmcc MMPLL4_PLL>,
 					  <&mmcc MMPLL5_PLL>;
-			iommus = <&anoc0_smmu 0>;
 			assigned-clock-rates = <624000000>,
 					       <810000000>,
 					       <980000000>,
@@ -768,10 +767,6 @@
 				pinctrl-1 = <&pcie2_clkreq_sleep &pcie2_perst_default &pcie2_wake_sleep >;
 
 				vdda-supply = <&pm8994_l28>;
-
-                        iommu-map = <0 &anoc0_smmu 33 0x1>,
-                                <0x100 &anoc0_smmu 32 14>;
-                        iommu-map-mask = <0xfff8>;
 
 				linux,pci-domain = <2>;
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>,
