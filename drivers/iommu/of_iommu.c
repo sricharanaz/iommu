@@ -23,7 +23,6 @@
 #include <linux/of.h>
 #include <linux/of_iommu.h>
 #include <linux/of_pci.h>
-#include <linux/pci.h>
 #include <linux/slab.h>
 
 static const struct of_device_id __iommu_of_table_sentinel
@@ -129,29 +128,12 @@ static const struct iommu_ops
 		return NULL;
 
 	ops = of_iommu_get_ops(iommu_spec.np);
-
-	if (!ops) {
-		const struct of_device_id *oid;
-
-		oid = of_match_node(&__iommu_of_table, iommu_spec.np);
-		ops = oid ? ERR_PTR(-EPROBE_DEFER) : NULL;
-		return ops;
-	}
-
 	if (!ops || !ops->of_xlate ||
 	    iommu_fwspec_init(&pdev->dev, &iommu_spec.np->fwnode, ops) ||
 	    ops->of_xlate(&pdev->dev, &iommu_spec))
 		ops = NULL;
 
-	if (ops && ops->add_device) {
-		ops = (ops->add_device(&pdev->dev) == 0) ? ops : NULL;
-
-		if (!ops)
-			dev_err(&pdev->dev, "Failed to setup iommu ops\n");
-	}
-
 	of_node_put(iommu_spec.np);
-
 	return ops;
 }
 
@@ -162,15 +144,9 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	struct device_node *np;
 	const struct iommu_ops *ops = NULL;
 	int idx = 0;
-	struct device *bridge;
 
-	if (dev_is_pci(dev)) {
-		bridge = pci_get_host_bridge_device(to_pci_dev(dev));
-
-		if (bridge && bridge->parent && bridge->parent->of_node)
-			return of_pci_iommu_configure(to_pci_dev(dev),
-						      bridge->parent->of_node);
-	}
+	if (dev_is_pci(dev))
+		return of_pci_iommu_configure(to_pci_dev(dev), master_np);
 
 	/*
 	 * We don't currently walk up the tree looking for a parent IOMMU.
@@ -183,14 +159,6 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		np = iommu_spec.np;
 		ops = of_iommu_get_ops(np);
 
-		if (!ops) {
-			const struct of_device_id *oid;
-
-			oid = of_match_node(&__iommu_of_table, np);
-			ops = oid ? ERR_PTR(-EPROBE_DEFER) : NULL;
-			goto err_put_node;
-		}
-
 		if (!ops || !ops->of_xlate ||
 		    iommu_fwspec_init(dev, &np->fwnode, ops) ||
 		    ops->of_xlate(dev, &iommu_spec))
@@ -200,18 +168,11 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		idx++;
 	}
 
-	if (ops && ops->add_device) {
-		ops = (ops->add_device(dev) == 0) ? ops : NULL;
-
-		if (!ops)
-			dev_err(dev, "Failed to setup iommu_ops\n");
-	}
-
 	return ops;
 
 err_put_node:
 	of_node_put(np);
-	return ops;
+	return NULL;
 }
 
 static int __init of_iommu_init(void)
@@ -222,7 +183,7 @@ static int __init of_iommu_init(void)
 	for_each_matching_node_and_match(np, matches, &match) {
 		const of_iommu_init_fn init_fn = match->data;
 
-		if (init_fn && init_fn(np))
+		if (init_fn(np))
 			pr_err("Failed to initialise IOMMU %s\n",
 				of_node_full_name(np));
 	}
