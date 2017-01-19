@@ -585,6 +585,8 @@ static int qcom_iommu_of_xlate(struct device *dev,
 	unsigned long flags;
 	int ret = 0;
 
+	dump_stack();
+
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node)
 		if (iommu->dev->of_node == spec->np)

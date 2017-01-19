@@ -222,6 +222,10 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 		if (err)
 			ops = ERR_PTR(err);
+		else
+			dev_err(dev, "%s add_device success", __func__);
+	} else {
+                        dev_err(dev, "%s add_device success %x", __func__, ops);
 	}
 
 	return ops;
