@@ -2222,7 +2222,7 @@ static int arm_smmu_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
-
+	return 0;
 	arm_smmu_disable_clocks(smmu);
 
 	return 0;
