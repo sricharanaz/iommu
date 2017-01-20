@@ -357,6 +357,8 @@ int dma_configure(struct device *dev)
 
 	if (dev_is_pci(dev)) {
 		bridge = dma_dev = pci_get_host_bridge_device(to_pci_dev(dev));
+
+		dev_err(dev, "\ndev_is_pci %x\n", dma_dev->of_node);
 		if (IS_ENABLED(CONFIG_OF) && dma_dev->parent &&
 		    dma_dev->parent->of_node)
 			dma_dev = dma_dev->parent;
