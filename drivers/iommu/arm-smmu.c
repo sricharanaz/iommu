@@ -2254,6 +2254,8 @@ static int arm_smmu_resume(struct device *dev)
 
 static int arm_smmu_suspend(struct device *dev)
 {
+	return 0;
+
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 	arm_smmu_disable_clocks(smmu);
@@ -2277,7 +2279,7 @@ static struct platform_driver arm_smmu_driver = {
 	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,
 };
-#if 1
+#if 0
 module_platform_driver(arm_smmu_driver);
 #else
 static int __init smmu_init(void)
