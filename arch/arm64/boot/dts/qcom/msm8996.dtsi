@@ -768,6 +768,10 @@
 
 				vdda-supply = <&pm8994_l28>;
 
+                               iommu-map = <0 &anoc0_smmu 33 0x1>,
+                                       <0x100 &anoc0_smmu 32 14>;
+                               iommu-map-mask = <0xfff8>;
+
 				linux,pci-domain = <2>;
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>,
 					<&gcc GCC_PCIE_2_AUX_CLK>,
