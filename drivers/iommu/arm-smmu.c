@@ -1235,11 +1235,13 @@ static int arm_smmu_master_alloc_smes(struct device *dev)
 	}
 	iommu_group_put(group);
 
+	pm_runtime_get_sync(smmu->dev);
 	/* It worked! Now, poke the actual hardware */
 	for_each_cfg_sme(fwspec, i, idx) {
 		arm_smmu_write_sme(smmu, idx);
 		smmu->s2crs[idx].group = group;
 	}
+	pm_runtime_put_sync(smmu->dev);
 
 	mutex_unlock(&smmu->stream_map_mutex);
 	return 0;
@@ -1303,6 +1305,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
+	pm_runtime_get_sync(smmu->dev);
 	smmu = fwspec_smmu(fwspec);
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
@@ -1321,7 +1324,10 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	}
 
 	/* Looks ok, so add the device to the domain */
-	return arm_smmu_domain_add_master(smmu_domain, fwspec);
+	ret = arm_smmu_domain_add_master(smmu_domain, fwspec);
+	pm_runtime_put_sync(smmu->dev);
+
+	return ret;
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1501,11 +1507,9 @@ static int arm_smmu_add_device(struct device *dev)
 	while (i--)
 		cfg->smendx[i] = INVALID_SMENDX;
 
-	pm_runtime_get_sync(smmu->dev);
 	ret = arm_smmu_master_alloc_smes(dev);
 	if (ret)
 		goto out_free;
-	pm_runtime_put_sync(smmu->dev);
 
 	/*
 	 * Establish the link between smmu and master, so that the
