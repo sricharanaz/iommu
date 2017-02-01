@@ -38,8 +38,6 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	int i, ret;
 
-	return 0;
-
 	if (!iommu->has_ctx)
 		return iommu_attach_device(iommu->domain, mmu->dev);
 
@@ -66,8 +64,6 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	int i;
-
-	return 0;
 
 	if (!iommu->has_ctx)
 		iommu_detach_device(iommu->domain, mmu->dev);
