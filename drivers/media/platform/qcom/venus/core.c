@@ -144,6 +144,8 @@ static int venus_probe(struct platform_device *pdev)
 	if (!core)
 		return -ENOMEM;
 
+	dev_err(&pdev->dev, "%s ", __func__);
+
 	core->dev = dev;
 	platform_set_drvdata(pdev, core);
 

@@ -38,6 +38,13 @@
 		#size-cells = <2>;
 		ranges;
 
+                peripheral_reserved: peripheral_region@8ea00000 {
+                        compatible = "shared-dma-pool";
+                        reg = <0 0x8ea00000 0 0x2b00000>;
+			alignment = <0x1000>;
+                        no-map;
+                };
+
 		mba_region: mba@91500000 {
 			reg = <0x0 0x91500000 0x0 0x200000>;
 			no-map;
@@ -65,13 +72,6 @@
 
 		memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x2600000>;
-			no-map;
-		};
-
-		peripheral_reserved: peripheral_region@8ea00000 {
-			compatible = "shared-dma-pool";
-			reg = <0x0 0x8ea00000 0x0 0x2b00000>;
-			alignment = <0x1000>;
 			no-map;
 		};
 	};

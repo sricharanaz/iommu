@@ -1308,8 +1308,9 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
-	pm_runtime_get_sync(smmu->dev);
 	smmu = fwspec_smmu(fwspec);
+        pm_runtime_get_sync(smmu->dev);
+
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
 	if (ret < 0)
@@ -1343,8 +1344,6 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 
 	if (!ops)
 		return -ENODEV;
-
-	return 0;
 
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);

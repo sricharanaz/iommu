@@ -442,7 +442,7 @@ pinctrl_bind_failed:
 	switch (ret) {
 	case -EPROBE_DEFER:
 		/* Driver requested deferred probing */
-		dev_dbg(dev, "Driver %s requests probe deferral\n", drv->name);
+		dev_err(dev, "Driver %s requests probe deferral\n", drv->name);
 		driver_deferred_probe_add(dev);
 		/* Did a trigger occur while probing? Need to re-trigger if yes */
 		if (local_trigger_count != atomic_read(&deferred_trigger_count))
@@ -450,12 +450,12 @@ pinctrl_bind_failed:
 		break;
 	case -ENODEV:
 	case -ENXIO:
-		pr_debug("%s: probe of %s rejects match %d\n",
+		dev_err(dev, "%s: probe of %s rejects match %d\n",
 			 drv->name, dev_name(dev), ret);
 		break;
 	default:
 		/* driver matched but the probe failed */
-		printk(KERN_WARNING
+		dev_err(dev,
 		       "%s: probe of %s failed with error %d\n",
 		       drv->name, dev_name(dev), ret);
 	}
