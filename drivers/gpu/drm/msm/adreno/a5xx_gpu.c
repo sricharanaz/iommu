@@ -398,9 +398,6 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 {
 	struct drm_device *drm = gpu->dev;
 	struct drm_gem_object *bo;
-        struct msm_drm_private *priv = gpu->dev->dev_private;
-        struct platform_device *pdev = priv->gpu_pdev;
-	struct msm_gem_object *msm_obj;
 	void *ptr;
 
 	mutex_lock(&drm->struct_mutex);
@@ -416,14 +413,10 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	msm_obj = to_msm_bo(bo);
 	if (iova) {
-		int ret = dma_map_sg(&pdev->dev, msm_obj->sgt->sgl, msm_obj->sgt->nents, 0);
-#if 0		
 		int ret = msm_gem_get_iova(bo, gpu->id, iova);
-#endif
-		*iova = sg_dma_address(msm_obj->sgt->sgl);
-		if (ret <= 0) {
+
+		if (ret) {
 			drm_gem_object_unreference_unlocked(bo);
 			return ERR_PTR(ret);
 		}
