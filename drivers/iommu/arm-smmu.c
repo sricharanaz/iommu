@@ -1055,8 +1055,6 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	if (!smmu)
 		return;
 
-	pm_runtime_get_sync(smmu->dev);
-
 	/*
 	 * Disable the context bank and free the page tables before freeing
 	 * it.
@@ -1071,7 +1069,6 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 
 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
-	pm_runtime_put_sync(smmu->dev);
 }
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
@@ -1238,13 +1235,11 @@ static int arm_smmu_master_alloc_smes(struct device *dev)
 	}
 	iommu_group_put(group);
 
-	pm_runtime_get_sync(smmu->dev);
 	/* It worked! Now, poke the actual hardware */
 	for_each_cfg_sme(fwspec, i, idx) {
 		arm_smmu_write_sme(smmu, idx);
 		smmu->s2crs[idx].group = group;
 	}
-	pm_runtime_put_sync(smmu->dev);
 
 	mutex_unlock(&smmu->stream_map_mutex);
 	return 0;
@@ -1265,13 +1260,11 @@ static void arm_smmu_master_free_smes(struct iommu_fwspec *fwspec)
 	int i, idx;
 
 	mutex_lock(&smmu->stream_map_mutex);
-	pm_runtime_get_sync(smmu->dev);
 	for_each_cfg_sme(fwspec, i, idx) {
 		if (arm_smmu_free_sme(smmu, idx))
 			arm_smmu_write_sme(smmu, idx);
 		cfg->smendx[i] = INVALID_SMENDX;
 	}
-	pm_runtime_put_sync(smmu->dev);
 	mutex_unlock(&smmu->stream_map_mutex);
 }
 
@@ -1309,7 +1302,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	}
 
 	smmu = fwspec_smmu(fwspec);
-        pm_runtime_get_sync(smmu->dev);
 
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
@@ -1329,7 +1321,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	/* Looks ok, so add the device to the domain */
 	ret = arm_smmu_domain_add_master(smmu_domain, fwspec);
-	pm_runtime_put_sync(smmu->dev);
 
 	return ret;
 }
@@ -1468,6 +1459,7 @@ static int arm_smmu_add_device(struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_master_cfg *cfg;
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct device_link *link = NULL;
 	int i, ret;
 
 	if (using_legacy_binding) {
@@ -1509,7 +1501,15 @@ static int arm_smmu_add_device(struct device *dev)
 	while (i--)
 		cfg->smendx[i] = INVALID_SMENDX;
 
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		goto out_free;
+
 	ret = arm_smmu_master_alloc_smes(dev);
+	if (ret)
+		goto out_free;
+
+	ret = pm_runtime_put_sync(smmu->dev);
 	if (ret)
 		goto out_free;
 
@@ -1518,9 +1518,11 @@ static int arm_smmu_add_device(struct device *dev)
 	 * smmu gets runtime enabled/disabled as per the master's
 	 * needs.
 	 */
-
-	device_link_add(dev, smmu->dev, DEVICE_LINK_AVAILABLE,
-			DEVICE_LINK_PM_RUNTIME);
+	link = device_link_add(dev, smmu->dev, DEVICE_LINK_AVAILABLE,
+			       DEVICE_LINK_PM_RUNTIME);
+	if (!link)
+		dev_warn(smmu->dev, "Unable to create device link between %s and %s\n",
+			 dev_name(smmu->dev), dev_name(dev));
 
 	return 0;
 
@@ -1534,14 +1536,23 @@ out_free:
 static void arm_smmu_remove_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+        struct arm_smmu_device *smmu = fwspec_smmu(fwspec);
+	int ret;
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
+
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		dev_warn(dev, "runtime resume failed");
 
 	arm_smmu_master_free_smes(fwspec);
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
+	ret = pm_runtime_put_sync(smmu->dev);
+	if (ret)
+		dev_warn(dev, "runtime suspend failed");
 }
 
 static struct iommu_group *arm_smmu_device_group(struct device *dev)
@@ -2109,7 +2120,10 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, smmu);
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	err = pm_runtime_get_sync(dev);
+	if (err)
+		return err;
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
@@ -2139,7 +2153,9 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
 	arm_smmu_device_reset(smmu);
-	pm_runtime_put_sync(dev);
+	err = pm_runtime_put_sync(dev);
+	if (err)
+		return err;
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))
