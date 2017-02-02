@@ -423,6 +423,7 @@ re_probe:
 	goto done;
 
 probe_failed:
+	pm_runtime_put_suppliers(dev);
 	dma_deconfigure(dev);
 dma_failed:
 	if (dev->bus)

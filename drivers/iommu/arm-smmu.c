@@ -1055,6 +1055,8 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	if (!smmu)
 		return;
 
+	pm_runtime_get_sync(smmu->dev);
+
 	/*
 	 * Disable the context bank and free the page tables before freeing
 	 * it.
@@ -1069,6 +1071,7 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 
 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
+	pm_runtime_put_sync(smmu->dev);
 }
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)

@@ -70,115 +70,6 @@ static DEFINE_MUTEX(qcom_scm_lock);
 #define FIRST_EXT_ARG_IDX 3
 #define N_REGISTER_ARGS (MAX_QCOM_SCM_ARGS - N_EXT_QCOM_SCM_ARGS + 1)
 
-#if 1
-
-#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
-
-#define R0_STR "x0"
-#define R1_STR "x1"
-#define R2_STR "x2"
-#define R3_STR "x3"
-#define R4_STR "x4"
-#define R5_STR "x5"
-#define R6_STR "x6"
-
-static int __qcom_scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
-				u64 *ret1, u64 *ret2, u64 *ret3)
-{
-	register u32 r0 asm("r0") = w0;
-	register u32 r1 asm("r1") = w1;
-	register u32 r2 asm("r2") = w2;
-	register u32 r3 asm("r3") = w3;
-	register u32 r4 asm("r4") = w4;
-	register u32 r5 asm("r5") = w5;
-	register u32 r6 asm("r6") = 0;
-
-	do {
-		asm volatile(
-			__asmeq("%0", R0_STR)
-			__asmeq("%1", R1_STR)
-			__asmeq("%2", R2_STR)
-			__asmeq("%3", R3_STR)
-			__asmeq("%4", R0_STR)
-			__asmeq("%5", R1_STR)
-			__asmeq("%6", R2_STR)
-			__asmeq("%7", R3_STR)
-			__asmeq("%8", R4_STR)
-			__asmeq("%9", R5_STR)
-			__asmeq("%10", R6_STR)
-#ifdef REQUIRES_SEC
-			".arch_extension sec\n"
-#endif
-			"smc	#0\n"
-			: "=r" (r0), "=r" (r1), "=r" (r2), "=r" (r3)
-			: "r" (r0), "r" (r1), "r" (r2), "r" (r3), "r" (r4),
-			  "r" (r5), "r" (r6)
-			: "x7", "x8", "x9", "x10", "x11", "x12", "x13",
-			"x14", "x15", "x16", "x17");
-
-	} while (r0 == QCOM_SCM_INTERRUPTED);
-
-	if (ret1)
-		*ret1 = r1;
-	if (ret2)
-		*ret2 = r2;
-	if (ret3)
-		*ret3 = r3;
-
-	return r0;
-}
-
-#define QCOM_SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | 0x02000000)
-
-static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
-			 const struct qcom_scm_desc *desc,
-			 struct arm_smccc_res *res)
-{
-	int ret, retry_count = 0;
-	u32 fn_id = QCOM_SCM_SIP_FNID(svc_id, cmd_id);
-	u64 x0;
-	u64 ret1, ret2, ret3;
-
-	x0 = fn_id;
-
-	do {
-		mutex_lock(&qcom_scm_lock);
-
-		ret = ret1 = ret2 = ret3 = 0;
-
-		ret = __qcom_scm_call_armv8_32(x0, desc->arginfo,
-						desc->args[0], desc->args[1],
-						desc->args[2], desc->args[3],
-						&ret1, &ret2, &ret3);
-		mutex_unlock(&qcom_scm_lock);
-
-		if (ret == QCOM_SCM_V2_EBUSY)
-			msleep(QCOM_SCM_EBUSY_WAIT_MS);
-
-	}  while (ret == QCOM_SCM_V2_EBUSY && (retry_count++ < QCOM_SCM_EBUSY_MAX_RETRY));
-
-	res->a0 = (unsigned long)ret;
-	res->a1 = ret1;
-	res->a2 = ret2;
-	res->a3 = ret3;
-
-	if (ret < 0)
-		pr_err("%s: error: funcid %llx, arginfo: %x, "
-			"args: %llx, %llx, %llx, %llx, "
-			"syscall returns: %lx, %llx, %llx, %llx"
-			" (%d)\n", __func__,
-			x0, desc->arginfo,
-			desc->args[0], desc->args[1], desc->args[2], desc->args[3],
-			res->a0, ret1, ret2, ret3, ret);
-
-	if (ret < 0)
-		return qcom_scm_remap_error(ret);
-
-	return 0;
-
-}
-
-#else
 /**
  * qcom_scm_call() - Invoke a syscall in the secure world
  * @dev:	device
@@ -200,6 +91,7 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	dma_addr_t args_phys = 0;
 	void *args_virt = NULL;
 	size_t alloc_len;
+	struct arm_smccc_quirk quirk = {.id = ARM_SMCCC_QUIRK_QCOM_A6};
 
 	if (unlikely(arglen > N_REGISTER_ARGS)) {
 		alloc_len = N_EXT_QCOM_SCM_ARGS * sizeof(u64);
@@ -240,10 +132,16 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 					 qcom_smccc_convention,
 					 ARM_SMCCC_OWNER_SIP, fn_id);
 
+		quirk.state.a6 = 0;
+
 		do {
 			arm_smccc_smc(cmd, desc->arginfo, desc->args[0],
-				      desc->args[1], desc->args[2], x5, 0, 0,
-				      res);
+				      desc->args[1], desc->args[2], x5,
+				      quirk.state.a6, 0, res, &quirk);
+
+			if (res->a0 == QCOM_SCM_INTERRUPTED)
+				cmd = res->a0;
+
 		} while (res->a0 == QCOM_SCM_INTERRUPTED);
 
 		mutex_unlock(&qcom_scm_lock);
@@ -268,7 +166,7 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 
 	return 0;
 }
-#endif
+
 /**
  * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
  * @entry: Entry point function for the cpus
@@ -365,7 +263,7 @@ void __qcom_scm_init(void)
 				 ARM_SMCCC_OWNER_SIP, function);
 
 	arm_smccc_smc(cmd, QCOM_SCM_ARGS(1), cmd & (~BIT(ARM_SMCCC_TYPE_SHIFT)),
-		      0, 0, 0, 0, 0, &res);
+		      0, 0, 0, 0, 0, &res, NULL);
 
 	if (!res.a0 && res.a1)
 		qcom_smccc_convention = ARM_SMCCC_SMC_64;
@@ -471,17 +369,17 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	return ret ? : res.a1;
 }
 
-int __qcom_scm_video_set_state(struct device *dev, u32 state, u32 spare)
+int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 {
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
 	int ret;
 
 	desc.args[0] = state;
-	desc.args[1] = spare;
+	desc.args[1] = id;
 	desc.arginfo = QCOM_SCM_ARGS(2);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_VIDEO_SET_STATE,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_REMOTE_STATE,
 			    &desc, &res);
 
 	return ret ? : res.a1;
