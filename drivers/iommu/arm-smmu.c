@@ -1021,10 +1021,14 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	void __iomem *cb_base;
-	int irq;
+	int irq, ret;
 
 	if (!smmu)
 		return;
+
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		dev_warn(smmu->dev, "runtime resume failed");
 
 	/*
 	 * Disable the context bank and free the page tables before freeing
@@ -1040,6 +1044,10 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 
 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
+
+	ret = pm_runtime_put_sync(smmu->dev);
+	if (ret)
+		dev_warn(smmu->dev, "runtime suspend failed");
 }
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
@@ -1508,7 +1516,15 @@ static int arm_smmu_add_device(struct device *dev)
 	while (i--)
 		cfg->smendx[i] = INVALID_SMENDX;
 
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		goto out_free;
+
 	ret = arm_smmu_master_alloc_smes(dev);
+	if (ret)
+		goto out_free;
+
+	ret = pm_runtime_put_sync(smmu->dev);
 	if (ret)
 		goto out_free;
 
@@ -1524,11 +1540,27 @@ out_free:
 static void arm_smmu_remove_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct arm_smmu_device *smmu = fwspec_smmu(fwspec);
+	int ret;
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
 
+	/*
+	 * The device link between the master device and
+	 * smmu is already purged at this point.
+	 * So enable the power to smmu explicitly.
+	 */
+
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		dev_warn(smmu->dev, "runtime resume failed");
+
 	arm_smmu_master_free_smes(fwspec);
+
+	ret = pm_runtime_put_sync(smmu->dev);
+	if (ret)
+		dev_warn(smmu->dev, "runtime suspend failed");
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
@@ -2190,7 +2222,12 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	platform_set_drvdata(pdev, smmu);
 	pm_runtime_enable(dev);
+	err = pm_runtime_get_sync(dev);
+	if (err)
+		return err;
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
@@ -2217,9 +2254,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
-	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 	arm_smmu_test_smr_masks(smmu);
+	err = pm_runtime_put_sync(dev);
+	if (err)
+		return err;
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))
@@ -2249,6 +2288,8 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+	pm_runtime_force_suspend(smmu->dev);
+
 	return 0;
 }
 
