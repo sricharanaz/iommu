@@ -731,6 +731,90 @@
 			};
 		};
 
+		apps_iommu: qcom,iommu@1e00000 {
+			compatible = "qcom,smmu-v2";
+			reg = <0x1e00000 0x40000
+				0x1ef0000 0x3000>;
+			reg-names = "iommu_base", "smmu_local_base";
+
+			#global-interrupts = <1>;
+			interrupts =
+				<GIC_SPI 43 0>,        // global
+				// this seems dubious that all ctxs have same irq,
+				// but this is how it is downstream (assuming I'm
+				// understanding the downstream bindings properly)
+				// note: seems like first two ctxs aren't in down-
+				// stream dtsi.. not sure if they exist?
+				<GIC_SPI 70 0>,        // unk0
+				<GIC_SPI 70 0>,        // unk1
+				<GIC_SPI 70 0>,        // jpeg_enc0
+				<GIC_SPI 70 0>,        // vfe
+				<GIC_SPI 70 0>,        // mdp_0
+				<GIC_SPI 70 0>,        // venus_ns
+				<GIC_SPI 70 0>,        // cp
+				<GIC_SPI 70 0>,        // mDSP
+				<GIC_SPI 70 0>,        // gss
+				<GIC_SPI 70 0>,        // a2
+				<GIC_SPI 70 0>,        // mdp_1
+				<GIC_SPI 70 0>,        // venus_sec_pixel
+				<GIC_SPI 70 0>,        // venus_sec_bitstream
+				<GIC_SPI 70 0>,        // venus_sec_non_pixel
+				<GIC_SPI 70 0>,        // venus_fw
+				<GIC_SPI 70 0>,        // periph_rpm
+				<GIC_SPI 70 0>,        // periph_CE
+				<GIC_SPI 70 0>,        // periph_BLSP
+				<GIC_SPI 70 0>,        // periph_SDC1
+				<GIC_SPI 70 0>,        // periph_SDC2
+				<GIC_SPI 70 0>,        // periph_audio
+				<GIC_SPI 70 0>;        // periph_USB_HS1
+
+			// not sure about contexts that use multiple stream-id's?
+			// this probably should be a bitmask (ie. OR of all the
+			// stream-id's??
+			// TODO add rest from qcom,iommu-ctx-sids in downstream
+			// indexed by context-bank:
+			qcom,stream-to-cb = <
+				0x0000       // unk0
+				0x0000       // unk1
+				0x0000       // jpeg_enc0
+				0x0000       // vfe
+				0x0c00       // mdp_0
+				0x0000       // venus_ns
+				0x0000       // cp
+				0x0000       // mDSP
+				0x0000       // gss
+				0x0000       // a2
+				0x0000       // mdp_1
+				0x0000       // venus_sec_pixel
+				0x0000       // venus_sec_bitstream
+				0x0000       // venus_sec_non_pixel
+				0x0000       // venus_fw
+				0x0000       // periph_rpm
+				0x0000       // periph_CE
+				0x0000       // periph_BLSP
+				0x0000       // periph_SDC1
+				0x0000       // periph_SDC2
+				0x0000       // periph_audio
+				0x0000       // periph_USB_HS1
+			>;
+
+			#iommu-cells = <1>;
+
+			clocks = <&gcc GCC_SMMU_CFG_CLK>,
+				 <&gcc GCC_APSS_TCU_CLK>;
+			clock-names = "smmu_iface_clk", "smmu_bus_clk";
+
+			qcom,cb-count = <22>;
+			qcom,cb-base-offset = <0x20000>;
+			qcom,iommu-secure-id = <17>;
+			qcom,mapping-groups-count = <0x2000>; // max stream-id, size of smmu->s2crs[] table
+
+			qcom,skip-init;
+			qcom,no-smr-check;
+
+			status = "okay";
+		};
+
 		mdss: mdss@1a00000 {
 			compatible = "qcom,mdss";
 			reg = <0x1a00000 0x1000>,
@@ -771,6 +855,12 @@
 					      "bus_clk",
 					      "core_clk",
 					      "vsync_clk";
+
+				iommus = <&apps_iommu 0xc00>;
+//qcom,iommu-ctx-sids = <0xc00>;
+//qcom,iommu-sid-mask .. not specified, defaults to ~0
+// see arm_smmu_write_smr()
+// see program_m2v_table() in downstream <-- only in non-secure mode.. so we skip..
 
 				ports {
 					#address-cells = <1>;
@@ -1031,4 +1121,3 @@
 };
 
 #include "msm8916-pins.dtsi"
-#include "msm8916-iommu.dtsi"
