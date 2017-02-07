@@ -807,7 +807,7 @@ static void arm_smmu_init_context_bank_ctx(struct arm_smmu_domain *smmu_domain,
 	stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 
-D("base=%p, cb_base=%p, stage1=%d\n", smmu->base, cb_base, stage1);
+	printk(KERN_ALERT, "base=%p, cb_base=%p, stage1=%d cfg->fmt %d \n", smmu->base, cb_base, stage1, cfg->fmt);
 
 	/* TTBRs */
 	if (stage1) {
@@ -816,6 +816,8 @@ D("base=%p, cb_base=%p, stage1=%d\n", smmu->base, cb_base, stage1);
 		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
 			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[0];
 			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0);
+
+			printk(KERN_ALERT"%s TTBR0 32bit %llx\n", __func__, reg);
 			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[1];
 			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR1);
 			writel_relaxed(asid, cb_base + ARM_SMMU_CB_CONTEXTIDR);
@@ -823,6 +825,8 @@ D("base=%p, cb_base=%p, stage1=%d\n", smmu->base, cb_base, stage1);
 			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
 			reg64 |= (u64)asid << TTBRn_ASID_SHIFT;
 			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
+
+			printk(KERN_ALERT"%s TTBR0 64bit %llx\n", __func__, reg64);
 			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
 			reg64 |= (u64)asid << TTBRn_ASID_SHIFT;
 			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR1);
@@ -1051,12 +1055,14 @@ D("found cbndx=%d\n", ret);
 	};
 
 	smmu_domain->smmu = smmu;
+
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
 D("pgtbl_ops=%p\n", pgtbl_ops);
 	if (!pgtbl_ops) {
 		ret = -ENOMEM;
 		goto out_clear_smmu;
 	}
+
 
 	/* Update the domain's page sizes to reflect the page table format */
 	domain->pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
@@ -1074,15 +1080,14 @@ D("pgtbl_ops=%p\n", pgtbl_ops);
 D("ret=%d\n", ret);
 			if (ret)
 				goto out_unlock;
-
-			arm_smmu_init_context_bank_ctx(smmu_domain, &pgtbl_cfg);
 		}
 	} else {
 		/* Initialise the context bank with our page table cfg */
 		arm_smmu_init_context_bank_global(smmu_domain, &pgtbl_cfg);
-		arm_smmu_init_context_bank_ctx(smmu_domain, &pgtbl_cfg);
 	}
 D("\n");
+
+	arm_smmu_init_context_bank_ctx(smmu_domain, &pgtbl_cfg);
 
 	/*
 	 * Request context fault interrupt. Do this last to avoid the
@@ -1423,6 +1428,7 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long flags;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
+        struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 
 	if (!ops)
 		return -ENODEV;
@@ -1898,9 +1904,7 @@ static int qcom_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	// *shrug*?
 	smmu->streamid_mask = ~0;
 	smmu->smr_mask_mask = ~0;
-	smmu->features = ARM_SMMU_FEAT_TRANS_S1 |
-		ARM_SMMU_FEAT_FMT_AARCH64_4K |
-		ARM_SMMU_FEAT_FMT_AARCH64_64K;
+	smmu->features = ARM_SMMU_FEAT_TRANS_S1 | ARM_SMMU_FEAT_FMT_AARCH32_L;
 
 	/* TODO we might need to be able to use this on some 32b devices? */
 	smmu->va_size  = 48;
