@@ -601,6 +601,8 @@ adv7511_detect(struct adv7511 *adv7511, struct drm_connector *connector)
 	bool hpd;
 	int ret;
 
+	return connector_status_connected;
+
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
 	if (ret < 0)
 		return connector_status_disconnected;
