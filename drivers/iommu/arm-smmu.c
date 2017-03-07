@@ -529,7 +529,9 @@ static int mmu500_init_clocks(struct arm_smmu_device *smmu)
 static int qcom_smmu_init_clocks(struct arm_smmu_device *smmu)
 {
 	struct device *dev = smmu->dev;
-	struct qcom_smmu_clk *sclks = smmu->smmu_clks.clks;
+	struct qcom_smmu_clk *sclks;
+
+	printk(KERN_ALERT"\n %s", __func__);
 
 	if (!of_find_property(dev->of_node, "clocks", NULL))
 		return 0;
@@ -544,30 +546,36 @@ static int qcom_smmu_init_clocks(struct arm_smmu_device *smmu)
 		return PTR_ERR(sclks->mmagic_ahb_clk);
 	}
 
+	printk(KERN_ALERT"\n %s 1", __func__);
 	sclks->mmagic_cfg_ahb_clk = devm_clk_get(dev, "mmagic_cfg_ahb_clk");
 	if (IS_ERR(sclks->mmagic_cfg_ahb_clk)) {
 		dev_err(dev, "Couldn't get mmagic_cfg_ahb_clk");
 		return PTR_ERR(sclks->mmagic_cfg_ahb_clk);
 	}
 
+	printk(KERN_ALERT"\n %s 2", __func__);
 	sclks->smmu_core_ahb_clk = devm_clk_get(dev, "smmu_core_ahb_clk");
 	if (IS_ERR(sclks->smmu_core_ahb_clk)) {
 		dev_err(dev, "Couldn't get smmu_core_ahb_clk");
 		return PTR_ERR(sclks->smmu_core_ahb_clk);
 	}
 
+	printk(KERN_ALERT"\n %s 3", __func__);
 	sclks->smmu_core_axi_clk = devm_clk_get(dev, "smmu_core_axi_clk");
 	if (IS_ERR(sclks->smmu_core_axi_clk)) {
 		dev_err(dev, "Couldn't get smmu_core_axi_clk");
 		return PTR_ERR(sclks->smmu_core_axi_clk);
 	}
 
+	printk(KERN_ALERT"\n %s 4", __func__);
 	sclks->mmagic_core_axi_clk = devm_clk_get(dev, "mmagic_core_axi_clk");
 	if (IS_ERR(sclks->mmagic_core_axi_clk)) {
 		dev_err(dev, "Couldn't get mmagic_core_axi_clk");
 		return PTR_ERR(sclks->mmagic_core_axi_clk);
 	}
 
+	smmu->smmu_clks.clks = sclks;
+	printk(KERN_ALERT"\n %s 5", __func__);
 	return 0;
 }
 
@@ -576,6 +584,7 @@ static int qcom_smmu_enable_clocks(struct arm_smmu_device *smmu)
 	int ret = 0;
 	struct qcom_smmu_clk *sclks = smmu->smmu_clks.clks;
 
+	printk(KERN_ALERT"\n %s", __func__);
 	if (!sclks)
 		return 0;
 
@@ -585,24 +594,29 @@ static int qcom_smmu_enable_clocks(struct arm_smmu_device *smmu)
 		goto ahb_clk_fail;
 	}
 
+	printk(KERN_ALERT"\n %s 1", __func__);
 	ret = clk_prepare_enable(sclks->mmagic_cfg_ahb_clk);
 	if (ret) {
 		dev_err(smmu->dev, "Couln't enable mmagic_cfg_ahb_clk");
 		goto cfg_ahb_clk_fail;
 	}
 
+	
+	printk(KERN_ALERT"\n %s 2", __func__);
 	ret = clk_prepare_enable(sclks->smmu_core_ahb_clk);
 	if (ret) {
 		dev_err(smmu->dev, "Couln't enable smmu_core_ahb_clk");
 		goto core_ahb_clk_fail;
 	}
 
+	printk(KERN_ALERT"\n %s 3", __func__);
 	ret = clk_prepare_enable(sclks->smmu_core_axi_clk);
 	if (ret) {
 		dev_err(smmu->dev, "Couln't enable smmu_core_axi_clk");
 		goto smmu_core_axi_clk_fail;
 	}
 
+	printk(KERN_ALERT"\n %s 4", __func__);
 	ret = clk_prepare_enable(sclks->mmagic_core_axi_clk);
 	if (ret) {
 		dev_err(smmu->dev, "Couln't enable mmagic_core_axi_clk");
@@ -1622,14 +1636,14 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 
 static int arm_smmu_match_node(struct device *dev, void *data)
 {
-	return dev->fwnode == data;
+	return dev->of_node == data;
 }
 
 static
-struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
+struct arm_smmu_device *arm_smmu_get_by_node(struct device_node *np)
 {
 	struct device *dev = driver_find_device(&arm_smmu_driver.driver, NULL,
-						fwnode, arm_smmu_match_node);
+						np, arm_smmu_match_node);
 	put_device(dev);
 	return dev ? dev_get_drvdata(dev) : NULL;
 }
@@ -1647,12 +1661,13 @@ static int arm_smmu_add_device(struct device *dev)
 		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
-	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
-		smmu = arm_smmu_get_by_fwnode(fwspec->iommu_fwnode);
+	} else if (fwspec) {
+               smmu = arm_smmu_get_by_node(to_of_node(fwspec->iommu_fwnode));
 	} else {
 		return -ENODEV;
 	}
 
+	printk(KERN_ALERT"%s 1", __func__);
 	ret = -EINVAL;
 	for (i = 0; i < fwspec->num_ids; i++) {
 		u16 sid = fwspec->ids[i];
@@ -1670,6 +1685,8 @@ static int arm_smmu_add_device(struct device *dev)
 		}
 	}
 
+
+	 printk(KERN_ALERT"%s 2\n", __func__);
 	ret = -ENOMEM;
 	cfg = kzalloc(offsetof(struct arm_smmu_master_cfg, smendx[i]),
 		      GFP_KERNEL);
@@ -1685,14 +1702,17 @@ static int arm_smmu_add_device(struct device *dev)
 	if (ret)
 		goto out_free;
 
+	 printk(KERN_ALERT"%s 3\n", __func__);
 	ret = arm_smmu_master_alloc_smes(dev);
 	if (ret)
 		goto out_free;
 
+	 printk(KERN_ALERT"%s 4\n", __func__);
 	ret = pm_runtime_put_sync(smmu->dev);
 	if (ret)
 		goto out_free;
 
+	 printk(KERN_ALERT"%s 5\n", __func__);
 	/*
 	 * Establish the link between smmu and master, so that the
 	 * smmu gets runtime enabled/disabled as per the master's
@@ -1704,9 +1724,11 @@ static int arm_smmu_add_device(struct device *dev)
 		dev_warn(smmu->dev, "Unable to create device link between %s and %s\n",
 			 dev_name(smmu->dev), dev_name(dev));
 
+	 printk(KERN_ALERT"%s 6\n", __func__);
 	return 0;
 
 out_free:
+	 printk(KERN_ALERT"%s 7 err = %d \n", __func__, ret);
 	if (fwspec)
 		kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);

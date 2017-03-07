@@ -13,7 +13,7 @@
 &soc {
 	venus_smmu: arm,smmu-venus@d40000 {
 		status = "disabled";
-		compatible = "arm,smmu-v2";
+		compatible = "qcom,smmu-v2";
 		reg = <0xd40000 0x20000>;
 		#iommu-cells = <1>;
 	};
