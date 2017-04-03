@@ -829,7 +829,7 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		if (iommu_dma_init_domain(domain, dma_base, size, dev))
 			goto out_err;
 
-		dev->dma_ops = &iommu_dma_ops;
+		dev->archdata.dma_ops = &iommu_dma_ops;
 	}
 
 	return;

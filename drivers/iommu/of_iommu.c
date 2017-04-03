@@ -116,7 +116,7 @@ static const struct iommu_ops
 	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
 	int err;
 
-	ops = iommu_ops_from_fwnode(fwnode);
+	ops = iommu_get_instance(fwnode);
 	if ((ops && !ops->of_xlate) ||
 	    (!ops && !of_iommu_driver_present(iommu_spec->np)))
 		return NULL;
