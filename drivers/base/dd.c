@@ -19,6 +19,7 @@
 
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
@@ -351,6 +352,9 @@ re_probe:
 	if (ret)
 		goto pinctrl_bind_failed;
 
+	ret = dma_configure(dev);
+	if (ret)
+		goto dma_failed;
 
 	ret = device_links_check_suppliers(dev);
 	if (ret)
@@ -420,6 +424,8 @@ re_probe:
 
 probe_failed:
 	pm_runtime_put_suppliers(dev);
+	dma_deconfigure(dev);
+dma_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
@@ -828,6 +834,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 
 		device_links_driver_cleanup(dev);
 		device_links_no_driver(dev);
+		dma_deconfigure(dev);
+
 		devres_release_all(dev);
 		dev->driver = NULL;
 		dev_set_drvdata(dev, NULL);
